@@ -1,0 +1,39 @@
+name: Deploy (Firebase backend)
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      # Recommended auth (no legacy tokens):
+      # 1) In Firebase Console, create a service account key (JSON).
+      # 2) Store the JSON in GitHub Secrets as: FIREBASE_SERVICE_ACCOUNT
+      - name: Auth to Google Cloud (service account)
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install Firebase CLI
+        run: npm i -g firebase-tools
+
+      - name: Build Functions
+        working-directory: backend/functions
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy Firestore rules/indexes + Storage rules + Functions
+        run: |
+          firebase --version
+          firebase deploy --only firestore:rules,firestore:indexes,storage,functions

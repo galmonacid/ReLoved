@@ -1,0 +1,127 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isNonEmptyString(value, minLen, maxLen) {
+      return value is string
+        && value.size() >= minLen
+        && value.size() <= maxLen;
+    }
+
+    function isValidUserCreate() {
+      return request.resource.data.keys().hasOnly([
+        "displayName",
+        "email",
+        "createdAt",
+        "ratingAvg",
+        "ratingCount"
+      ])
+      && isNonEmptyString(request.resource.data.displayName, 1, 80)
+      && request.resource.data.email == request.auth.token.email
+      && request.resource.data.createdAt is timestamp
+      && request.resource.data.ratingAvg is number
+      && request.resource.data.ratingAvg == 0
+      && request.resource.data.ratingCount is int
+      && request.resource.data.ratingCount == 0;
+    }
+
+    function isValidUserUpdate() {
+      return request.resource.data.keys().hasOnly([
+        "displayName",
+        "email",
+        "createdAt",
+        "ratingAvg",
+        "ratingCount"
+      ])
+      && isNonEmptyString(request.resource.data.displayName, 1, 80)
+      && request.resource.data.email == request.auth.token.email
+      && request.resource.data.createdAt == resource.data.createdAt
+      && request.resource.data.ratingAvg == resource.data.ratingAvg
+      && request.resource.data.ratingCount == resource.data.ratingCount;
+    }
+
+    function isValidLocation(location) {
+      return location is map
+        && location.keys().hasOnly(["lat", "lng", "geohash", "approxAreaText"])
+        && location.lat is number
+        && location.lng is number
+        && location.lat >= -90 && location.lat <= 90
+        && location.lng >= -180 && location.lng <= 180
+        && isNonEmptyString(location.geohash, 1, 12)
+        && isNonEmptyString(location.approxAreaText, 1, 120);
+    }
+
+    function isValidItemData() {
+      return request.resource.data.keys().hasOnly([
+        "ownerId",
+        "title",
+        "photoUrl",
+        "createdAt",
+        "status",
+        "location"
+      ])
+      && request.resource.data.ownerId is string
+      && isNonEmptyString(request.resource.data.title, 1, 80)
+      && isNonEmptyString(request.resource.data.photoUrl, 1, 2048)
+      && request.resource.data.createdAt is timestamp
+      && request.resource.data.status in ["available", "reserved", "given"]
+      && isValidLocation(request.resource.data.location);
+    }
+
+    function isValidRatingCreate() {
+      return request.resource.data.keys().hasOnly([
+        "fromUserId",
+        "toUserId",
+        "itemId",
+        "stars",
+        "createdAt"
+      ])
+      && request.resource.data.fromUserId == request.auth.uid
+      && request.resource.data.toUserId is string
+      && request.resource.data.fromUserId != request.resource.data.toUserId
+      && request.resource.data.itemId is string
+      && request.resource.data.stars is int
+      && request.resource.data.stars >= 1
+      && request.resource.data.stars <= 5
+      && request.resource.data.createdAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.auth.uid == userId
+        && isValidUserCreate();
+      allow update: if isSignedIn()
+        && request.auth.uid == userId
+        && isValidUserUpdate();
+      allow delete: if false;
+    }
+
+    match /items/{itemId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && isValidItemData();
+      allow update: if isSignedIn()
+        && request.auth.uid == resource.data.ownerId
+        && request.resource.data.ownerId == resource.data.ownerId
+        && request.resource.data.createdAt == resource.data.createdAt
+        && isValidItemData();
+      allow delete: if isSignedIn() && request.auth.uid == resource.data.ownerId;
+    }
+
+    match /ratings/{ratingId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidRatingCreate();
+      allow update, delete: if false;
+    }
+
+    match /contactRequests/{id} {
+      allow read, write: if false; // only via Cloud Functions
+    }
+  }
+}
