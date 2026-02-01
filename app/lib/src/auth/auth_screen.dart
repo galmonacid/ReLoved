@@ -78,6 +78,34 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  Future<void> _sendPasswordReset() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      _showError("Ingresa tu email para recuperar la contraseña.");
+      return;
+    }
+    setState(() {
+      _isLoading = true;
+    });
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Revisa tu correo para restablecerla.")),
+      );
+    } on FirebaseAuthException catch (error) {
+      _showError(error.message ?? "No se pudo enviar el email.");
+    } catch (_) {
+      _showError("No se pudo enviar el email.");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
@@ -135,6 +163,11 @@ class _AuthScreenState extends State<AuthScreen> {
                       : Text(_isLogin ? "Entrar" : "Crear cuenta"),
                 ),
               ),
+              if (_isLogin)
+                TextButton(
+                  onPressed: _isLoading ? null : _sendPasswordReset,
+                  child: const Text("Olvidaste tu contraseña?"),
+                ),
               TextButton(
                 onPressed: _isLoading
                     ? null
