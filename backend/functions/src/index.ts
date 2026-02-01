@@ -52,6 +52,9 @@ export const sendContactEmail = functions.https.onCall(async (data, context) => 
   if (!ownerId || typeof ownerId !== "string") {
     throw new functions.https.HttpsError("failed-precondition", "Item owner missing");
   }
+  if (ownerId === senderId) {
+    throw new functions.https.HttpsError("invalid-argument", "Cannot contact your own item");
+  }
 
   const recentSnap = await admin
     .firestore()
@@ -119,10 +122,17 @@ export const sendContactEmail = functions.https.onCall(async (data, context) => 
 
   await admin.firestore().collection("contactRequests").add({
     fromUserId: senderId,
+    fromEmail: senderEmail,
     toUserId: ownerId,
+    toEmail: ownerEmail,
     itemId,
+    itemTitle: title,
+    itemStatus: typeof itemData.status === "string" ? itemData.status : null,
+    itemApproxArea: approxArea,
+    subject,
     message: trimmedMessage,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    sentAt: sent ? admin.firestore.FieldValue.serverTimestamp() : null,
     sent,
     error: errorMessage
   });

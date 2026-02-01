@@ -15,7 +15,8 @@ class ProfileScreen extends StatelessWidget {
     }
     final total = snapshot.docs.fold<int>(
       0,
-      (sum, doc) => sum + (doc.data()["stars"] as int? ?? 0),
+      (accumulator, doc) =>
+          accumulator + (doc.data()["stars"] as int? ?? 0),
     );
     return {"avg": total / snapshot.docs.length, "count": snapshot.docs.length};
   }
@@ -59,7 +60,7 @@ class ProfileScreen extends StatelessWidget {
                     final avg = ratingSnapshot.data?["avg"] as double? ?? 0.0;
                     final count = ratingSnapshot.data?["count"] as int? ?? 0;
                     return Text(
-                      "Valoracion: ${avg.toStringAsFixed(1)} (${count} votos)",
+                      "Valoracion: ${avg.toStringAsFixed(1)} ($count votos)",
                     );
                   },
                 ),

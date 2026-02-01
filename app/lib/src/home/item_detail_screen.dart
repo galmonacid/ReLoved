@@ -193,7 +193,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                             ),
                           ),
                         );
-                        if (sent == true && mounted) {
+                        if (!context.mounted) return;
+                        if (sent == true) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text("Mensaje enviado.")),
                           );

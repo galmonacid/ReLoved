@@ -111,7 +111,8 @@ class _SearchScreenState extends State<SearchScreen> {
                 }
                 return ListView.separated(
                   itemCount: items.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (context, index) =>
+                      const Divider(height: 1),
                   itemBuilder: (context, index) {
                     final item = items[index];
                     return ListTile(
