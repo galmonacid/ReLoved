@@ -19,6 +19,10 @@ export const sendContactEmail = functions.https.onCall(async (data, context) => 
       throw new functions.https.HttpsError("unauthenticated", "Authentication required");
     }
 
+    functions.logger.info("sendContactEmail invoked", {
+      uid: context.auth.uid
+    });
+
     const isEmulator = Boolean(process.env.FIREBASE_EMULATOR_HUB);
     const sendgridKey = functions.config().sendgrid?.key
       ?? (isEmulator ? process.env.SENDGRID_KEY : undefined);

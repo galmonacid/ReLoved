@@ -41,7 +41,18 @@ class _ContactScreenState extends State<ContactScreen> {
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } on FirebaseFunctionsException catch (error) {
-      _showError(error.message ?? "No se pudo enviar.");
+      final detailsText =
+          error.details == null ? "" : " ${error.details.toString()}";
+      final message = [
+        error.code,
+        if (error.message != null && error.message!.isNotEmpty)
+          error.message!,
+        if (detailsText.trim().isNotEmpty) detailsText.trim(),
+      ].join(" • ");
+      debugPrint(
+        "sendContactEmail failed: code=${error.code} message=${error.message} details=${error.details}",
+      );
+      _showError(message.isNotEmpty ? message : "No se pudo enviar.");
     } catch (_) {
       _showError("No se pudo enviar.");
     } finally {
