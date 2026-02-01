@@ -46,7 +46,7 @@
    - [COMPLETE] Add local verification script `scripts/verify_local.sh`.
    - [COMPLETE] Add rules tests for Firestore + Storage with emulators.
    - [COMPLETE] Add function tests (mock SendGrid, validate inputs).
-   - [] Add integration tests for critical flows (auth, publish, contact).
+   - [COMPLETE] Add integration tests for critical flows (auth, publish, contact).
    - [COMPLETE] Configure CI for Flutter analyze/test.
    - [COMPLETE] Configure CI for Functions build.
    - [COMPLETE] Configure CI for rules tests.

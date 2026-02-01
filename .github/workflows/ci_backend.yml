@@ -30,3 +30,8 @@ jobs:
         run: |
           firebase emulators:exec --only firestore,storage \
             "npm --prefix backend/functions run test:rules"
+      - name: Run integration flow tests (emulators)
+        working-directory: .
+        run: |
+          firebase emulators:exec --only firestore,storage \
+            "npm --prefix backend/functions run test:integration"

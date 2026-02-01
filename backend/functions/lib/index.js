@@ -18,9 +18,15 @@ exports.sendContactEmail = functions.https.onCall(async (data, context) => {
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "Authentication required");
     }
-    const sendgridKey = functions.config().sendgrid?.key;
-    const sendgridFrom = functions.config().sendgrid?.from;
-    if (!sendgridKey || !sendgridFrom) {
+    const isEmulator = Boolean(process.env.FIREBASE_EMULATOR_HUB);
+    const sendgridKey = functions.config().sendgrid?.key
+        ?? (isEmulator ? process.env.SENDGRID_KEY : undefined);
+    let sendgridFrom = functions.config().sendgrid?.from
+        ?? (isEmulator ? process.env.SENDGRID_FROM : undefined);
+    if (!sendgridFrom && isEmulator) {
+        sendgridFrom = "noreply@localhost";
+    }
+    if (!isEmulator && (!sendgridKey || !sendgridFrom)) {
         throw new functions.https.HttpsError("failed-precondition", "SendGrid not configured");
     }
     const { itemId, message } = data || {};
@@ -83,7 +89,9 @@ exports.sendContactEmail = functions.https.onCall(async (data, context) => {
     if (!ownerEmail) {
         throw new functions.https.HttpsError("failed-precondition", "Owner email missing");
     }
-    sgMail.setApiKey(sendgridKey);
+    if (!isEmulator && sendgridKey) {
+        sgMail.setApiKey(sendgridKey);
+    }
     const title = typeof itemData.title === "string" ? itemData.title : "tu objeto";
     const approxArea = itemData.location && typeof itemData.location.approxAreaText === "string"
         ? itemData.location.approxAreaText
@@ -98,19 +106,24 @@ exports.sendContactEmail = functions.https.onCall(async (data, context) => {
     ].join("\n");
     let sent = false;
     let errorMessage = null;
-    try {
-        await sgMail.send({
-            to: ownerEmail,
-            from: sendgridFrom,
-            replyTo: senderEmail,
-            subject,
-            text
-        });
+    if (isEmulator) {
         sent = true;
     }
-    catch (error) {
-        const err = error;
-        errorMessage = err && err.message ? err.message : "Unknown error";
+    else {
+        try {
+            await sgMail.send({
+                to: ownerEmail,
+                from: sendgridFrom,
+                replyTo: senderEmail,
+                subject,
+                text
+            });
+            sent = true;
+        }
+        catch (error) {
+            const err = error;
+            errorMessage = err && err.message ? err.message : "Unknown error";
+        }
     }
     await admin.firestore().collection("contactRequests").add({
         fromUserId: senderId,

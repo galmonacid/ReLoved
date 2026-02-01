@@ -32,4 +32,8 @@ run_step npm --prefix "$ROOT_DIR/backend/functions" run test:functions
 run_step npx firebase-tools emulators:exec --only firestore,storage \
   "npm --prefix $ROOT_DIR/backend/functions run test:rules"
 
+# Integration flow tests (requires Firestore emulator)
+run_step npx firebase-tools emulators:exec --only firestore,storage \
+  "npm --prefix $ROOT_DIR/backend/functions run test:integration"
+
 # Note: add rules/function tests here once implemented.

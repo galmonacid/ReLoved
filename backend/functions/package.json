@@ -11,7 +11,8 @@
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
     "test:functions": "node --test tests/send_contact_email.test.cjs",
-    "test:rules": "node --test tests/rules.test.cjs"
+    "test:rules": "node --test tests/rules.test.cjs",
+    "test:integration": "node --test tests/integration_flows.test.cjs"
   },
   "engines": {
     "node": "20"
