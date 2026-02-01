@@ -34,12 +34,16 @@
 6. [COMPLETE] **App core features**
    - [COMPLETE] Auth screens + profile creation.
    - [COMPLETE] Item create: photo upload + map pin selection + geohash.
+   - [COMPLETE] Item description field for listings.
    - [COMPLETE] Search: radius filter (5 km / 20 km) + recent ordering.
+   - [COMPLETE] Keyword search across title + description.
    - [COMPLETE] Item detail: contact form + send request.
    - [COMPLETE] Ratings flow after exchange.
+   - [COMPLETE] "Mis items" list for owners with status updates.
    - [COMPLETE] Empty/loading/error states for each screen.
    - [COMPLETE] Basic accessibility pass (labels, tap targets, contrast).
    - [COMPLETE] Permission handling for photos and location (if needed).
+   - [COMPLETE] Default location uses device position.
 7. [COMPLETE] **Quality + tooling**
    - [COMPLETE] Set up emulators for Firestore/Functions/Storage.
    - [COMPLETE] Add unit tests for shared utils/models (geo + mapping).
