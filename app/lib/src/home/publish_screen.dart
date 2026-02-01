@@ -4,6 +4,7 @@ import "package:firebase_auth/firebase_auth.dart";
 import "package:firebase_storage/firebase_storage.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
 import "package:image_picker/image_picker.dart";
 import "package:latlong2/latlong.dart";
 import "../utils/geo.dart";
@@ -35,8 +36,11 @@ class _PublishScreenState extends State<PublishScreen> {
   }
 
   Future<void> _pickImage() async {
-    final file = await _imagePicker.pickImage(source: ImageSource.gallery);
-    if (file != null) {
+    try {
+      final file = await _imagePicker.pickImage(source: ImageSource.gallery);
+      if (file == null) {
+        return;
+      }
       Uint8List? bytes;
       if (kIsWeb) {
         bytes = await file.readAsBytes();
@@ -45,6 +49,10 @@ class _PublishScreenState extends State<PublishScreen> {
         _imageFile = file;
         _imageBytes = bytes;
       });
+    } on PlatformException catch (error) {
+      _showError(error.message ?? "Permiso denegado para fotos.");
+    } catch (_) {
+      _showError("No se pudo acceder a la galeria.");
     }
   }
 

@@ -94,6 +94,11 @@ class _SearchScreenState extends State<SearchScreen> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
+                if (snapshot.hasError) {
+                  return const Center(
+                    child: Text("No se pudieron cargar los items."),
+                  );
+                }
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                   return const Center(child: Text("No hay items disponibles."));
                 }
@@ -120,9 +125,19 @@ class _SearchScreenState extends State<SearchScreen> {
                         borderRadius: BorderRadius.circular(6),
                         child: Image.network(
                           item.photoUrl,
+                          semanticLabel: "Foto de ${item.title}",
                           width: 56,
                           height: 56,
                           fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              width: 56,
+                              height: 56,
+                              color: Colors.grey.shade200,
+                              alignment: Alignment.center,
+                              child: const Icon(Icons.image_not_supported),
+                            );
+                          },
                         ),
                       ),
                       title: Text(item.title),

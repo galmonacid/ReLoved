@@ -118,6 +118,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
             body: Center(child: CircularProgressIndicator()),
           );
         }
+        if (snapshot.hasError) {
+          return const Scaffold(
+            body: Center(child: Text("No se pudo cargar el item.")),
+          );
+        }
         if (!snapshot.hasData || !snapshot.data!.exists) {
           return const Scaffold(
             body: Center(child: Text("Item no encontrado.")),
@@ -138,9 +143,18 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   borderRadius: BorderRadius.circular(10),
                   child: Image.network(
                     item.photoUrl,
+                    semanticLabel: "Foto de ${item.title}",
                     height: 220,
                     width: double.infinity,
                     fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Container(
+                        height: 220,
+                        color: Colors.grey.shade200,
+                        alignment: Alignment.center,
+                        child: const Icon(Icons.image_not_supported),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 16),

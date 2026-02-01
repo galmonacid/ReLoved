@@ -31,15 +31,15 @@
    - [COMPLETE] Implement `sendContactEmail` with SendGrid integration.
    - [COMPLETE] Validate auth, item ownership, and rate limits.
    - [COMPLETE] Store full `contactRequests` record.
-6. [] **App core features**
-   - [] Auth screens + profile creation.
-   - [] Item create: photo upload + map pin selection + geohash.
-   - [] Search: radius filter (5 km / 20 km) + recent ordering.
-   - [] Item detail: contact form + send request.
-   - [] Ratings flow after exchange.
-   - [] Empty/loading/error states for each screen.
-   - [] Basic accessibility pass (labels, tap targets, contrast).
-   - [] Permission handling for photos and location (if needed).
+6. [COMPLETE] **App core features**
+   - [COMPLETE] Auth screens + profile creation.
+   - [COMPLETE] Item create: photo upload + map pin selection + geohash.
+   - [COMPLETE] Search: radius filter (5 km / 20 km) + recent ordering.
+   - [COMPLETE] Item detail: contact form + send request.
+   - [COMPLETE] Ratings flow after exchange.
+   - [COMPLETE] Empty/loading/error states for each screen.
+   - [COMPLETE] Basic accessibility pass (labels, tap targets, contrast).
+   - [COMPLETE] Permission handling for photos and location (if needed).
 7. [] **Quality + tooling**
    - [] Set up emulators for Firestore/Functions/Storage.
    - [COMPLETE] Add unit tests for shared utils/models (geo + mapping).

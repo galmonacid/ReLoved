@@ -41,6 +41,14 @@ class ProfileScreen extends StatelessWidget {
               .doc(user.uid)
               .snapshots(),
           builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return const Center(
+                child: Text("No se pudo cargar el perfil."),
+              );
+            }
             final data = snapshot.data?.data() ?? {};
             final displayName = (data["displayName"] as String?) ?? "Usuario";
             final email = (data["email"] as String?) ?? user.email ?? "";
@@ -57,6 +65,13 @@ class ProfileScreen extends StatelessWidget {
                 FutureBuilder<Map<String, dynamic>>(
                   future: _loadRatings(user.uid),
                   builder: (context, ratingSnapshot) {
+                    if (ratingSnapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return const Text("Cargando valoraciones...");
+                    }
+                    if (ratingSnapshot.hasError) {
+                      return const Text("No se pudieron cargar valoraciones.");
+                    }
                     final avg = ratingSnapshot.data?["avg"] as double? ?? 0.0;
                     final count = ratingSnapshot.data?["count"] as int? ?? 0;
                     return Text(

@@ -7,6 +7,7 @@ build/
 
 # Firebase
 .firebase/
+firestore-debug.log
 
 # Node
 node_modules/
