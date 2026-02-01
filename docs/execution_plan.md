@@ -43,10 +43,13 @@
 7. [] **Quality + tooling**
    - [] Set up emulators for Firestore/Functions/Storage.
    - [COMPLETE] Add unit tests for shared utils/models (geo + mapping).
+   - [COMPLETE] Add local verification script `scripts/verify_local.sh`.
    - [] Add rules tests for Firestore + Storage with emulators.
    - [] Add function tests (mock SendGrid, validate inputs, rate limit).
    - [] Add integration tests for critical flows (auth, publish, contact).
-   - [] Configure CI for Flutter analyze/test + functions lint/test + rules tests.
+   - [COMPLETE] Configure CI for Flutter analyze/test.
+   - [COMPLETE] Configure CI for Functions build.
+   - [] Configure CI for rules tests.
 8. [] **Release hardening + compliance**
    - [] Add Crashlytics and basic analytics events for the funnel.
    - [] Add privacy policy + terms and App Store privacy details.
