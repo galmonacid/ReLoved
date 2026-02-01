@@ -40,8 +40,8 @@
    - [COMPLETE] Empty/loading/error states for each screen.
    - [COMPLETE] Basic accessibility pass (labels, tap targets, contrast).
    - [COMPLETE] Permission handling for photos and location (if needed).
-7. [] **Quality + tooling**
-   - [] Set up emulators for Firestore/Functions/Storage.
+7. [COMPLETE] **Quality + tooling**
+   - [COMPLETE] Set up emulators for Firestore/Functions/Storage.
    - [COMPLETE] Add unit tests for shared utils/models (geo + mapping).
    - [COMPLETE] Add local verification script `scripts/verify_local.sh`.
    - [COMPLETE] Add rules tests for Firestore + Storage with emulators.
