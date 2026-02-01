@@ -26,6 +26,8 @@
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Allow access to select a photo for your item.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Allow access to your location to set an approximate area.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

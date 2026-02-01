@@ -3,6 +3,8 @@ import "package:flutter/material.dart";
 import "package:latlong2/latlong.dart";
 import "../models/item.dart";
 import "../utils/geo.dart";
+import "../utils/location.dart";
+import "../widgets/item_image.dart";
 import "../widgets/map_picker.dart";
 import "item_detail_screen.dart";
 
@@ -16,6 +18,21 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   LatLng _center = defaultCenter;
   double _radiusKm = 5;
+  String _query = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInitialLocation();
+  }
+
+  Future<void> _loadInitialLocation() async {
+    final current = await getCurrentLocationOrDefault();
+    if (!mounted) return;
+    setState(() {
+      _center = current;
+    });
+  }
 
   Future<void> _pickCenter() async {
     final selected = await Navigator.of(context).push<LatLng>(
@@ -44,7 +61,7 @@ class _SearchScreenState extends State<SearchScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    "Centro: ${_center.latitude.toStringAsFixed(3)}, ${_center.longitude.toStringAsFixed(3)}",
+                    "Ubicacion: ${_center.latitude.toStringAsFixed(3)}, ${_center.longitude.toStringAsFixed(3)}",
                   ),
                 ),
                 TextButton(
@@ -82,6 +99,20 @@ class _SearchScreenState extends State<SearchScreen> {
               ],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: TextField(
+              decoration: const InputDecoration(
+                labelText: "Buscar por palabra",
+                prefixIcon: Icon(Icons.search),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _query = value.trim().toLowerCase();
+                });
+              },
+            ),
+          ),
           const SizedBox(height: 8),
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -106,6 +137,12 @@ class _SearchScreenState extends State<SearchScreen> {
                     .map(Item.fromDoc)
                     .where((item) => item.status == "available")
                     .where((item) {
+                      if (_query.isEmpty) return true;
+                      final haystack =
+                          "${item.title} ${item.description}".toLowerCase();
+                      return haystack.contains(_query);
+                    })
+                    .where((item) {
                   final distance = distanceKm(_center, item.location.toLatLng());
                   return distance <= _radiusKm;
                 }).toList();
@@ -123,21 +160,13 @@ class _SearchScreenState extends State<SearchScreen> {
                     return ListTile(
                       leading: ClipRRect(
                         borderRadius: BorderRadius.circular(6),
-                        child: Image.network(
-                          item.photoUrl,
-                          semanticLabel: "Foto de ${item.title}",
+                        child: ItemImage(
+                          photoUrl: item.photoUrl,
+                          photoPath: item.photoPath,
                           width: 56,
                           height: 56,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              width: 56,
-                              height: 56,
-                              color: Colors.grey.shade200,
-                              alignment: Alignment.center,
-                              child: const Icon(Icons.image_not_supported),
-                            );
-                          },
+                          semanticLabel: "Foto de ${item.title}",
                         ),
                       ),
                       title: Text(item.title),

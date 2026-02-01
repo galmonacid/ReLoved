@@ -25,7 +25,9 @@ const userData = (email) => ({
 const itemData = (ownerId) => ({
   ownerId,
   title: "Silla",
+  description: "Silla en buen estado.",
   photoUrl: "https://example.com/photo.jpg",
+  photoPath: `itemPhotos/${ownerId}/item-1/photo.jpg`,
   createdAt: new Date(),
   status: "available",
   location: {

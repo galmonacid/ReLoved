@@ -40,7 +40,9 @@ class Item {
     required this.id,
     required this.ownerId,
     required this.title,
+    required this.description,
     required this.photoUrl,
+    required this.photoPath,
     required this.createdAt,
     required this.status,
     required this.location,
@@ -49,7 +51,9 @@ class Item {
   final String id;
   final String ownerId;
   final String title;
+  final String description;
   final String photoUrl;
+  final String photoPath;
   final DateTime? createdAt;
   final String status;
   final ItemLocation location;
@@ -61,7 +65,9 @@ class Item {
       id: doc.id,
       ownerId: (data["ownerId"] as String?) ?? "",
       title: (data["title"] as String?) ?? "",
+      description: (data["description"] as String?) ?? "",
       photoUrl: (data["photoUrl"] as String?) ?? "",
+      photoPath: (data["photoPath"] as String?) ?? "",
       createdAt: createdAt is Timestamp ? createdAt.toDate() : null,
       status: (data["status"] as String?) ?? "available",
       location: ItemLocation.fromMap(

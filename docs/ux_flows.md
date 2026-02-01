@@ -2,8 +2,8 @@
 
 ## Pantallas
 - Auth: Registro, Login.
-- Buscar: lista de items + filtro de radio (5 km / 20 km).
-- Publicar: formulario con foto, titulo, ubicacion aproximada y pin de mapa.
+- Buscar: lista de items + filtro de radio (5 km / 20 km) + buscador por palabras.
+- Publicar: formulario con foto, titulo, descripcion, ubicacion aproximada y pin de mapa.
 - Detalle de item: foto, titulo, distancia aprox, estado y CTA de contacto.
 - Contacto: formulario de mensaje y confirmacion de envio.
 - Perfil: displayName, rating promedio, cerrar sesion.
@@ -22,11 +22,11 @@
 
 ### Publicar item
 1. Tab Publicar -> seleccionar foto.
-2. Elegir ubicacion con pin y completar titulo + area aproximada.
+2. Elegir ubicacion con pin y completar titulo + descripcion + area aproximada.
 3. Crear item -> navegar a Detalle del item.
 
 ### Buscar y ver item
-1. Tab Buscar -> seleccionar radio (5 km / 20 km).
+1. Tab Buscar -> seleccionar radio (5 km / 20 km) y/o texto de busqueda.
 2. Lista ordenada por mas recientes.
 3. Tap en item -> Detalle.
 

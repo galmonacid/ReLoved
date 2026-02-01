@@ -8,6 +8,7 @@ import "package:flutter/services.dart";
 import "package:image_picker/image_picker.dart";
 import "package:latlong2/latlong.dart";
 import "../utils/geo.dart";
+import "../utils/location.dart";
 import "../widgets/map_picker.dart";
 import "item_detail_screen.dart";
 
@@ -20,6 +21,7 @@ class PublishScreen extends StatefulWidget {
 
 class _PublishScreenState extends State<PublishScreen> {
   final _titleController = TextEditingController();
+  final _descriptionController = TextEditingController();
   final _areaController = TextEditingController();
   final _imagePicker = ImagePicker();
 
@@ -29,8 +31,23 @@ class _PublishScreenState extends State<PublishScreen> {
   bool _isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+    _loadInitialLocation();
+  }
+
+  Future<void> _loadInitialLocation() async {
+    final current = await getCurrentLocationOrDefault();
+    if (!mounted) return;
+    setState(() {
+      _location = current;
+    });
+  }
+
+  @override
   void dispose() {
     _titleController.dispose();
+    _descriptionController.dispose();
     _areaController.dispose();
     super.dispose();
   }
@@ -76,9 +93,10 @@ class _PublishScreenState extends State<PublishScreen> {
       return;
     }
     final title = _titleController.text.trim();
+    final description = _descriptionController.text.trim();
     final area = _areaController.text.trim();
-    if (title.isEmpty || area.isEmpty) {
-      _showError("Completa el titulo y la zona.");
+    if (title.isEmpty || description.isEmpty || area.isEmpty) {
+      _showError("Completa el titulo, la descripcion y la zona.");
       return;
     }
     if (_imageFile == null) {
@@ -99,6 +117,7 @@ class _PublishScreenState extends State<PublishScreen> {
       final storageRef = FirebaseStorage.instance
           .ref()
           .child("itemPhotos/${user.uid}/${docRef.id}/photo.jpg");
+      final photoPath = storageRef.fullPath;
       if (kIsWeb) {
         final bytes = _imageBytes;
         if (bytes == null) {
@@ -125,7 +144,9 @@ class _PublishScreenState extends State<PublishScreen> {
       await docRef.set({
         "ownerId": user.uid,
         "title": title,
+        "description": description,
         "photoUrl": photoUrl,
+        "photoPath": photoPath,
         "createdAt": FieldValue.serverTimestamp(),
         "status": "available",
         "location": {
@@ -138,6 +159,7 @@ class _PublishScreenState extends State<PublishScreen> {
 
       if (!mounted) return;
       _titleController.clear();
+      _descriptionController.clear();
       _areaController.clear();
       setState(() {
         _imageFile = null;
@@ -179,6 +201,12 @@ class _PublishScreenState extends State<PublishScreen> {
             TextField(
               controller: _titleController,
               decoration: const InputDecoration(labelText: "Titulo"),
+            ),
+            TextField(
+              controller: _descriptionController,
+              maxLines: 4,
+              maxLength: 500,
+              decoration: const InputDecoration(labelText: "Descripcion"),
             ),
             TextField(
               controller: _areaController,

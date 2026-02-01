@@ -2,6 +2,7 @@ import "package:cloud_firestore/cloud_firestore.dart";
 import "package:firebase_auth/firebase_auth.dart";
 import "package:flutter/material.dart";
 import "../models/item.dart";
+import "../widgets/item_image.dart";
 import "contact_screen.dart";
 
 class ItemDetailScreen extends StatefulWidget {
@@ -141,20 +142,13 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
-                  child: Image.network(
-                    item.photoUrl,
-                    semanticLabel: "Foto de ${item.title}",
+                  child: ItemImage(
+                    photoUrl: item.photoUrl,
+                    photoPath: item.photoPath,
                     height: 220,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        height: 220,
-                        color: Colors.grey.shade200,
-                        alignment: Alignment.center,
-                        child: const Icon(Icons.image_not_supported),
-                      );
-                    },
+                    semanticLabel: "Foto de ${item.title}",
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -162,10 +156,14 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   item.title,
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
+                if (item.description.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(item.description),
+                ],
                 const SizedBox(height: 8),
                 Text("Estado: ${item.status}"),
                 const SizedBox(height: 4),
-                Text("Zona: ${item.location.approxAreaText}"),
+                Text("Ubicacion: ${item.location.approxAreaText}"),
                 const SizedBox(height: 20),
                 if (isOwner) ...[
                   const Text("Actualizar estado"),

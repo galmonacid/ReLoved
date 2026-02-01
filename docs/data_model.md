@@ -22,7 +22,9 @@ Publicaciones de objetos disponibles.
 Campos:
 - ownerId (uid)
 - title (string)
+- description (string, opcional)
 - photoUrl (string)
+- photoPath (string, opcional)
 - createdAt (timestamp)
 - status (string): available | reserved | given
 - location:
@@ -34,6 +36,8 @@ Campos:
 Notas:
 - La ubicación es aproximada para preservar privacidad.
 - El estado ayuda a reducir fricción incluso en el MVP.
+- description se usa para búsqueda por palabras en el MVP.
+- photoPath guarda la ruta del archivo en Storage (para cargar con SDK).
 
 ---
 
@@ -58,10 +62,17 @@ Registro interno de contactos por email.
 
 Campos:
 - fromUserId (uid)
+- fromEmail (string)
 - toUserId (uid)
+- toEmail (string)
 - itemId (string)
+- itemTitle (string)
+- itemStatus (string)
+- itemApproxArea (string)
+- subject (string)
 - message (string)
 - createdAt (timestamp)
+- sentAt (timestamp, opcional)
 - sent (boolean)
 
 Uso:

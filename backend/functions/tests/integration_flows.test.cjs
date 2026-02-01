@@ -39,7 +39,9 @@ test("flow: publish item then query results", async () => {
   await db.collection("items").doc("item-1").set({
     ownerId: "owner",
     title: "Mesa",
+    description: "Mesa de madera.",
     photoUrl: "https://example.com/photo.jpg",
+    photoPath: "itemPhotos/owner/item-1/photo.jpg",
     createdAt: new Date(),
     status: "available",
     location: {
@@ -82,7 +84,9 @@ test("flow: contact request creates record via function", async () => {
   await db.collection("items").doc("item-1").set({
     ownerId: "owner",
     title: "Mesa",
+    description: "Mesa de madera.",
     photoUrl: "https://example.com/photo.jpg",
+    photoPath: "itemPhotos/owner/item-1/photo.jpg",
     createdAt: new Date(),
     status: "available",
     location: {

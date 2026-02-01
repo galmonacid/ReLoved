@@ -1,6 +1,9 @@
 import "package:cloud_firestore/cloud_firestore.dart";
 import "package:firebase_auth/firebase_auth.dart";
 import "package:flutter/material.dart";
+import "../models/item.dart";
+import "../widgets/item_image.dart";
+import "item_detail_screen.dart";
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -79,7 +82,74 @@ class ProfileScreen extends StatelessWidget {
                     );
                   },
                 ),
-                const Spacer(),
+                const SizedBox(height: 16),
+                Text(
+                  "Mis items",
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                    stream: FirebaseFirestore.instance
+                        .collection("items")
+                        .where("ownerId", isEqualTo: user.uid)
+                        .orderBy("createdAt", descending: true)
+                        .snapshots(),
+                    builder: (context, itemsSnapshot) {
+                      if (itemsSnapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return const Center(
+                          child: CircularProgressIndicator(),
+                        );
+                      }
+                      if (itemsSnapshot.hasError) {
+                        return const Center(
+                          child: Text("No se pudieron cargar tus items."),
+                        );
+                      }
+                      final docs = itemsSnapshot.data?.docs ?? [];
+                      if (docs.isEmpty) {
+                        return const Center(
+                          child: Text("Aun no has publicado items."),
+                        );
+                      }
+                      final items = docs.map(Item.fromDoc).toList();
+                      return ListView.separated(
+                        itemCount: items.length,
+                        separatorBuilder: (context, index) =>
+                            const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final item = items[index];
+                          return ListTile(
+                            leading: ClipRRect(
+                              borderRadius: BorderRadius.circular(6),
+                              child: ItemImage(
+                                photoUrl: item.photoUrl,
+                                photoPath: item.photoPath,
+                                width: 48,
+                                height: 48,
+                                fit: BoxFit.cover,
+                                semanticLabel: "Foto de ${item.title}",
+                              ),
+                            ),
+                            title: Text(item.title),
+                            subtitle: Text("Estado: ${item.status}"),
+                            trailing: const Icon(Icons.chevron_right),
+                            onTap: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      ItemDetailScreen(itemId: item.id),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
