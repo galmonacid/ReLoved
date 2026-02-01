@@ -123,6 +123,11 @@ exports.sendContactEmail = functions.https.onCall(async (data, context) => {
         catch (error) {
             const err = error;
             errorMessage = err && err.message ? err.message : "Unknown error";
+            functions.logger.error("SendGrid send failed", {
+                message: err?.message,
+                code: err?.code,
+                responseBody: err?.response?.body
+            });
         }
     }
     await admin.firestore().collection("contactRequests").add({
@@ -142,7 +147,7 @@ exports.sendContactEmail = functions.https.onCall(async (data, context) => {
         error: errorMessage
     });
     if (!sent) {
-        throw new functions.https.HttpsError("internal", "Failed to send email");
+        throw new functions.https.HttpsError("internal", errorMessage ? `Failed to send email: ${errorMessage}` : "Failed to send email");
     }
     return { ok: true };
 });
