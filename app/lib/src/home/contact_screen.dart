@@ -35,8 +35,9 @@ class _ContactScreenState extends State<ContactScreen> {
       _isLoading = true;
     });
     try {
-      final callable =
-          FirebaseFunctions.instance.httpsCallable("sendContactEmail");
+      final callable = FirebaseFunctions.instance.httpsCallableFromUrl(
+        "https://us-central1-reloved-greenhilledge.cloudfunctions.net/sendContactEmail",
+      );
       await callable.call({"itemId": widget.itemId, "message": message});
       if (!mounted) return;
       Navigator.of(context).pop(true);
