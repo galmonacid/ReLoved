@@ -28,3 +28,9 @@ firebase functions:config:get
 - Do not store secrets in the repo.
 - Use `firebase functions:config:set` or environment variables.
 - Document any new required keys here.
+
+## App build-time config (Flutter --dart-define)
+- PRIVACY_POLICY_URL (public URL)
+- TERMS_URL (public URL)
+- SUPPORT_EMAIL (support inbox for deletion requests)
+- APP_CHECK_WEB_KEY (reCAPTCHA v3 site key for App Check on web)

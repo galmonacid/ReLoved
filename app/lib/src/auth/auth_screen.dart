@@ -1,5 +1,6 @@
 import "package:cloud_firestore/cloud_firestore.dart";
 import "package:firebase_auth/firebase_auth.dart";
+import "package:firebase_analytics/firebase_analytics.dart";
 import "package:flutter/material.dart";
 
 class AuthScreen extends StatefulWidget {
@@ -47,6 +48,7 @@ class _AuthScreenState extends State<AuthScreen> {
           email: email,
           password: password,
         );
+        await FirebaseAnalytics.instance.logLogin();
       } else {
         final credential =
             await FirebaseAuth.instance.createUserWithEmailAndPassword(
@@ -64,6 +66,7 @@ class _AuthScreenState extends State<AuthScreen> {
           "ratingAvg": 0,
           "ratingCount": 0,
         });
+        await FirebaseAnalytics.instance.logSignUp(signUpMethod: "password");
       }
     } on FirebaseAuthException catch (error) {
       _showError(error.message ?? "Error de autenticacion");
@@ -89,6 +92,9 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      await FirebaseAnalytics.instance.logEvent(
+        name: "password_reset_request",
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Revisa tu correo para restablecerla.")),

@@ -1,4 +1,5 @@
 import "package:cloud_firestore/cloud_firestore.dart";
+import "package:firebase_analytics/firebase_analytics.dart";
 import "package:firebase_auth/firebase_auth.dart";
 import "package:flutter/material.dart";
 import "../models/item.dart";
@@ -16,6 +17,15 @@ class ItemDetailScreen extends StatefulWidget {
 
 class _ItemDetailScreenState extends State<ItemDetailScreen> {
   bool _isUpdating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    FirebaseAnalytics.instance.logEvent(
+      name: "view_item",
+      parameters: {"itemId": widget.itemId},
+    );
+  }
 
   Future<void> _updateStatus(String status) async {
     setState(() {
@@ -98,6 +108,10 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       "stars": result,
       "createdAt": FieldValue.serverTimestamp(),
     });
+    await FirebaseAnalytics.instance.logEvent(
+      name: "submit_rating",
+      parameters: {"itemId": item.id, "stars": result},
+    );
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

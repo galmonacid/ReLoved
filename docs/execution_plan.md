@@ -7,6 +7,7 @@
 - Release target: iOS first.
 - Firebase project ID: reloved-greenhilledge.
 - iOS bundle ID: com.greenhilledge.reloved.
+- Visual direction: white backgrounds with sage green as the primary accent.
 
 ## Plan (start from scratch)
 1. [COMPLETE] **Engineering + agentic workflow (guardrails)**
@@ -54,12 +55,12 @@
    - [COMPLETE] Configure CI for Flutter analyze/test.
    - [COMPLETE] Configure CI for Functions build.
    - [COMPLETE] Configure CI for rules tests.
-8. [] **Release hardening + compliance**
-   - [] Add Crashlytics and basic analytics events for the funnel.
-   - [] Add privacy policy + terms and App Store privacy details.
-   - [] Configure Firebase App Check (production and emulator).
-   - [] Add data retention + account deletion process.
-   - [] Add performance hygiene (image compression, basic caching).
+8. [COMPLETE] **Release hardening + compliance**
+   - [COMPLETE] Add Crashlytics and basic analytics events for the funnel.
+   - [COMPLETE] Add privacy policy + terms and App Store privacy details (draft docs).
+   - [COMPLETE] Configure Firebase App Check (production and emulator).
+   - [COMPLETE] Add data retention + account deletion process (manual MVP flow).
+   - [COMPLETE] Add performance hygiene (image compression, basic caching).
 9. [] **iOS release prep**
    - [] App icons, launch screen, and basic App Store metadata.
    - [] Build and distribute via TestFlight.

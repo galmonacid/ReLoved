@@ -1,5 +1,8 @@
 # UX y flujos (MVP)
 
+## Direccion visual
+- Paleta principal: blanco + verde sage (acentos, botones y elementos destacados).
+
 ## Pantallas
 - Auth: Registro, Login.
 - Buscar: lista de items + filtro de radio (5 km / 20 km) + buscador por palabras.
@@ -7,6 +10,7 @@
 - Detalle de item: foto, titulo, distancia aprox, estado y CTA de contacto.
 - Contacto: formulario de mensaje y confirmacion de envio.
 - Perfil: displayName, rating promedio, cerrar sesion.
+- Perfil (legal): enlaces a politica de privacidad, terminos y solicitud de eliminacion.
 - Valorar: selector 1-5 estrellas accesible desde detalle cuando el item esta en "given".
 
 ## Navegacion

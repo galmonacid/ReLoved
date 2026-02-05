@@ -1,12 +1,57 @@
 import "package:cloud_firestore/cloud_firestore.dart";
 import "package:firebase_auth/firebase_auth.dart";
 import "package:flutter/material.dart";
+import "package:url_launcher/url_launcher.dart";
+import "../config/app_config.dart";
 import "../models/item.dart";
 import "../widgets/item_image.dart";
 import "item_detail_screen.dart";
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
+
+  Future<void> _openUrl(BuildContext context, String url) async {
+    if (url.isEmpty) {
+      _showConfigMissing(context);
+      return;
+    }
+    final uri = Uri.parse(url);
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No se pudo abrir el enlace.")),
+      );
+    }
+  }
+
+  Future<void> _requestDeletion(BuildContext context, User user) async {
+    if (!AppConfig.hasSupportEmail) {
+      _showConfigMissing(context);
+      return;
+    }
+    final uri = Uri(
+      scheme: "mailto",
+      path: AppConfig.supportEmail,
+      queryParameters: {
+        "subject": "Solicitud de eliminacion de cuenta",
+        "body": "UID: ${user.uid}\nEmail: ${user.email ?? ""}",
+      },
+    );
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("No se pudo abrir el correo.")),
+      );
+    }
+  }
+
+  void _showConfigMissing(BuildContext context) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Configura enlaces legales y soporte en build."),
+      ),
+    );
+  }
 
   Future<Map<String, dynamic>> _loadRatings(String userId) async {
     final snapshot = await FirebaseFirestore.instance
@@ -150,6 +195,39 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 12),
+                Text(
+                  "Soporte y legal",
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => _openUrl(
+                      context,
+                      AppConfig.privacyPolicyUrl,
+                    ),
+                    child: const Text("Politica de privacidad"),
+                  ),
+                ),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => _openUrl(
+                      context,
+                      AppConfig.termsUrl,
+                    ),
+                    child: const Text("Terminos de servicio"),
+                  ),
+                ),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => _requestDeletion(context, user),
+                    child: const Text("Solicitar eliminacion de cuenta"),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(

@@ -1,4 +1,5 @@
 import "package:cloud_firestore/cloud_firestore.dart";
+import "package:firebase_analytics/firebase_analytics.dart";
 import "package:flutter/material.dart";
 import "package:latlong2/latlong.dart";
 import "../models/item.dart";
@@ -84,6 +85,10 @@ class _SearchScreenState extends State<SearchScreen> {
                     setState(() {
                       _radiusKm = 5;
                     });
+                    FirebaseAnalytics.instance.logEvent(
+                      name: "search_radius_change",
+                      parameters: {"radiusKm": 5},
+                    );
                   },
                 ),
                 const SizedBox(width: 8),
@@ -94,6 +99,10 @@ class _SearchScreenState extends State<SearchScreen> {
                     setState(() {
                       _radiusKm = 20;
                     });
+                    FirebaseAnalytics.instance.logEvent(
+                      name: "search_radius_change",
+                      parameters: {"radiusKm": 20},
+                    );
                   },
                 ),
               ],
@@ -172,6 +181,10 @@ class _SearchScreenState extends State<SearchScreen> {
                       title: Text(item.title),
                       subtitle: Text(item.location.approxAreaText),
                       onTap: () {
+                        FirebaseAnalytics.instance.logEvent(
+                          name: "select_item",
+                          parameters: {"itemId": item.id},
+                        );
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => ItemDetailScreen(itemId: item.id),

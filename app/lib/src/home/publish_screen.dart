@@ -1,6 +1,7 @@
 import "dart:io";
 import "package:cloud_firestore/cloud_firestore.dart";
 import "package:firebase_auth/firebase_auth.dart";
+import "package:firebase_analytics/firebase_analytics.dart";
 import "package:firebase_storage/firebase_storage.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
@@ -54,7 +55,11 @@ class _PublishScreenState extends State<PublishScreen> {
 
   Future<void> _pickImage() async {
     try {
-      final file = await _imagePicker.pickImage(source: ImageSource.gallery);
+      final file = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1600,
+        imageQuality: 75,
+      );
       if (file == null) {
         return;
       }
@@ -127,11 +132,18 @@ class _PublishScreenState extends State<PublishScreen> {
           bytes,
           SettableMetadata(
             contentType: _imageFile?.mimeType ?? "image/jpeg",
+            cacheControl: "public,max-age=31536000",
           ),
         );
       } else {
         final file = File(_imageFile!.path);
-        await storageRef.putFile(file);
+        await storageRef.putFile(
+          file,
+          SettableMetadata(
+            contentType: _imageFile?.mimeType ?? "image/jpeg",
+            cacheControl: "public,max-age=31536000",
+          ),
+        );
       }
       final photoUrl = await storageRef.getDownloadURL();
 
@@ -156,6 +168,10 @@ class _PublishScreenState extends State<PublishScreen> {
           "approxAreaText": area,
         },
       });
+      await FirebaseAnalytics.instance.logEvent(
+        name: "publish_item",
+        parameters: {"itemId": docRef.id},
+      );
 
       if (!mounted) return;
       _titleController.clear();

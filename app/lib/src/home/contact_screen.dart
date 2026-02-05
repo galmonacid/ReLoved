@@ -1,4 +1,6 @@
 import "package:cloud_functions/cloud_functions.dart";
+import "package:firebase_auth/firebase_auth.dart";
+import "package:firebase_analytics/firebase_analytics.dart";
 import "package:flutter/material.dart";
 
 class ContactScreen extends StatefulWidget {
@@ -31,14 +33,26 @@ class _ContactScreenState extends State<ContactScreen> {
       _showError("Escribe un mensaje.");
       return;
     }
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      _showError("Inicia sesión para contactar.");
+      return;
+    }
     setState(() {
       _isLoading = true;
     });
     try {
-      final callable = FirebaseFunctions.instance.httpsCallableFromUrl(
-        "https://us-central1-reloved-greenhilledge.cloudfunctions.net/sendContactEmail",
+      debugPrint(
+        "sendContactEmail attempt: uid=${user.uid} isAnonymous=${user.isAnonymous}",
       );
+      final callable = FirebaseFunctions.instanceFor(
+        region: "us-central1",
+      ).httpsCallable("sendContactEmail");
       await callable.call({"itemId": widget.itemId, "message": message});
+      await FirebaseAnalytics.instance.logEvent(
+        name: "contact_send",
+        parameters: {"itemId": widget.itemId},
+      );
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } on FirebaseFunctionsException catch (error) {

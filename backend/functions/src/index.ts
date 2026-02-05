@@ -15,6 +15,11 @@ admin.initializeApp();
  */
 export const sendContactEmail = functions.https.onCall(async (data, context) => {
   try {
+    functions.logger.info("sendContactEmail request", {
+      hasAuth: Boolean(context.auth),
+      hasAppCheck: Boolean(context.app),
+      dataKeys: data && typeof data === "object" ? Object.keys(data) : []
+    });
     if (!context.auth) {
       throw new functions.https.HttpsError("unauthenticated", "Authentication required");
     }
