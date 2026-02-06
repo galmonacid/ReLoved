@@ -1,7 +1,8 @@
 # Principios de Seguridad (MVP)
 
 ## Principios generales
-- Solo usuarios autenticados pueden interactuar con la app.
+- Navegación pública para lectura de items.
+- Autenticación requerida para publicar y contactar.
 - Cada usuario solo puede modificar sus propios recursos.
 - La lectura es más permisiva que la escritura.
 - La seguridad se apoya en reglas Firestore + validaciones en Cloud Functions.
@@ -20,7 +21,7 @@
 
 ### items
 - Lectura:
-  - Permitida para usuarios autenticados.
+  - Pública (sin autenticación).
 - Escritura:
   - Crear: usuario autenticado.
   - Modificar / borrar: solo el ownerId del item.
@@ -29,7 +30,7 @@
 
 ### ratings
 - Lectura:
-  - Permitida para usuarios autenticados.
+  - Permitida para usuarios autenticados (por ahora).
 - Escritura:
   - Solo usuarios autenticados.
   - El `fromUserId` debe coincidir con el usuario autenticado.

@@ -57,12 +57,15 @@
    - [COMPLETE] Configure CI for rules tests.
 8. [COMPLETE] **Release hardening + compliance**
    - [COMPLETE] Add Crashlytics and basic analytics events for the funnel.
-   - [] Create analytics funnels in Firebase (login → publish → contact).
    - [COMPLETE] Add privacy policy + terms and App Store privacy details (draft docs).
    - [COMPLETE] Configure Firebase App Check (production and emulator).
    - [COMPLETE] Add data retention + account deletion process (manual MVP flow).
    - [COMPLETE] Add performance hygiene (image compression, basic caching).
-9. [] **iOS release prep**
+9. [] **Post-release growth + insights**
+   - [] Create analytics funnels in Firebase (login → publish → contact).
+10. [] **iOS release prep**
+   - [] Enroll in Apple Developer Program (UK, £79/year) and obtain Team ID.
+   - [] Create App Store Connect record and capture App Store ID.
    - [] App icons, launch screen, and basic App Store metadata.
    - [] Build and distribute via TestFlight.
    - [] Deploy Firestore rules, indexes, Storage rules, and Functions.
