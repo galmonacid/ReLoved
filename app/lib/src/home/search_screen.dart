@@ -34,12 +34,20 @@ class _SearchScreenState extends State<SearchScreen> {
     setState(() {
       _center = current;
     });
+    final postcode = await reverseUkPostcode(current);
+    if (!mounted) return;
+    setState(() {
+      _centerLabel = postcode;
+    });
   }
 
   Future<void> _pickCenter() async {
     final selected = await Navigator.of(context).push<MapPickerResult>(
       MaterialPageRoute(
-        builder: (_) => MapPicker(initialCenter: _center),
+        builder: (_) => MapPicker(
+          initialCenter: _center,
+          initialPostcode: _centerLabel,
+        ),
       ),
     );
     if (selected != null && mounted) {

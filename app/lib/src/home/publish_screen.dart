@@ -83,7 +83,12 @@ class _PublishScreenState extends State<PublishScreen> {
   Future<void> _pickLocation() async {
     final selected = await Navigator.of(context).push<MapPickerResult>(
       MaterialPageRoute(
-        builder: (_) => MapPicker(initialCenter: _location ?? defaultCenter),
+        builder: (_) => MapPicker(
+          initialCenter: _location ?? defaultCenter,
+          initialPostcode: _areaController.text.trim().isEmpty
+              ? null
+              : _areaController.text.trim(),
+        ),
       ),
     );
     if (selected != null && mounted) {

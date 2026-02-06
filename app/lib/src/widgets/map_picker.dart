@@ -17,9 +17,11 @@ class MapPicker extends StatefulWidget {
   const MapPicker({
     super.key,
     required this.initialCenter,
+    this.initialPostcode,
   });
 
   final LatLng initialCenter;
+  final String? initialPostcode;
 
   @override
   State<MapPicker> createState() => _MapPickerState();
@@ -35,6 +37,7 @@ class _MapPickerState extends State<MapPicker> {
   void initState() {
     super.initState();
     _selected = widget.initialCenter;
+    _postcodeLabel = widget.initialPostcode;
   }
 
   @override
@@ -80,6 +83,30 @@ class _MapPickerState extends State<MapPicker> {
     );
   }
 
+  Future<void> _reverseLookupPostcode(LatLng location) async {
+    setState(() {
+      _isLookingUpPostcode = true;
+    });
+    try {
+      final postcode = await reverseUkPostcode(location);
+      if (!mounted) return;
+      setState(() {
+        _postcodeLabel = postcode;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _postcodeLabel = null;
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLookingUpPostcode = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -115,6 +142,17 @@ class _MapPickerState extends State<MapPicker> {
               ],
             ),
           ),
+          if (_postcodeLabel != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  "Current postcode: ${_postcodeLabel!}",
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+            ),
           Expanded(
             child: FlutterMap(
               options: MapOptions(
@@ -125,6 +163,7 @@ class _MapPickerState extends State<MapPicker> {
                     _selected = point;
                     _postcodeLabel = null;
                   });
+                  _reverseLookupPostcode(point);
                 },
               ),
               children: [

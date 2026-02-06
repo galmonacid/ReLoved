@@ -35,3 +35,23 @@ Future<PostcodeResult?> lookupUkPostcode(String rawPostcode) async {
     location: LatLng(lat.toDouble(), lng.toDouble()),
   );
 }
+
+Future<String?> reverseUkPostcode(LatLng location) async {
+  final uri = Uri.https(
+    "api.postcodes.io",
+    "/postcodes",
+    {
+      "lon": location.longitude.toString(),
+      "lat": location.latitude.toString(),
+    },
+  );
+  final response = await http.get(uri);
+  if (response.statusCode != 200) return null;
+  final data = jsonDecode(response.body) as Map<String, dynamic>;
+  final results = data["result"];
+  if (results is! List || results.isEmpty) return null;
+  final first = results.first as Map<String, dynamic>?;
+  final postcode = first?["postcode"];
+  if (postcode is! String) return null;
+  return postcode;
+}
