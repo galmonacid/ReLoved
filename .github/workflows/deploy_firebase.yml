@@ -9,16 +9,32 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
-      # Recommended auth (no legacy tokens):
-      # 1) In Firebase Console, create a service account key (JSON).
-      # 2) Store the JSON in GitHub Secrets as: FIREBASE_SERVICE_ACCOUNT
+      # Auth option A: Service account JSON (recommended for simplicity).
+      # Set secret: FIREBASE_SERVICE_ACCOUNT
       - name: Auth to Google Cloud (service account)
         uses: google-github-actions/auth@v2
+        if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
         with:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      # Auth option B: Workload Identity Federation.
+      # Set secrets: GCP_WORKLOAD_IDENTITY_PROVIDER, GCP_SERVICE_ACCOUNT
+      - name: Auth to Google Cloud (workload identity)
+        uses: google-github-actions/auth@v2
+        if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT == '' }}
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Validate auth configuration
+        if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT == '' && (secrets.GCP_WORKLOAD_IDENTITY_PROVIDER == '' || secrets.GCP_SERVICE_ACCOUNT == '') }}
+        run: |
+          echo "Missing auth configuration. Set FIREBASE_SERVICE_ACCOUNT or both GCP_WORKLOAD_IDENTITY_PROVIDER and GCP_SERVICE_ACCOUNT."
+          exit 1
 
       - uses: actions/setup-node@v4
         with:
