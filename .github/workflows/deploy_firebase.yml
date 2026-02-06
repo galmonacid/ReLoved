@@ -75,6 +75,10 @@ jobs:
       - name: Install Firebase CLI
         run: npm i -g firebase-tools@latest
 
+      - name: Configure functions artifacts cleanup policy
+        run: |
+          firebase functions:artifacts:setpolicy --location=us-central1 --force
+
       - name: Build Functions
         working-directory: backend/functions
         run: |
