@@ -2,6 +2,7 @@ import "package:cloud_firestore/cloud_firestore.dart";
 import "package:firebase_analytics/firebase_analytics.dart";
 import "package:firebase_auth/firebase_auth.dart";
 import "package:flutter/material.dart";
+import "../auth/auth_screen.dart";
 import "../models/item.dart";
 import "../widgets/item_image.dart";
 import "contact_screen.dart";
@@ -211,6 +212,14 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () async {
+                        if (user == null) {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const AuthScreen(),
+                            ),
+                          );
+                          return;
+                        }
                         final sent = await Navigator.of(context).push<bool>(
                           MaterialPageRoute(
                             builder: (_) => ContactScreen(

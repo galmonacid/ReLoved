@@ -34,3 +34,7 @@ firebase functions:config:get
 - TERMS_URL (public URL)
 - SUPPORT_EMAIL (support inbox for deletion requests)
 - APP_CHECK_WEB_KEY (reCAPTCHA v3 site key for App Check on web)
+
+## Hosting (legal pages)
+- Privacy policy URL (Hosting): /privacy.html
+- Terms of service URL (Hosting): /terms.html

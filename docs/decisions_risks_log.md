@@ -3,7 +3,7 @@
 ## Decisions
 - 2026-02-01: MVP release target is iOS first.
 - 2026-02-01: Location UX uses map picker + approximate pin + geohash.
-- 2026-02-01: Authenticated users only.
+- 2026-02-06: Public browsing enabled; auth required to publish or contact.
 - 2026-02-01: SendGrid selected for transactional email.
 - 2026-02-01: Contact flow uses email (no in-app messaging in MVP).
 - 2026-02-05: Add Firebase Analytics + Crashlytics for MVP funnel monitoring.

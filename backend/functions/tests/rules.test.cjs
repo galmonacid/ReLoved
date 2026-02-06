@@ -118,6 +118,15 @@ test("items cannot change ownerId on update", async () => {
   );
 });
 
+test("unauthenticated users can read items", async () => {
+  const testEnv = await resetEnv();
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().collection("items").doc("item-1").set(itemData("owner"));
+  });
+  const db = testEnv.unauthenticatedContext().firestore();
+  await assertSucceeds(db.collection("items").doc("item-1").get());
+});
+
 test("ratings require valid stars and correct fromUserId", async () => {
   const testEnv = await resetEnv();
   const db = testEnv.authenticatedContext("rater").firestore();
@@ -183,9 +192,14 @@ test("storage blocks uploads to other users", async () => {
   );
 });
 
-test("storage blocks unauthenticated reads", async () => {
+test("storage allows unauthenticated reads", async () => {
   const testEnv = await resetEnv();
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    const adminStorage = context.storage();
+    const adminRef = adminStorage.ref("itemPhotos/alice/item-1/photo.jpg");
+    await adminRef.put(Buffer.from("hello"), { contentType: "image/jpeg" });
+  });
   const storage = testEnv.unauthenticatedContext().storage();
   const ref = storage.ref("itemPhotos/alice/item-1/photo.jpg");
-  await assertFails(ref.getDownloadURL());
+  await assertSucceeds(ref.getDownloadURL());
 });

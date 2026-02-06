@@ -3,7 +3,7 @@
 ## Decisions (MVP defaults)
 - Email provider: SendGrid (simpler setup, solid docs, good free tier).
 - Location UX: Map picker with approximate pin + geohash (avoid geocoding).
-- Access model: Authenticated users only.
+- Access model: Public browsing; auth required to publish or contact.
 - Release target: iOS first.
 - Firebase project ID: reloved-greenhilledge.
 - iOS bundle ID: com.greenhilledge.reloved.
@@ -57,6 +57,7 @@
    - [COMPLETE] Configure CI for rules tests.
 8. [COMPLETE] **Release hardening + compliance**
    - [COMPLETE] Add Crashlytics and basic analytics events for the funnel.
+   - [] Create analytics funnels in Firebase (login → publish → contact).
    - [COMPLETE] Add privacy policy + terms and App Store privacy details (draft docs).
    - [COMPLETE] Configure Firebase App Check (production and emulator).
    - [COMPLETE] Add data retention + account deletion process (manual MVP flow).

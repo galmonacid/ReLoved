@@ -5,7 +5,7 @@
 
 ## Pantallas
 - Auth: Registro, Login.
-- Buscar: lista de items + filtro de radio (5 km / 20 km) + buscador por palabras.
+- Buscar: lista de items + filtro de radio (5 km / 20 km) + buscador por palabras (publico).
 - Publicar: formulario con foto, titulo, descripcion, ubicacion aproximada y pin de mapa.
 - Detalle de item: foto, titulo, distancia aprox, estado y CTA de contacto.
 - Contacto: formulario de mensaje y confirmacion de envio.
@@ -20,12 +20,13 @@
 ## Flujos
 ### Registro / login
 1. App inicia -> determina estado de sesion.
-2. Usuario nuevo: Registro (email, password, displayName).
-3. Usuario existente: Login.
-4. Success -> Buscar.
+2. Usuario puede navegar sin sesion.
+3. Usuario nuevo: Registro (email, password, displayName).
+4. Usuario existente: Login.
+5. Success -> Buscar / Publicar.
 
 ### Publicar item
-1. Tab Publicar -> seleccionar foto.
+1. Tab Publicar -> requiere login.
 2. Elegir ubicacion con pin y completar titulo + descripcion + area aproximada.
 3. Crear item -> navegar a Detalle del item.
 
@@ -36,8 +37,9 @@
 
 ### Contacto
 1. En Detalle -> CTA "Contactar".
-2. Formulario mensaje -> enviar.
-3. Mostrar confirmacion.
+2. Si no hay sesion, solicitar login.
+3. Formulario mensaje -> enviar.
+4. Mostrar confirmacion.
 
 ### Valorar
 1. Cuando un intercambio se considera completado, el item pasa a "given".

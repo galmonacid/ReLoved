@@ -12,7 +12,7 @@ service firebase.storage {
 
     // Store item photos under: itemPhotos/{uid}/{itemId}/{filename}
     match /itemPhotos/{userId}/{allPaths=**} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow write: if isSignedIn()
         && request.auth.uid == userId
         && isValidImageUpload();
