@@ -1,3 +1,4 @@
+import "dart:async";
 import "package:flutter/material.dart";
 import "package:flutter_map/flutter_map.dart";
 import "package:latlong2/latlong.dart";
@@ -32,6 +33,7 @@ class _MapPickerState extends State<MapPicker> {
   String? _postcodeLabel;
   bool _isLookingUpPostcode = false;
   final _postcodeController = TextEditingController();
+  Timer? _reverseLookupTimer;
 
   @override
   void initState() {
@@ -43,11 +45,12 @@ class _MapPickerState extends State<MapPicker> {
   @override
   void dispose() {
     _postcodeController.dispose();
+    _reverseLookupTimer?.cancel();
     super.dispose();
   }
 
   Future<void> _lookupPostcode() async {
-    final postcode = _postcodeController.text.trim();
+    final postcode = normalizeUkPostcode(_postcodeController.text);
     if (postcode.isEmpty) {
       _showError("Enter a postcode.");
       return;
@@ -84,27 +87,31 @@ class _MapPickerState extends State<MapPicker> {
   }
 
   Future<void> _reverseLookupPostcode(LatLng location) async {
-    setState(() {
-      _isLookingUpPostcode = true;
-    });
-    try {
-      final postcode = await reverseUkPostcode(location);
+    _reverseLookupTimer?.cancel();
+    _reverseLookupTimer = Timer(const Duration(milliseconds: 500), () async {
       if (!mounted) return;
       setState(() {
-        _postcodeLabel = postcode;
+        _isLookingUpPostcode = true;
       });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _postcodeLabel = null;
-      });
-    } finally {
-      if (mounted) {
+      try {
+        final postcode = await reverseUkPostcode(location);
+        if (!mounted) return;
         setState(() {
-          _isLookingUpPostcode = false;
+          _postcodeLabel = postcode;
         });
+      } catch (_) {
+        if (!mounted) return;
+        setState(() {
+          _postcodeLabel = null;
+        });
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLookingUpPostcode = false;
+          });
+        }
       }
-    }
+    });
   }
 
   @override

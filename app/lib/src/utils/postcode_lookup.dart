@@ -12,9 +12,24 @@ class PostcodeResult {
   final LatLng location;
 }
 
+final Map<String, PostcodeResult> _postcodeCache = {};
+final Map<String, String> _reverseCache = {};
+
+String normalizeUkPostcode(String raw) {
+  final trimmed = raw.trim().toUpperCase().replaceAll(RegExp(r"\s+"), "");
+  if (trimmed.length <= 3) {
+    return trimmed;
+  }
+  final prefix = trimmed.substring(0, trimmed.length - 3);
+  final suffix = trimmed.substring(trimmed.length - 3);
+  return "$prefix $suffix";
+}
+
 Future<PostcodeResult?> lookupUkPostcode(String rawPostcode) async {
-  final cleaned = rawPostcode.trim();
+  final cleaned = normalizeUkPostcode(rawPostcode);
   if (cleaned.isEmpty) return null;
+  final cached = _postcodeCache[cleaned];
+  if (cached != null) return cached;
   final uri = Uri.https(
     "api.postcodes.io",
     "/postcodes/${Uri.encodeComponent(cleaned)}",
@@ -30,13 +45,19 @@ Future<PostcodeResult?> lookupUkPostcode(String rawPostcode) async {
   if (lat is! num || lng is! num || postcode is! String) {
     return null;
   }
-  return PostcodeResult(
+  final resultValue = PostcodeResult(
     postcode: postcode,
     location: LatLng(lat.toDouble(), lng.toDouble()),
   );
+  _postcodeCache[cleaned] = resultValue;
+  return resultValue;
 }
 
 Future<String?> reverseUkPostcode(LatLng location) async {
+  final key =
+      "${location.latitude.toStringAsFixed(4)},${location.longitude.toStringAsFixed(4)}";
+  final cached = _reverseCache[key];
+  if (cached != null) return cached;
   final uri = Uri.https(
     "api.postcodes.io",
     "/postcodes",
@@ -53,5 +74,6 @@ Future<String?> reverseUkPostcode(LatLng location) async {
   final first = results.first as Map<String, dynamic>?;
   final postcode = first?["postcode"];
   if (postcode is! String) return null;
+  _reverseCache[key] = postcode;
   return postcode;
 }
