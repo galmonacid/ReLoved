@@ -26,12 +26,7 @@ String normalizeUkPostcode(String raw) {
     }
   }
   final trimmed = decoded.trim().toUpperCase().replaceAll(RegExp(r"\s+"), "");
-  if (trimmed.length <= 3) {
-    return trimmed;
-  }
-  final prefix = trimmed.substring(0, trimmed.length - 3);
-  final suffix = trimmed.substring(trimmed.length - 3);
-  return "$prefix $suffix";
+  return trimmed;
 }
 
 Future<PostcodeResult?> lookupUkPostcode(String rawPostcode) async {
