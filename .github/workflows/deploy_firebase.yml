@@ -18,6 +18,8 @@ jobs:
       GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Ensure CI (Flutter) passed for this commit
         if: ${{ github.event.workflow_run.conclusion == 'success' }}
@@ -71,7 +73,7 @@ jobs:
           node-version: 18
 
       - name: Install Firebase CLI
-        run: npm i -g firebase-tools
+        run: npm i -g firebase-tools@latest
 
       - name: Build Functions
         working-directory: backend/functions
