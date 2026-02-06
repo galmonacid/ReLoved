@@ -31,7 +31,6 @@ class _PublishScreenState extends State<PublishScreen> {
   Uint8List? _imageBytes;
   LatLng? _location;
   bool _isLoading = false;
-  bool _isLookingUpPostcode = false;
 
   @override
   void initState() {
@@ -45,6 +44,13 @@ class _PublishScreenState extends State<PublishScreen> {
     setState(() {
       _location = current;
     });
+    final postcode = await reverseUkPostcode(current);
+    if (!mounted) return;
+    if (postcode != null && postcode.isNotEmpty) {
+      setState(() {
+        _areaController.text = postcode;
+      });
+    }
   }
 
   @override
@@ -98,37 +104,6 @@ class _PublishScreenState extends State<PublishScreen> {
           _areaController.text = selected.postcode!;
         }
       });
-    }
-  }
-
-  Future<void> _lookupPostcode() async {
-    final postcode = _areaController.text.trim();
-    if (postcode.isEmpty) {
-      _showError("Enter a postcode.");
-      return;
-    }
-    setState(() {
-      _isLookingUpPostcode = true;
-    });
-    try {
-      final result = await lookupUkPostcode(postcode);
-      if (result == null) {
-        _showError("Postcode not found.");
-        return;
-      }
-      if (!mounted) return;
-      setState(() {
-        _location = result.location;
-        _areaController.text = result.postcode;
-      });
-    } catch (_) {
-      _showError("Could not look up the postcode.");
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLookingUpPostcode = false;
-        });
-      }
     }
   }
 
@@ -265,31 +240,21 @@ class _PublishScreenState extends State<PublishScreen> {
               maxLength: 500,
               decoration: const InputDecoration(labelText: "Description"),
             ),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _areaController,
-                      textCapitalization: TextCapitalization.characters,
-                      decoration: const InputDecoration(
-                        labelText: "Postcode",
-                        helperText: "Shown as approximate location.",
-                      ),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _areaController,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: const InputDecoration(
+                      labelText: "Postcode",
+                      helperText: "Derived from device location.",
                     ),
+                    readOnly: true,
                   ),
-                  const SizedBox(width: 12),
-                  ElevatedButton(
-                    onPressed: _isLookingUpPostcode ? null : _lookupPostcode,
-                    child: _isLookingUpPostcode
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text("Search"),
-                  ),
-                ],
-              ),
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: _pickImage,
