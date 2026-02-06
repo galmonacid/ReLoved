@@ -16,9 +16,15 @@ final Map<String, PostcodeResult> _postcodeCache = {};
 final Map<String, String> _reverseCache = {};
 
 String normalizeUkPostcode(String raw) {
-  final decoded = raw.contains("%")
-      ? Uri.decodeComponent(raw)
-      : raw;
+  var decoded = raw;
+  for (var i = 0; i < 2; i += 1) {
+    if (!decoded.contains("%")) break;
+    try {
+      decoded = Uri.decodeComponent(decoded);
+    } catch (_) {
+      break;
+    }
+  }
   final trimmed = decoded.trim().toUpperCase().replaceAll(RegExp(r"\s+"), "");
   if (trimmed.length <= 3) {
     return trimmed;
