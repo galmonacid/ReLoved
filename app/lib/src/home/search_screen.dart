@@ -5,7 +5,6 @@ import "package:latlong2/latlong.dart";
 import "../models/item.dart";
 import "../utils/geo.dart";
 import "../utils/location.dart";
-import "../utils/postcode_lookup.dart";
 import "../widgets/item_image.dart";
 import "../widgets/map_picker.dart";
 import "item_detail_screen.dart";
@@ -22,19 +21,11 @@ class _SearchScreenState extends State<SearchScreen> {
   double _radiusKm = 5;
   String _query = "";
   String? _centerLabel;
-  bool _isLookingUpPostcode = false;
-  final _postcodeController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadInitialLocation();
-  }
-
-  @override
-  void dispose() {
-    _postcodeController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadInitialLocation() async {
@@ -46,54 +37,17 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _pickCenter() async {
-    final selected = await Navigator.of(context).push<LatLng>(
+    final selected = await Navigator.of(context).push<MapPickerResult>(
       MaterialPageRoute(
         builder: (_) => MapPicker(initialCenter: _center),
       ),
     );
     if (selected != null && mounted) {
       setState(() {
-        _center = selected;
-        _centerLabel = null;
+        _center = selected.location;
+        _centerLabel = selected.postcode;
       });
     }
-  }
-
-  Future<void> _lookupPostcode() async {
-    final postcode = _postcodeController.text.trim();
-    if (postcode.isEmpty) {
-      _showError("Enter a postcode.");
-      return;
-    }
-    setState(() {
-      _isLookingUpPostcode = true;
-    });
-    try {
-      final result = await lookupUkPostcode(postcode);
-      if (result == null) {
-        _showError("Postcode not found.");
-        return;
-      }
-      if (!mounted) return;
-      setState(() {
-        _center = result.location;
-        _centerLabel = result.postcode;
-      });
-    } catch (_) {
-      _showError("Could not look up the postcode.");
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLookingUpPostcode = false;
-        });
-      }
-    }
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
   }
 
   @override
@@ -111,40 +65,13 @@ class _SearchScreenState extends State<SearchScreen> {
                 Expanded(
                   child: Text(
                     _centerLabel == null
-                        ? "Location: ${_center.latitude.toStringAsFixed(3)}, ${_center.longitude.toStringAsFixed(3)}"
+                        ? "Location: select a postcode"
                         : "Location: ${_centerLabel!}",
                   ),
                 ),
                 TextButton(
                   onPressed: _pickCenter,
                   child: const Text("Change"),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _postcodeController,
-                    textCapitalization: TextCapitalization.characters,
-                    decoration: const InputDecoration(
-                      labelText: "Search by postcode",
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: _isLookingUpPostcode ? null : _lookupPostcode,
-                  child: _isLookingUpPostcode
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text("Search"),
                 ),
               ],
             ),
