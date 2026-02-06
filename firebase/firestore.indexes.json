@@ -20,7 +20,8 @@
           "fieldPath": "__name__",
           "order": "DESCENDING"
         }
-      ]
+      ],
+      "density": "SPARSE_ALL"
     },
     {
       "collectionGroup": "items",
@@ -38,7 +39,8 @@
           "fieldPath": "__name__",
           "order": "DESCENDING"
         }
-      ]
+      ],
+      "density": "SPARSE_ALL"
     },
     {
       "collectionGroup": "contactRequests",
@@ -56,7 +58,8 @@
           "fieldPath": "__name__",
           "order": "DESCENDING"
         }
-      ]
+      ],
+      "density": "SPARSE_ALL"
     }
   ],
   "fieldOverrides": []
