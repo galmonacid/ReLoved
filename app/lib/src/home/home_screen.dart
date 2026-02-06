@@ -28,25 +28,25 @@ class _HomeScreenState extends State<HomeScreen> {
             ? const [
                 BottomNavigationBarItem(
                   icon: Icon(Icons.search),
-                  label: "Buscar",
+                  label: "Search",
                 ),
                 BottomNavigationBarItem(
                   icon: Icon(Icons.add_circle_outline),
-                  label: "Publicar",
+                  label: "Publish",
                 ),
                 BottomNavigationBarItem(
                   icon: Icon(Icons.person_outline),
-                  label: "Perfil",
+                  label: "Profile",
                 ),
               ]
             : const [
                 BottomNavigationBarItem(
                   icon: Icon(Icons.search),
-                  label: "Buscar",
+                  label: "Search",
                 ),
                 BottomNavigationBarItem(
                   icon: Icon(Icons.login),
-                  label: "Ingresar",
+                  label: "Sign in",
                 ),
               ];
         final effectiveIndex =

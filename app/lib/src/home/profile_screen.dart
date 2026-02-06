@@ -10,6 +10,19 @@ import "item_detail_screen.dart";
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
+  String _statusLabel(String status) {
+    switch (status) {
+      case "available":
+        return "Available";
+      case "reserved":
+        return "Reserved";
+      case "given":
+        return "Given";
+      default:
+        return status;
+    }
+  }
+
   Future<void> _openUrl(BuildContext context, String url) async {
     if (url.isEmpty) {
       _showConfigMissing(context);
@@ -19,7 +32,7 @@ class ProfileScreen extends StatelessWidget {
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No se pudo abrir el enlace.")),
+        const SnackBar(content: Text("Could not open the link.")),
       );
     }
   }
@@ -33,14 +46,14 @@ class ProfileScreen extends StatelessWidget {
       scheme: "mailto",
       path: AppConfig.supportEmail,
       queryParameters: {
-        "subject": "Solicitud de eliminacion de cuenta",
+        "subject": "Account deletion request",
         "body": "UID: ${user.uid}\nEmail: ${user.email ?? ""}",
       },
     );
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No se pudo abrir el correo.")),
+        const SnackBar(content: Text("Could not open the email app.")),
       );
     }
   }
@@ -48,7 +61,7 @@ class ProfileScreen extends StatelessWidget {
   void _showConfigMissing(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text("Configura enlaces legales y soporte en build."),
+        content: Text("Configure legal links and support in the build."),
       ),
     );
   }
@@ -74,12 +87,12 @@ class ProfileScreen extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       return const Scaffold(
-        body: Center(child: Text("No has iniciado sesion.")),
+        body: Center(child: Text("You are not signed in.")),
       );
     }
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Perfil"),
+        title: const Text("Profile"),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -94,7 +107,7 @@ class ProfileScreen extends StatelessWidget {
             }
             if (snapshot.hasError) {
               return const Center(
-                child: Text("No se pudo cargar el perfil."),
+                child: Text("Could not load profile."),
               );
             }
             final data = snapshot.data?.data() ?? {};
@@ -115,21 +128,21 @@ class ProfileScreen extends StatelessWidget {
                   builder: (context, ratingSnapshot) {
                     if (ratingSnapshot.connectionState ==
                         ConnectionState.waiting) {
-                      return const Text("Cargando valoraciones...");
+                      return const Text("Loading ratings...");
                     }
                     if (ratingSnapshot.hasError) {
-                      return const Text("No se pudieron cargar valoraciones.");
+                      return const Text("Could not load ratings.");
                     }
                     final avg = ratingSnapshot.data?["avg"] as double? ?? 0.0;
                     final count = ratingSnapshot.data?["count"] as int? ?? 0;
                     return Text(
-                      "Valoracion: ${avg.toStringAsFixed(1)} ($count votos)",
+                      "Rating: ${avg.toStringAsFixed(1)} ($count reviews)",
                     );
                   },
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  "Mis items",
+                  "My items",
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8),
@@ -149,13 +162,13 @@ class ProfileScreen extends StatelessWidget {
                       }
                       if (itemsSnapshot.hasError) {
                         return const Center(
-                          child: Text("No se pudieron cargar tus items."),
+                          child: Text("Could not load your items."),
                         );
                       }
                       final docs = itemsSnapshot.data?.docs ?? [];
                       if (docs.isEmpty) {
                         return const Center(
-                          child: Text("Aun no has publicado items."),
+                          child: Text("You have not published any items yet."),
                         );
                       }
                       final items = docs.map(Item.fromDoc).toList();
@@ -178,7 +191,7 @@ class ProfileScreen extends StatelessWidget {
                               ),
                             ),
                             title: Text(item.title),
-                            subtitle: Text("Estado: ${item.status}"),
+                            subtitle: Text("Status: ${_statusLabel(item.status)}"),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () {
                               Navigator.of(context).push(
@@ -196,7 +209,7 @@ class ProfileScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  "Soporte y legal",
+                  "Support & legal",
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8),
@@ -207,7 +220,7 @@ class ProfileScreen extends StatelessWidget {
                       context,
                       AppConfig.privacyPolicyUrl,
                     ),
-                    child: const Text("Politica de privacidad"),
+                    child: const Text("Privacy policy"),
                   ),
                 ),
                 SizedBox(
@@ -217,14 +230,14 @@ class ProfileScreen extends StatelessWidget {
                       context,
                       AppConfig.termsUrl,
                     ),
-                    child: const Text("Terminos de servicio"),
+                    child: const Text("Terms of service"),
                   ),
                 ),
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton(
                     onPressed: () => _requestDeletion(context, user),
-                    child: const Text("Solicitar eliminacion de cuenta"),
+                    child: const Text("Request account deletion"),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -234,7 +247,7 @@ class ProfileScreen extends StatelessWidget {
                     onPressed: () async {
                       await FirebaseAuth.instance.signOut();
                     },
-                    child: const Text("Cerrar sesion"),
+                    child: const Text("Sign out"),
                   ),
                 ),
               ],

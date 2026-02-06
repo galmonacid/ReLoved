@@ -19,6 +19,19 @@ class ItemDetailScreen extends StatefulWidget {
 class _ItemDetailScreenState extends State<ItemDetailScreen> {
   bool _isUpdating = false;
 
+  String _statusLabel(String status) {
+    switch (status) {
+      case "available":
+        return "Available";
+      case "reserved":
+        return "Reserved";
+      case "given":
+        return "Given";
+      default:
+        return status;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -62,7 +75,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text("Valorar intercambio"),
+          title: const Text("Rate exchange"),
           content: StatefulBuilder(
             builder: (context, setState) {
               return Row(
@@ -87,11 +100,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text("Cancelar"),
+              child: const Text("Cancel"),
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(selected),
-              child: const Text("Enviar"),
+              child: const Text("Send"),
             ),
           ],
         );
@@ -116,7 +129,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Gracias por tu valoracion.")),
+      const SnackBar(content: Text("Thanks for your rating.")),
     );
   }
 
@@ -136,12 +149,12 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         }
         if (snapshot.hasError) {
           return const Scaffold(
-            body: Center(child: Text("No se pudo cargar el item.")),
+            body: Center(child: Text("Could not load the item.")),
           );
         }
         if (!snapshot.hasData || !snapshot.data!.exists) {
           return const Scaffold(
-            body: Center(child: Text("Item no encontrado.")),
+            body: Center(child: Text("Item not found.")),
           );
         }
         final item = Item.fromDoc(snapshot.data!);
@@ -176,27 +189,27 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   Text(item.description),
                 ],
                 const SizedBox(height: 8),
-                Text("Estado: ${item.status}"),
+                Text("Status: ${_statusLabel(item.status)}"),
                 const SizedBox(height: 4),
-                Text("Ubicacion: ${item.location.approxAreaText}"),
+                Text("Location: ${item.location.approxAreaText}"),
                 const SizedBox(height: 20),
                 if (isOwner) ...[
-                  const Text("Actualizar estado"),
+                  const Text("Update status"),
                   const SizedBox(height: 8),
                   DropdownButton<String>(
                     value: item.status,
                     items: const [
                       DropdownMenuItem(
                         value: "available",
-                        child: Text("Disponible"),
+                        child: Text("Available"),
                       ),
                       DropdownMenuItem(
                         value: "reserved",
-                        child: Text("Reservado"),
+                        child: Text("Reserved"),
                       ),
                       DropdownMenuItem(
                         value: "given",
-                        child: Text("Entregado"),
+                        child: Text("Given"),
                       ),
                     ],
                     onChanged: _isUpdating
@@ -231,11 +244,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                         if (!context.mounted) return;
                         if (sent == true) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Mensaje enviado.")),
+                            const SnackBar(content: Text("Message sent.")),
                           );
                         }
                       },
-                      child: const Text("Contactar"),
+                      child: const Text("Contact"),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -251,7 +264,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                                 ? null
                                 : () => _showRatingDialog(item),
                             child: Text(
-                              alreadyRated ? "Ya valorado" : "Valorar",
+                              alreadyRated ? "Already rated" : "Rate",
                             ),
                           ),
                         );

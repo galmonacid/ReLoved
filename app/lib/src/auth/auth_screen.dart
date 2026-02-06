@@ -30,11 +30,11 @@ class _AuthScreenState extends State<AuthScreen> {
     final password = _passwordController.text;
     final displayName = _displayNameController.text.trim();
     if (email.isEmpty || password.isEmpty) {
-      _showError("Email y password son obligatorios.");
+      _showError("Email and password are required.");
       return;
     }
     if (!_isLogin && displayName.isEmpty) {
-      _showError("El nombre visible es obligatorio.");
+      _showError("Display name is required.");
       return;
     }
 
@@ -69,9 +69,9 @@ class _AuthScreenState extends State<AuthScreen> {
         await FirebaseAnalytics.instance.logSignUp(signUpMethod: "password");
       }
     } on FirebaseAuthException catch (error) {
-      _showError(error.message ?? "Error de autenticacion");
+      _showError(error.message ?? "Authentication error.");
     } catch (error) {
-      _showError("Error inesperado.");
+      _showError("Unexpected error.");
     } finally {
       if (mounted) {
         setState(() {
@@ -84,7 +84,7 @@ class _AuthScreenState extends State<AuthScreen> {
   Future<void> _sendPasswordReset() async {
     final email = _emailController.text.trim();
     if (email.isEmpty) {
-      _showError("Ingresa tu email para recuperar la contraseña.");
+      _showError("Enter your email to reset your password.");
       return;
     }
     setState(() {
@@ -97,12 +97,12 @@ class _AuthScreenState extends State<AuthScreen> {
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Revisa tu correo para restablecerla.")),
+        const SnackBar(content: Text("Check your email to reset it.")),
       );
     } on FirebaseAuthException catch (error) {
-      _showError(error.message ?? "No se pudo enviar el email.");
+      _showError(error.message ?? "Could not send the email.");
     } catch (_) {
-      _showError("No se pudo enviar el email.");
+      _showError("Could not send the email.");
     } finally {
       if (mounted) {
         setState(() {
@@ -130,7 +130,7 @@ class _AuthScreenState extends State<AuthScreen> {
           child: Column(
             children: [
               Text(
-                _isLogin ? "Iniciar sesion" : "Crear cuenta",
+                _isLogin ? "Sign in" : "Create account",
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 20),
@@ -138,7 +138,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 TextField(
                   controller: _displayNameController,
                   decoration: const InputDecoration(
-                    labelText: "Nombre visible",
+                    labelText: "Display name",
                   ),
                 ),
               TextField(
@@ -166,13 +166,13 @@ class _AuthScreenState extends State<AuthScreen> {
                           width: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : Text(_isLogin ? "Entrar" : "Crear cuenta"),
+                      : Text(_isLogin ? "Sign in" : "Create account"),
                 ),
               ),
               if (_isLogin)
                 TextButton(
                   onPressed: _isLoading ? null : _sendPasswordReset,
-                  child: const Text("Olvidaste tu contraseña?"),
+                  child: const Text("Forgot your password?"),
                 ),
               TextButton(
                 onPressed: _isLoading
@@ -184,8 +184,8 @@ class _AuthScreenState extends State<AuthScreen> {
                       },
                 child: Text(
                   _isLogin
-                      ? "No tienes cuenta? Registrate"
-                      : "Ya tienes cuenta? Inicia sesion",
+                      ? "Don't have an account? Sign up"
+                      : "Already have an account? Sign in",
                 ),
               ),
             ],

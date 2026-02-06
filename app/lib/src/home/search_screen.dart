@@ -62,7 +62,7 @@ class _SearchScreenState extends State<SearchScreen> {
   Future<void> _lookupPostcode() async {
     final postcode = _postcodeController.text.trim();
     if (postcode.isEmpty) {
-      _showError("Ingresa un postcode.");
+      _showError("Enter a postcode.");
       return;
     }
     setState(() {
@@ -71,7 +71,7 @@ class _SearchScreenState extends State<SearchScreen> {
     try {
       final result = await lookupUkPostcode(postcode);
       if (result == null) {
-        _showError("Postcode no encontrado.");
+        _showError("Postcode not found.");
         return;
       }
       if (!mounted) return;
@@ -80,7 +80,7 @@ class _SearchScreenState extends State<SearchScreen> {
         _centerLabel = result.postcode;
       });
     } catch (_) {
-      _showError("No se pudo buscar el postcode.");
+      _showError("Could not look up the postcode.");
     } finally {
       if (mounted) {
         setState(() {
@@ -100,7 +100,7 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Buscar"),
+        title: const Text("Search"),
       ),
       body: Column(
         children: [
@@ -111,13 +111,13 @@ class _SearchScreenState extends State<SearchScreen> {
                 Expanded(
                   child: Text(
                     _centerLabel == null
-                        ? "Ubicacion: ${_center.latitude.toStringAsFixed(3)}, ${_center.longitude.toStringAsFixed(3)}"
-                        : "Ubicacion: ${_centerLabel!}",
+                        ? "Location: ${_center.latitude.toStringAsFixed(3)}, ${_center.longitude.toStringAsFixed(3)}"
+                        : "Location: ${_centerLabel!}",
                   ),
                 ),
                 TextButton(
                   onPressed: _pickCenter,
-                  child: const Text("Cambiar"),
+                  child: const Text("Change"),
                 ),
               ],
             ),
@@ -131,7 +131,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     controller: _postcodeController,
                     textCapitalization: TextCapitalization.characters,
                     decoration: const InputDecoration(
-                      labelText: "Buscar por postcode",
+                      labelText: "Search by postcode",
                     ),
                   ),
                 ),
@@ -144,7 +144,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text("Buscar"),
+                      : const Text("Search"),
                 ),
               ],
             ),
@@ -153,7 +153,7 @@ class _SearchScreenState extends State<SearchScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                const Text("Radio:"),
+                const Text("Radius:"),
                 const SizedBox(width: 12),
                 ChoiceChip(
                   label: const Text("5 km"),
@@ -189,7 +189,7 @@ class _SearchScreenState extends State<SearchScreen> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: TextField(
               decoration: const InputDecoration(
-                labelText: "Buscar por palabra",
+                labelText: "Search by keyword",
                 prefixIcon: Icon(Icons.search),
               ),
               onChanged: (value) {
@@ -213,11 +213,11 @@ class _SearchScreenState extends State<SearchScreen> {
                 }
                 if (snapshot.hasError) {
                   return const Center(
-                    child: Text("No se pudieron cargar los items."),
+                    child: Text("Could not load items."),
                   );
                 }
                 if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text("No hay items disponibles."));
+                  return const Center(child: Text("No items available."));
                 }
                 final items = snapshot.data!.docs
                     .map(Item.fromDoc)
@@ -234,7 +234,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 }).toList();
                 if (items.isEmpty) {
                   return const Center(
-                    child: Text("No hay items en este radio."),
+                    child: Text("No items in this radius."),
                   );
                 }
                 return ListView.separated(

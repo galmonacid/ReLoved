@@ -27,7 +27,7 @@ class _MapPickerState extends State<MapPicker> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Seleccionar ubicacion"),
+        title: const Text("Select location"),
       ),
       body: Stack(
         children: [
@@ -70,7 +70,7 @@ class _MapPickerState extends State<MapPicker> {
               onPressed: () {
                 Navigator.of(context).pop(_selected);
               },
-              child: const Text("Confirmar ubicacion"),
+              child: const Text("Confirm location"),
             ),
           ),
         ],

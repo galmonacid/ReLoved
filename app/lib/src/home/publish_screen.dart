@@ -74,9 +74,9 @@ class _PublishScreenState extends State<PublishScreen> {
         _imageBytes = bytes;
       });
     } on PlatformException catch (error) {
-      _showError(error.message ?? "Permiso denegado para fotos.");
+      _showError(error.message ?? "Photo permission denied.");
     } catch (_) {
-      _showError("No se pudo acceder a la galeria.");
+      _showError("Could not access the gallery.");
     }
   }
 
@@ -96,7 +96,7 @@ class _PublishScreenState extends State<PublishScreen> {
   Future<void> _lookupPostcode() async {
     final postcode = _areaController.text.trim();
     if (postcode.isEmpty) {
-      _showError("Ingresa un postcode.");
+      _showError("Enter a postcode.");
       return;
     }
     setState(() {
@@ -105,7 +105,7 @@ class _PublishScreenState extends State<PublishScreen> {
     try {
       final result = await lookupUkPostcode(postcode);
       if (result == null) {
-        _showError("Postcode no encontrado.");
+        _showError("Postcode not found.");
         return;
       }
       if (!mounted) return;
@@ -114,7 +114,7 @@ class _PublishScreenState extends State<PublishScreen> {
         _areaController.text = result.postcode;
       });
     } catch (_) {
-      _showError("No se pudo buscar el postcode.");
+      _showError("Could not look up the postcode.");
     } finally {
       if (mounted) {
         setState(() {
@@ -127,22 +127,22 @@ class _PublishScreenState extends State<PublishScreen> {
   Future<void> _publish() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      _showError("Debes iniciar sesion.");
+      _showError("You need to sign in.");
       return;
     }
     final title = _titleController.text.trim();
     final description = _descriptionController.text.trim();
     final area = _areaController.text.trim();
     if (title.isEmpty || description.isEmpty || area.isEmpty) {
-      _showError("Completa el titulo, la descripcion y el postcode.");
+      _showError("Enter a title, description, and postcode.");
       return;
     }
     if (_imageFile == null) {
-      _showError("Selecciona una foto.");
+      _showError("Select a photo.");
       return;
     }
     if (_location == null) {
-      _showError("Selecciona una ubicacion.");
+      _showError("Select a location.");
       return;
     }
 
@@ -220,7 +220,7 @@ class _PublishScreenState extends State<PublishScreen> {
         ),
       );
     } catch (error) {
-      _showError("No se pudo publicar.");
+      _showError("Could not publish.");
     } finally {
       if (mounted) {
         setState(() {
@@ -240,7 +240,7 @@ class _PublishScreenState extends State<PublishScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Publicar"),
+        title: const Text("Publish"),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -249,13 +249,13 @@ class _PublishScreenState extends State<PublishScreen> {
           children: [
             TextField(
               controller: _titleController,
-              decoration: const InputDecoration(labelText: "Titulo"),
+              decoration: const InputDecoration(labelText: "Title"),
             ),
             TextField(
               controller: _descriptionController,
               maxLines: 4,
               maxLength: 500,
-              decoration: const InputDecoration(labelText: "Descripcion"),
+              decoration: const InputDecoration(labelText: "Description"),
             ),
               Row(
                 children: [
@@ -265,7 +265,7 @@ class _PublishScreenState extends State<PublishScreen> {
                       textCapitalization: TextCapitalization.characters,
                       decoration: const InputDecoration(
                         labelText: "Postcode",
-                        helperText: "Se mostrara como ubicacion aproximada.",
+                        helperText: "Shown as approximate location.",
                       ),
                     ),
                   ),
@@ -278,7 +278,7 @@ class _PublishScreenState extends State<PublishScreen> {
                             height: 16,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text("Buscar"),
+                        : const Text("Search"),
                   ),
                 ],
               ),
@@ -287,8 +287,8 @@ class _PublishScreenState extends State<PublishScreen> {
               onPressed: _pickImage,
               icon: const Icon(Icons.photo),
               label: Text(_imageFile == null
-                  ? "Seleccionar foto"
-                  : "Cambiar foto"),
+                  ? "Select photo"
+                  : "Change photo"),
             ),
             if (_imageFile != null) ...[
               const SizedBox(height: 12),
@@ -312,13 +312,13 @@ class _PublishScreenState extends State<PublishScreen> {
               onPressed: _pickLocation,
               icon: const Icon(Icons.map_outlined),
               label: Text(_location == null
-                  ? "Seleccionar ubicacion"
-                  : "Cambiar ubicacion"),
+                  ? "Select location"
+                  : "Change location"),
             ),
             if (_location != null) ...[
               const SizedBox(height: 8),
               Text(
-                "Ubicacion: ${_location!.latitude.toStringAsFixed(3)}, ${_location!.longitude.toStringAsFixed(3)}",
+                "Location: ${_location!.latitude.toStringAsFixed(3)}, ${_location!.longitude.toStringAsFixed(3)}",
               ),
             ],
             const SizedBox(height: 20),
@@ -330,7 +330,7 @@ class _PublishScreenState extends State<PublishScreen> {
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Text("Publicar"),
+                  : const Text("Publish"),
             ),
           ],
         ),

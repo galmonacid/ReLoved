@@ -30,12 +30,12 @@ class _ContactScreenState extends State<ContactScreen> {
   Future<void> _send() async {
     final message = _messageController.text.trim();
     if (message.isEmpty) {
-      _showError("Escribe un mensaje.");
+      _showError("Write a message.");
       return;
     }
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      _showError("Inicia sesión para contactar.");
+      _showError("Sign in to contact.");
       return;
     }
     setState(() {
@@ -67,9 +67,9 @@ class _ContactScreenState extends State<ContactScreen> {
       debugPrint(
         "sendContactEmail failed: code=${error.code} message=${error.message} details=${error.details}",
       );
-      _showError(message.isNotEmpty ? message : "No se pudo enviar.");
+      _showError(message.isNotEmpty ? message : "Could not send.");
     } catch (_) {
-      _showError("No se pudo enviar.");
+      _showError("Could not send.");
     } finally {
       if (mounted) {
         setState(() {
@@ -89,7 +89,7 @@ class _ContactScreenState extends State<ContactScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Contactar"),
+        title: const Text("Contact"),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -105,7 +105,7 @@ class _ContactScreenState extends State<ContactScreen> {
               controller: _messageController,
               maxLines: 6,
               decoration: const InputDecoration(
-                labelText: "Mensaje",
+                labelText: "Message",
                 border: OutlineInputBorder(),
               ),
             ),
@@ -120,7 +120,7 @@ class _ContactScreenState extends State<ContactScreen> {
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text("Enviar"),
+                    : const Text("Send"),
               ),
             ),
           ],
