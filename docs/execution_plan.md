@@ -2,7 +2,7 @@
 
 ## Decisions (MVP defaults)
 - Email provider: SendGrid (simpler setup, solid docs, good free tier).
-- Location UX: Map picker with approximate pin + geohash (avoid geocoding).
+- Location UX: Map picker with postcode lookup (UK) + approximate pin + geohash.
 - Access model: Public browsing; auth required to publish or contact.
 - Release target: iOS first.
 - Firebase project ID: reloved-greenhilledge.
@@ -35,6 +35,7 @@
 6. [COMPLETE] **App core features**
    - [COMPLETE] Auth screens + profile creation.
    - [COMPLETE] Item create: photo upload + map pin selection + geohash.
+   - [COMPLETE] UK postcode lookup for location selection.
    - [COMPLETE] Item description field for listings.
    - [COMPLETE] Search: radius filter (5 km / 20 km) + recent ordering.
    - [COMPLETE] Keyword search across title + description.
@@ -61,15 +62,12 @@
    - [COMPLETE] Configure Firebase App Check (production and emulator).
    - [COMPLETE] Add data retention + account deletion process (manual MVP flow).
    - [COMPLETE] Add performance hygiene (image compression, basic caching).
-9. [] **Post-release growth + insights**
-   - [] Create analytics funnels in Firebase (login → publish → contact).
-10. [] **iOS release prep**
+9. [] **iOS release prep**
    - [] Enroll in Apple Developer Program (UK, £79/year) and obtain Team ID.
    - [] Create App Store Connect record and capture App Store ID.
    - [] App icons, launch screen, and basic App Store metadata.
    - [] Build and distribute via TestFlight.
    - [] Deploy Firestore rules, indexes, Storage rules, and Functions.
 
-## Dependencies / prerequisites
-- [] Apple Developer account (TestFlight + App Store).
-- [] SendGrid account and API key.
+10. [] **Post-release growth + insights**
+   - [] Create analytics funnels in Firebase (login → publish → contact).

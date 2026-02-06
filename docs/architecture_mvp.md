@@ -14,6 +14,7 @@ Lanzar el MVP en el menor tiempo posible para validar el interés real de los us
 - **Backend serverless**: Cloud Functions (TypeScript)
 - **Email transaccional**: SendGrid o Mailgun
 - **Analytics y errores**: Firebase Analytics + Crashlytics
+- **Geocoding UK**: postcodes.io (MVP)
 
 ## Principios arquitectónicos
 - Backend mínimo
@@ -27,6 +28,7 @@ Lanzar el MVP en el menor tiempo posible para validar el interés real de los us
 - Filtros por radio fijo (5 km / 20 km)
 - Query por prefijos de geohash + filtrado por distancia real
 - Orden por fecha de publicación (más recientes primero)
+- Entrada de ubicación por postcode en UK (normalizado)
 
 ## Fuera de alcance del MVP
 - Chat en tiempo real (fast follower)
@@ -34,7 +36,6 @@ Lanzar el MVP en el menor tiempo posible para validar el interés real de los us
 - Pagos
 - Moderación avanzada
 - Login social (Google / Apple)
-- Búsqueda por texto libre
 - Escalado multi-región
 
 ## Evolución prevista (post-MVP)

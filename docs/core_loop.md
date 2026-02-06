@@ -5,7 +5,7 @@ Permitir que los usuarios publiquen objetos, busquen objetos disponibles y conta
 
 ## 1. Publicación de objeto
 - Usuario pulsa “Publicar”.
-- Campos obligatorios: foto, título, ubicación, fecha automática.
+- Campos obligatorios: foto, título, descripción, postcode (UK) y fecha automática.
 - Objeto visible para usuarios dentro del radio seleccionado.
 
 ## 2. Búsqueda de objetos
@@ -14,7 +14,7 @@ Permitir que los usuarios publiquen objetos, busquen objetos disponibles y conta
 - Ordenados por fecha de publicación (más recientes primero).
 
 ## 3. Contacto entre usuarios (MVP)
-- Usuario pulsa “Estoy interesado” y completa un formulario con mensaje libre.
+- Usuario pulsa “Contactar” y completa un formulario con mensaje libre.
 - La app envía un email automático al dueño del objeto con:
   - Mensaje del interesado
   - Email del interesado

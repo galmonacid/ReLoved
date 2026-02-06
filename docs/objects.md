@@ -3,11 +3,12 @@
 ## Campos obligatorios
 - Foto del objeto
 - Título
-- Ubicación aproximada (barrio/zona)
+- Postcode (UK) / ubicación aproximada
 - Fecha de publicación (automática)
+- Descripción
 
 ## Campos opcionales
-- Ninguno en el MVP
+- photoPath (interno para Storage)
 
 ## Funcionalidades relacionadas
 - Publicar un objeto disponible.

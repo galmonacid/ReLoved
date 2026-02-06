@@ -30,11 +30,12 @@ firebase deploy --only firestore:rules,firestore:indexes,storage,functions
 - Inicio de sesión básico.
 
 ### Fase 2: Publicaciones de objetos
-- Permitir subir objeto con foto, título, ubicación y fecha automática.
+- Permitir subir objeto con foto, título, descripción, postcode (UK) y fecha automática.
 - Listado de objetos visibles según radio.
 
 ### Fase 3: Búsqueda
 - Implementar búsqueda filtrada por radio: 5 km / 20 km.
+- Buscar por texto libre (título + descripción).
 - Ordenar por fecha de publicación.
 
 ### Fase 4: Contacto

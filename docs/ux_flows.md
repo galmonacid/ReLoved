@@ -5,7 +5,7 @@
 
 ## Pantallas
 - Auth: Registro, Login.
-- Buscar: lista de items + filtro de radio (5 km / 20 km) + buscador por palabras (publico) + busqueda por postcode (UK).
+- Buscar: lista de items + filtro de radio (5 km / 20 km) + buscador por palabras (publico).
 - Publicar: formulario con foto, titulo, descripcion, postcode (UK) y pin de mapa.
 - Detalle de item: foto, titulo, distancia aprox, estado y CTA de contacto.
 - Contacto: formulario de mensaje y confirmacion de envio.
@@ -27,7 +27,8 @@
 
 ### Publicar item
 1. Tab Publicar -> requiere login.
-2. Elegir ubicacion con pin y completar titulo + descripcion + area aproximada.
+2. Buscar postcode y/o ajustar pin en el mapa.
+3. Completar titulo + descripcion + postcode.
 3. Crear item -> navegar a Detalle del item.
 
 ### Buscar y ver item

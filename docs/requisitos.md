@@ -1,8 +1,8 @@
 # Requisitos del MVP
 
 ## Funcionalidades principales
-1. Publicación de objetos: foto, título, ubicación, fecha automática.
-2. Búsqueda de objetos: filtrado por radio (5 km / 20 km).
+1. Publicación de objetos: foto, título, descripción, postcode (UK), fecha automática.
+2. Búsqueda de objetos: filtrado por radio (5 km / 20 km) y texto.
 3. Registro de usuario mínimo: email, contraseña, nombre visible.
 4. Contacto: formulario que envía email con mensaje libre al dueño del objeto.
 5. Valoración simple de usuarios tras un intercambio.
@@ -15,6 +15,7 @@
 
 ## Alcance geográfico
 - Filtrado por proximidad usando radio: 5 km y 20 km.
+- Entrada de ubicación por postcode (UK).
 
 ## Plataforma objetivo
 - Mobile (iOS y Android).
