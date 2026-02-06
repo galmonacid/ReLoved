@@ -5,6 +5,7 @@ import "package:latlong2/latlong.dart";
 import "../models/item.dart";
 import "../utils/geo.dart";
 import "../utils/location.dart";
+import "../utils/postcode_lookup.dart";
 import "../widgets/item_image.dart";
 import "../widgets/map_picker.dart";
 import "item_detail_screen.dart";
@@ -20,11 +21,20 @@ class _SearchScreenState extends State<SearchScreen> {
   LatLng _center = defaultCenter;
   double _radiusKm = 5;
   String _query = "";
+  String? _centerLabel;
+  bool _isLookingUpPostcode = false;
+  final _postcodeController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadInitialLocation();
+  }
+
+  @override
+  void dispose() {
+    _postcodeController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadInitialLocation() async {
@@ -44,8 +54,46 @@ class _SearchScreenState extends State<SearchScreen> {
     if (selected != null && mounted) {
       setState(() {
         _center = selected;
+        _centerLabel = null;
       });
     }
+  }
+
+  Future<void> _lookupPostcode() async {
+    final postcode = _postcodeController.text.trim();
+    if (postcode.isEmpty) {
+      _showError("Ingresa un postcode.");
+      return;
+    }
+    setState(() {
+      _isLookingUpPostcode = true;
+    });
+    try {
+      final result = await lookupUkPostcode(postcode);
+      if (result == null) {
+        _showError("Postcode no encontrado.");
+        return;
+      }
+      if (!mounted) return;
+      setState(() {
+        _center = result.location;
+        _centerLabel = result.postcode;
+      });
+    } catch (_) {
+      _showError("No se pudo buscar el postcode.");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLookingUpPostcode = false;
+        });
+      }
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   @override
@@ -62,12 +110,41 @@ class _SearchScreenState extends State<SearchScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    "Ubicacion: ${_center.latitude.toStringAsFixed(3)}, ${_center.longitude.toStringAsFixed(3)}",
+                    _centerLabel == null
+                        ? "Ubicacion: ${_center.latitude.toStringAsFixed(3)}, ${_center.longitude.toStringAsFixed(3)}"
+                        : "Ubicacion: ${_centerLabel!}",
                   ),
                 ),
                 TextButton(
                   onPressed: _pickCenter,
                   child: const Text("Cambiar"),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _postcodeController,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: const InputDecoration(
+                      labelText: "Buscar por postcode",
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: _isLookingUpPostcode ? null : _lookupPostcode,
+                  child: _isLookingUpPostcode
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text("Buscar"),
                 ),
               ],
             ),

@@ -10,6 +10,7 @@ import "package:image_picker/image_picker.dart";
 import "package:latlong2/latlong.dart";
 import "../utils/geo.dart";
 import "../utils/location.dart";
+import "../utils/postcode_lookup.dart";
 import "../widgets/map_picker.dart";
 import "item_detail_screen.dart";
 
@@ -30,6 +31,7 @@ class _PublishScreenState extends State<PublishScreen> {
   Uint8List? _imageBytes;
   LatLng? _location;
   bool _isLoading = false;
+  bool _isLookingUpPostcode = false;
 
   @override
   void initState() {
@@ -91,6 +93,37 @@ class _PublishScreenState extends State<PublishScreen> {
     }
   }
 
+  Future<void> _lookupPostcode() async {
+    final postcode = _areaController.text.trim();
+    if (postcode.isEmpty) {
+      _showError("Ingresa un postcode.");
+      return;
+    }
+    setState(() {
+      _isLookingUpPostcode = true;
+    });
+    try {
+      final result = await lookupUkPostcode(postcode);
+      if (result == null) {
+        _showError("Postcode no encontrado.");
+        return;
+      }
+      if (!mounted) return;
+      setState(() {
+        _location = result.location;
+        _areaController.text = result.postcode;
+      });
+    } catch (_) {
+      _showError("No se pudo buscar el postcode.");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLookingUpPostcode = false;
+        });
+      }
+    }
+  }
+
   Future<void> _publish() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -101,7 +134,7 @@ class _PublishScreenState extends State<PublishScreen> {
     final description = _descriptionController.text.trim();
     final area = _areaController.text.trim();
     if (title.isEmpty || description.isEmpty || area.isEmpty) {
-      _showError("Completa el titulo, la descripcion y la zona.");
+      _showError("Completa el titulo, la descripcion y el postcode.");
       return;
     }
     if (_imageFile == null) {
@@ -224,11 +257,31 @@ class _PublishScreenState extends State<PublishScreen> {
               maxLength: 500,
               decoration: const InputDecoration(labelText: "Descripcion"),
             ),
-            TextField(
-              controller: _areaController,
-              decoration:
-                  const InputDecoration(labelText: "Zona aproximada"),
-            ),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _areaController,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: const InputDecoration(
+                        labelText: "Postcode",
+                        helperText: "Se mostrara como ubicacion aproximada.",
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: _isLookingUpPostcode ? null : _lookupPostcode,
+                    child: _isLookingUpPostcode
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text("Buscar"),
+                  ),
+                ],
+              ),
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: _pickImage,

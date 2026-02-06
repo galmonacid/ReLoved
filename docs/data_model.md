@@ -35,6 +35,7 @@ Campos:
 
 Notas:
 - La ubicación es aproximada para preservar privacidad.
+- En UK, approxAreaText almacena el postcode mostrado al usuario.
 - El estado ayuda a reducir fricción incluso en el MVP.
 - description se usa para búsqueda por palabras en el MVP.
 - photoPath guarda la ruta del archivo en Storage (para cargar con SDK).

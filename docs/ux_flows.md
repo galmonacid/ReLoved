@@ -5,8 +5,8 @@
 
 ## Pantallas
 - Auth: Registro, Login.
-- Buscar: lista de items + filtro de radio (5 km / 20 km) + buscador por palabras (publico).
-- Publicar: formulario con foto, titulo, descripcion, ubicacion aproximada y pin de mapa.
+- Buscar: lista de items + filtro de radio (5 km / 20 km) + buscador por palabras (publico) + busqueda por postcode (UK).
+- Publicar: formulario con foto, titulo, descripcion, postcode (UK) y pin de mapa.
 - Detalle de item: foto, titulo, distancia aprox, estado y CTA de contacto.
 - Contacto: formulario de mensaje y confirmacion de envio.
 - Perfil: displayName, rating promedio, cerrar sesion.
