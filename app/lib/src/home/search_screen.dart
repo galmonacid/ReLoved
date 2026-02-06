@@ -5,6 +5,7 @@ import "package:latlong2/latlong.dart";
 import "../models/item.dart";
 import "../utils/geo.dart";
 import "../utils/location.dart";
+import "../utils/postcode_lookup.dart";
 import "../widgets/item_image.dart";
 import "../widgets/map_picker.dart";
 import "item_detail_screen.dart";
