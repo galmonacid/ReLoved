@@ -76,6 +76,7 @@ jobs:
         run: npm i -g firebase-tools@latest
 
       - name: Configure functions artifacts cleanup policy
+        continue-on-error: true
         run: |
           firebase functions:artifacts:setpolicy --location=us-central1 --force
 
