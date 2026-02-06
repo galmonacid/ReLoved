@@ -326,7 +326,9 @@ class _PublishScreenState extends State<PublishScreen> {
             if (_location != null) ...[
               const SizedBox(height: 8),
               Text(
-                "Location: ${_location!.latitude.toStringAsFixed(3)}, ${_location!.longitude.toStringAsFixed(3)}",
+                _areaController.text.trim().isEmpty
+                    ? "Location: select a postcode"
+                    : "Location: ${_areaController.text.trim()}",
               ),
             ],
             const SizedBox(height: 20),
