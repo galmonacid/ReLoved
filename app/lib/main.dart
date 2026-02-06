@@ -30,16 +30,28 @@ Future<void> _configureFirebase() async {
         .setCrashlyticsCollectionEnabled(!kDebugMode);
   }
 
-  await FirebaseAppCheck.instance.activate(
-    webProvider: AppConfig.hasAppCheckWebKey
-        ? ReCaptchaV3Provider(AppConfig.appCheckWebKey)
-        : null,
-    androidProvider:
-        kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
-    appleProvider: kDebugMode
-        ? AppleProvider.debug
-        : AppleProvider.appAttestWithDeviceCheckFallback,
-  );
+  try {
+    if (kIsWeb) {
+      if (!AppConfig.hasAppCheckWebKey) {
+        return;
+      }
+      await FirebaseAppCheck.instance.activate(
+        webProvider: ReCaptchaV3Provider(AppConfig.appCheckWebKey),
+      );
+      return;
+    }
+    await FirebaseAppCheck.instance.activate(
+      androidProvider:
+          kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
+      appleProvider: kDebugMode
+          ? AppleProvider.debug
+          : AppleProvider.appAttestWithDeviceCheckFallback,
+    );
+  } catch (_) {
+    if (!kDebugMode) {
+      rethrow;
+    }
+  }
 }
 
 class ReLovedApp extends StatelessWidget {
