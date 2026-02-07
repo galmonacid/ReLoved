@@ -65,7 +65,8 @@
 9. [] **iOS release prep**
    - [] Enroll in Apple Developer Program (UK, £79/year) and obtain Team ID.
    - [] Create App Store Connect record and capture App Store ID.
-   - [] App icons, launch screen, and basic App Store metadata.
+   - [] App icons and launch screen.
+   - [] Basic App Store metadata (listing copy, keywords, categories).
    - [] Build and distribute via TestFlight.
    - [] Deploy Firestore rules, indexes, Storage rules, and Functions.
 

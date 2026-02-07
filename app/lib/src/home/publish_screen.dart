@@ -25,6 +25,7 @@ class _PublishScreenState extends State<PublishScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _areaController = TextEditingController();
+  final _postcodeController = TextEditingController();
   final _imagePicker = ImagePicker();
 
   XFile? _imageFile;
@@ -48,7 +49,7 @@ class _PublishScreenState extends State<PublishScreen> {
     if (!mounted) return;
     if (postcode != null && postcode.isNotEmpty) {
       setState(() {
-        _areaController.text = postcode;
+        _postcodeController.text = postcode;
       });
     }
   }
@@ -58,6 +59,7 @@ class _PublishScreenState extends State<PublishScreen> {
     _titleController.dispose();
     _descriptionController.dispose();
     _areaController.dispose();
+    _postcodeController.dispose();
     super.dispose();
   }
 
@@ -91,9 +93,9 @@ class _PublishScreenState extends State<PublishScreen> {
       MaterialPageRoute(
         builder: (_) => MapPicker(
           initialCenter: _location ?? defaultCenter,
-          initialPostcode: _areaController.text.trim().isEmpty
+          initialPostcode: _postcodeController.text.trim().isEmpty
               ? null
-              : _areaController.text.trim(),
+              : _postcodeController.text.trim(),
         ),
       ),
     );
@@ -101,7 +103,7 @@ class _PublishScreenState extends State<PublishScreen> {
       setState(() {
         _location = selected.location;
         if (selected.postcode != null && selected.postcode!.isNotEmpty) {
-          _areaController.text = selected.postcode!;
+          _postcodeController.text = selected.postcode!;
         }
       });
     }
@@ -117,7 +119,7 @@ class _PublishScreenState extends State<PublishScreen> {
     final description = _descriptionController.text.trim();
     final area = _areaController.text.trim();
     if (title.isEmpty || description.isEmpty || area.isEmpty) {
-      _showError("Enter a title, description, and postcode.");
+      _showError("Enter a title, description, and approximate area.");
       return;
     }
     if (_imageFile == null) {
@@ -193,6 +195,7 @@ class _PublishScreenState extends State<PublishScreen> {
       _titleController.clear();
       _descriptionController.clear();
       _areaController.clear();
+      _postcodeController.clear();
       setState(() {
         _imageFile = null;
         _location = null;
@@ -245,15 +248,36 @@ class _PublishScreenState extends State<PublishScreen> {
                 Expanded(
                   child: TextField(
                     controller: _areaController,
-                    textCapitalization: TextCapitalization.characters,
                     decoration: const InputDecoration(
-                      labelText: "Postcode",
+                      labelText: "Approximate area",
+                      helperText: "Shown to other users.",
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _postcodeController,
+                    decoration: const InputDecoration(
+                      labelText: "Location (postcode)",
                       helperText: "Derived from device location.",
                     ),
                     readOnly: true,
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: _pickLocation,
+              icon: const Icon(Icons.map_outlined),
+              label: Text(_location == null
+                  ? "Select location"
+                  : "Change location"),
             ),
             const SizedBox(height: 16),
             OutlinedButton.icon(
@@ -278,22 +302,6 @@ class _PublishScreenState extends State<PublishScreen> {
                         height: 180,
                         fit: BoxFit.cover,
                       ),
-              ),
-            ],
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: _pickLocation,
-              icon: const Icon(Icons.map_outlined),
-              label: Text(_location == null
-                  ? "Select location"
-                  : "Change location"),
-            ),
-            if (_location != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                _areaController.text.trim().isEmpty
-                    ? "Location: select a postcode"
-                    : "Location: ${_areaController.text.trim()}",
               ),
             ],
             const SizedBox(height: 20),
