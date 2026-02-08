@@ -19,9 +19,10 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   LatLng _center = defaultCenter;
-  double _radiusKm = 5;
+  double _radiusMiles = 3;
   String _query = "";
   String? _centerLabel;
+  static const double _kmPerMile = 1.60934;
 
   @override
   void initState() {
@@ -92,29 +93,35 @@ class _SearchScreenState extends State<SearchScreen> {
                 const Text("Radius:"),
                 const SizedBox(width: 12),
                 ChoiceChip(
-                  label: const Text("5 km"),
-                  selected: _radiusKm == 5,
+                  label: const Text("3 mi"),
+                  selected: _radiusMiles == 3,
                   onSelected: (_) {
                     setState(() {
-                      _radiusKm = 5;
+                      _radiusMiles = 3;
                     });
                     FirebaseAnalytics.instance.logEvent(
                       name: "search_radius_change",
-                      parameters: {"radiusKm": 5},
+                      parameters: {
+                        "radiusMiles": 3,
+                        "radiusKm": 3 * _kmPerMile,
+                      },
                     );
                   },
                 ),
                 const SizedBox(width: 8),
                 ChoiceChip(
-                  label: const Text("20 km"),
-                  selected: _radiusKm == 20,
+                  label: const Text("10 mi"),
+                  selected: _radiusMiles == 10,
                   onSelected: (_) {
                     setState(() {
-                      _radiusKm = 20;
+                      _radiusMiles = 10;
                     });
                     FirebaseAnalytics.instance.logEvent(
                       name: "search_radius_change",
-                      parameters: {"radiusKm": 20},
+                      parameters: {
+                        "radiusMiles": 10,
+                        "radiusKm": 10 * _kmPerMile,
+                      },
                     );
                   },
                 ),
@@ -165,8 +172,9 @@ class _SearchScreenState extends State<SearchScreen> {
                       return haystack.contains(_query);
                     })
                     .where((item) {
-                  final distance = distanceKm(_center, item.location.toLatLng());
-                  return distance <= _radiusKm;
+                  final distanceKmValue =
+                      distanceKm(_center, item.location.toLatLng());
+                  return distanceKmValue <= _radiusMiles * _kmPerMile;
                 }).toList();
                 if (items.isEmpty) {
                   return const Center(

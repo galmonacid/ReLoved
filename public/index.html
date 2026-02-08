@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Greenhill Edge Ltd | ReLoved</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --sage: #9caf88;
+        --ink: #1f2a1f;
+        --bg: #ffffff;
+        --muted: #5b6b5b;
+        --border: #e6ece6;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--ink);
+        line-height: 1.6;
+      }
+      header {
+        padding: 40px 20px 24px;
+        border-bottom: 1px solid var(--border);
+      }
+      header h1 {
+        margin: 0 0 8px;
+        color: var(--sage);
+        font-size: 28px;
+      }
+      header p {
+        margin: 0;
+        color: var(--muted);
+      }
+      main {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 28px 20px 64px;
+        display: grid;
+        gap: 24px;
+      }
+      section {
+        padding: 20px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+      }
+      h2 {
+        margin: 0 0 8px;
+        color: var(--sage);
+        font-size: 20px;
+      }
+      a {
+        color: var(--sage);
+      }
+      .links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 12px;
+      }
+      .links a,
+      .links button {
+        text-decoration: none;
+        border: 1px solid var(--border);
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--sage);
+        font: inherit;
+        cursor: pointer;
+      }
+      footer {
+        border-top: 1px solid var(--border);
+        padding: 20px;
+        font-size: 13px;
+        color: var(--muted);
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Greenhill Edge Ltd</h1>
+      <p>Creators of ReLoved — a community app for reusing and sharing items.</p>
+    </header>
+
+    <main>
+      <section>
+        <h2>About ReLoved</h2>
+        <p>
+          ReLoved helps people publish items for exchange or donation and connect
+          locally. We focus on simple, safe contact between users.
+        </p>
+      </section>
+
+      <section>
+        <h2>Support & Legal</h2>
+        <p>
+          For support, email <span id="support-email">team [at] greenhilledge.co.uk</span>.
+        </p>
+        <div class="links">
+          <button type="button" id="support-link">Contact support</button>
+          <a href="/terms.html">Terms of Service</a>
+          <a href="/privacy.html">Privacy Policy</a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      © 2026 Greenhill Edge Ltd
+    </footer>
+
+    <script>
+      (function () {
+        const name = "team";
+        const domain = "greenhilledge.co.uk";
+        const link = document.getElementById("support-link");
+        if (link) {
+          link.addEventListener("click", function () {
+            window.location.href = "mailto:" + name + "@" + domain;
+          });
+        }
+      })();
+    </script>
+  </body>
+</html>
