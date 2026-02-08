@@ -4,6 +4,7 @@ import "package:firebase_auth/firebase_auth.dart";
 import "package:flutter/material.dart";
 import "../auth/auth_screen.dart";
 import "../models/item.dart";
+import "../utils/share_utils.dart";
 import "../widgets/item_image.dart";
 import "contact_screen.dart";
 
@@ -162,6 +163,13 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         return Scaffold(
           appBar: AppBar(
             title: Text(item.title),
+            actions: [
+              IconButton(
+                onPressed: () => shareItem(context, item),
+                icon: const Icon(Icons.share),
+                tooltip: "Share",
+              ),
+            ],
           ),
           body: SingleChildScrollView(
             padding: const EdgeInsets.all(16),

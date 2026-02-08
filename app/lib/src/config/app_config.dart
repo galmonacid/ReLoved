@@ -5,6 +5,13 @@ class AppConfig {
   static const String supportEmail = String.fromEnvironment("SUPPORT_EMAIL");
   static const String appCheckWebKey =
       String.fromEnvironment("APP_CHECK_WEB_KEY");
+  static const String _shareBaseUrl =
+      String.fromEnvironment("SHARE_BASE_URL");
+  static const String iosTeamId = String.fromEnvironment("IOS_TEAM_ID");
+  static const String iosAppStoreId =
+      String.fromEnvironment("IOS_APP_STORE_ID");
+  static const String androidPackageName =
+      String.fromEnvironment("ANDROID_PACKAGE_NAME");
 
   static const String _defaultPrivacyPolicyUrl =
       "https://reloved-greenhilledge.web.app/privacy.html";
@@ -15,9 +22,11 @@ class AppConfig {
       _privacyPolicyUrl.isNotEmpty ? _privacyPolicyUrl : _defaultPrivacyPolicyUrl;
   static String get termsUrl =>
       _termsUrl.isNotEmpty ? _termsUrl : _defaultTermsUrl;
+  static String get shareBaseUrl => _shareBaseUrl;
 
   static bool get hasPrivacyPolicy => privacyPolicyUrl.isNotEmpty;
   static bool get hasTerms => termsUrl.isNotEmpty;
   static bool get hasSupportEmail => supportEmail.isNotEmpty;
   static bool get hasAppCheckWebKey => appCheckWebKey.isNotEmpty;
+  static bool get hasShareBaseUrl => shareBaseUrl.isNotEmpty;
 }

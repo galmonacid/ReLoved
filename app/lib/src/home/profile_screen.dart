@@ -4,6 +4,7 @@ import "package:flutter/material.dart";
 import "package:url_launcher/url_launcher.dart";
 import "../config/app_config.dart";
 import "../models/item.dart";
+import "../utils/share_utils.dart";
 import "../widgets/item_image.dart";
 import "item_detail_screen.dart";
 
@@ -192,7 +193,17 @@ class ProfileScreen extends StatelessWidget {
                             ),
                             title: Text(item.title),
                             subtitle: Text("Status: ${_statusLabel(item.status)}"),
-                            trailing: const Icon(Icons.chevron_right),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  onPressed: () => shareItem(context, item),
+                                  icon: const Icon(Icons.share),
+                                  tooltip: "Share",
+                                ),
+                                const Icon(Icons.chevron_right),
+                              ],
+                            ),
                             onTap: () {
                               Navigator.of(context).push(
                                 MaterialPageRoute(
