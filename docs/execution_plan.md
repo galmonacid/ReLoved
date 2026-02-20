@@ -58,12 +58,13 @@
    - [COMPLETE] Configure CI for rules tests.
 8. [COMPLETE] **Release hardening + compliance**
    - [COMPLETE] Add Crashlytics and basic analytics events for the funnel.
-   - [COMPLETE] Add privacy policy + terms and App Store privacy details (draft docs).
+   - [COMPLETE] Add privacy policy + terms and App Store privacy details.
    - [COMPLETE] Configure Firebase App Check (production and emulator).
    - [COMPLETE] Add data retention + account deletion process (manual MVP flow).
    - [COMPLETE] Add performance hygiene (image compression, basic caching).
 9. [] **iOS release prep**
-   - [] Enroll in Apple Developer Program (UK, £79/year) and obtain Team ID.
+   - [COMPLETE] Enroll in Apple Developer Program (UK, £79/year).
+   - [] Obtain Apple Developer Team ID.
    - [] Create App Store Connect record and capture App Store ID.
    - [] App icons and launch screen.
    - [] Basic App Store metadata (listing copy, keywords, categories).

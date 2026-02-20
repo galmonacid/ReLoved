@@ -1,6 +1,6 @@
-# Politica de Privacidad (borrador MVP)
+# Política de Privacidad (MVP)
 
-Ultima actualizacion: 2026-02-05
+Última actualización: 2026-02-05
 
 ## Resumen
 ReLoved recopila la informacion minima necesaria para operar el servicio
@@ -8,7 +8,7 @@ ReLoved recopila la informacion minima necesaria para operar el servicio
 
 ## Datos que recopilamos
 - Cuenta: email, nombre visible y UID.
-- Contenido: publicaciones (titulo, descripcion, foto, ubicacion aproximada).
+- Contenido: publicaciones (título, descripción, foto, ubicación aproximada).
 - Uso: eventos basicos de analitica para mejorar el producto.
 
 ## Como usamos los datos
@@ -25,10 +25,8 @@ ReLoved recopila la informacion minima necesaria para operar el servicio
 ## Retencion
 Ver `docs/data_retention.md`.
 
-## Eliminacion de cuenta
-El usuario puede solicitar la eliminacion a soporte (ver perfil en la app).
+## Eliminación de cuenta
+El usuario puede solicitar la eliminación a soporte (ver perfil en la app).
 
 ## Cambios
 Este documento puede actualizarse; se notificara en la app cuando aplique.
-
-> Este texto es un borrador. Requiere revision legal antes de publicarse.

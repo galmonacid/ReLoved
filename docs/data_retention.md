@@ -1,14 +1,14 @@
-# Data Retention y Eliminacion de Cuenta (MVP)
+# Data Retention y Eliminación de Cuenta (MVP)
 
-Ultima actualizacion: 2026-02-05
+Última actualización: 2026-02-05
 
 ## Retencion
-- Cuentas y publicaciones se conservan mientras la cuenta este activa.
+- Cuentas y publicaciones se conservan mientras la cuenta esté activa.
 - Logs tecnicos y eventos de analitica se conservan hasta 12 meses.
 - Solicitudes de contacto se conservan hasta 24 meses para soporte.
 
-## Eliminacion de cuenta
-- El usuario solicita la eliminacion desde la app (Perfil -> eliminar cuenta).
+## Eliminación de cuenta
+- El usuario solicita la eliminación desde la app (Perfil -> eliminar cuenta).
 - Se elimina:
   - Documento de usuario en Firestore.
   - Publicaciones del usuario.
@@ -18,6 +18,6 @@ Ultima actualizacion: 2026-02-05
   - Ratings (se conserva el valor agregado sin identificador).
 
 ## Plazos
-- Eliminacion en un plazo maximo de 30 dias tras la solicitud.
+- Eliminación en un plazo máximo de 30 días tras la solicitud.
 
 > Este proceso es manual en MVP. Puede automatizarse en versiones futuras.

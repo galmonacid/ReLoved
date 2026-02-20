@@ -1,6 +1,6 @@
-# Terminos de Servicio (borrador MVP)
+# Términos de Servicio (MVP)
 
-Ultima actualizacion: 2026-02-05
+Última actualización: 2026-02-05
 
 ## Uso del servicio
 - ReLoved permite publicar items para intercambio/donacion.
@@ -18,7 +18,5 @@ Ultima actualizacion: 2026-02-05
 ## Comunicaciones
 - Los mensajes de contacto se envian via email al propietario del item.
 
-## Terminacion
-- Los usuarios pueden solicitar eliminacion de cuenta.
-
-> Este texto es un borrador. Requiere revision legal antes de publicarse.
+## Terminación
+- Los usuarios pueden solicitar eliminación de cuenta.

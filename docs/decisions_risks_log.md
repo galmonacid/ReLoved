@@ -14,7 +14,7 @@
 - Spam/abuse risk on contact flow; ensure rate limits and monitoring.
 - Geohash search accuracy may need tuning for radius filters.
 - iOS privacy compliance requires clear disclosure for photo/location usage.
-- Legal texts are draft and require review before App Store submission.
+- Legal texts are final versions and require periodic review for compliance.
 
 ## Open questions
 - Do we need a staging Firebase project?
