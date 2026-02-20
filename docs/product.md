@@ -19,7 +19,7 @@ Una app donde las personas pueden contactar de forma sencilla para dar cosas que
 
 ## Core loop
 1. Publicación de objeto: foto, título, descripción, postcode (UK), fecha automática.
-2. Búsqueda: filtrado por radio (5 km / 20 km) + texto; orden por más recientes.
+2. Búsqueda: filtrado por radio (3 mi / 10 mi) + texto; orden por más recientes.
 3. Contacto: formulario que envía email al dueño con mensaje libre.
 4. Valoración: puntuación simple (1–5) tras un intercambio.
 
@@ -38,7 +38,7 @@ Una app donde las personas pueden contactar de forma sencilla para dar cosas que
 
 ## Alcance geográfico
 - UK: entrada por postcode.
-- Radio fijo: 5 km y 20 km.
+- Radio fijo: 3 mi y 10 mi.
 
 ## Plataforma objetivo
 - Mobile (iOS y Android).
@@ -53,7 +53,7 @@ Una app donde las personas pueden contactar de forma sencilla para dar cosas que
 - Listado de objetos visibles según radio.
 
 ### Fase 3: Búsqueda
-- Filtrado por radio: 5 km / 20 km.
+- Filtrado por radio: 3 mi / 10 mi.
 - Búsqueda por texto (título + descripción).
 - Orden por fecha de publicación.
 

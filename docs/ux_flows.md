@@ -5,7 +5,7 @@
 
 ## Pantallas
 - Auth: Registro, Login.
-- Buscar: lista de items + filtro de radio (5 km / 20 km) + buscador por palabras (publico).
+- Buscar: lista de items + filtro de radio (3 mi / 10 mi) + buscador por palabras (publico).
 - Publicar: formulario con foto, título, descripción, postcode (UK) y pin de mapa.
 - Detalle de item: foto, título, distancia aprox, estado y CTA de contacto.
 - Contacto: formulario de mensaje y confirmacion de envio.
@@ -32,7 +32,7 @@
 3. Crear item -> navegar a Detalle del item.
 
 ### Buscar y ver item
-1. Tab Buscar -> seleccionar radio (5 km / 20 km) y/o texto de busqueda.
+1. Tab Buscar -> seleccionar radio (3 mi / 10 mi) y/o texto de busqueda.
 2. Lista ordenada por mas recientes.
 3. Tap en item -> Detalle.
 

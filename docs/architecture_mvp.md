@@ -25,7 +25,7 @@ Lanzar el MVP en el menor tiempo posible para validar el interés real de los us
 
 ## Búsqueda por ubicación
 - Uso de `lat / lng` + `geohash`
-- Filtros por radio fijo (5 km / 20 km)
+- Filtros por radio fijo (3 mi / 10 mi)
 - Query por prefijos de geohash + filtrado por distancia real
 - Orden por fecha de publicación (más recientes primero)
 - Entrada de ubicación por postcode en UK (normalizado)

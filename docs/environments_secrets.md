@@ -35,10 +35,28 @@ firebase functions:config:get
 - SUPPORT_EMAIL (support inbox for deletion requests)
 - APP_CHECK_WEB_KEY (reCAPTCHA v3 site key for App Check on web)
 - SHARE_BASE_URL (base URL for share links, e.g. https://greenhilledge.co.uk)
-- IOS_TEAM_ID (Apple Developer Team ID placeholder for Universal Links)
-- IOS_APP_STORE_ID (App Store ID placeholder for app store fallback)
+- IOS_TEAM_ID (Apple Developer Team ID for Universal Links): QUJ832A56F
+- IOS_APP_STORE_ID (App Store ID for app store fallback): 6759441963
 - ANDROID_PACKAGE_NAME (package name for Android deep link fallback)
+ - APP_STORE_DISPLAY_NAME (App Store name): ReLoved - Give & Find
+  - This is the public App Store listing name (separate from the internal app name).
+
+## Apple App ID setup (iOS)
+- Capabilities enabled on App ID: Associated Domains (for Universal Links), Push Notifications.
+- Implementation is pending; enable now to avoid reissuing profiles later.
 
 ## Hosting (legal pages)
 - Privacy policy URL (Hosting): /privacy.html
 - Terms of service URL (Hosting): /terms.html
+- Support URL (Hosting): /support.html
+
+## GitHub Actions (iOS TestFlight)
+Required secrets:
+- ASC_KEY_ID (App Store Connect API key ID)
+- ASC_ISSUER_ID (App Store Connect API issuer ID)
+- ASC_KEY_CONTENT (App Store Connect API .p8 key, base64)
+- IOS_CERT_P12_BASE64 (App Store signing cert .p12, base64)
+- IOS_CERT_PASSWORD (password for .p12)
+- IOS_PROFILE_BASE64 (App Store provisioning profile, base64)
+- IOS_PROFILE_NAME (provisioning profile name, e.g. "ReLoved AppStore")
+- KEYCHAIN_PASSWORD (temporary CI keychain password)

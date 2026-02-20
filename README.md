@@ -49,7 +49,7 @@ firebase deploy --only firestore:rules,firestore:indexes,storage,functions
 - User registration/login (email + password)
 - Public browsing; auth required to publish or contact
 - Create item listing (photo, title, description, UK postcode, automatic date)
-- Search items within 5 km / 20 km + keyword search
+- Search items within 3 mi / 10 mi + keyword search
 - Contact owner via email form (no in-app chat in MVP)
 - Simple user ratings (1–5)
 

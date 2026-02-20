@@ -37,7 +37,7 @@
    - [COMPLETE] Item create: photo upload + map pin selection + geohash.
    - [COMPLETE] UK postcode lookup for location selection.
    - [COMPLETE] Item description field for listings.
-   - [COMPLETE] Search: radius filter (5 km / 20 km) + recent ordering.
+   - [COMPLETE] Search: radius filter (3 mi / 10 mi) + recent ordering.
    - [COMPLETE] Keyword search across title + description.
    - [COMPLETE] Item detail: contact form + send request.
    - [COMPLETE] Ratings flow after exchange.
@@ -64,10 +64,13 @@
    - [COMPLETE] Add performance hygiene (image compression, basic caching).
 9. [] **iOS release prep**
    - [COMPLETE] Enroll in Apple Developer Program (UK, £79/year).
-   - [] Obtain Apple Developer Team ID.
-   - [] Create App Store Connect record and capture App Store ID.
-   - [] App icons and launch screen.
-   - [] Basic App Store metadata (listing copy, keywords, categories).
+   - [COMPLETE] Obtain Apple Developer Team ID: QUJ832A56F.
+   - [COMPLETE] Enable App ID capabilities: Associated Domains + Push Notifications.
+   - [COMPLETE] Create App Store Connect record and capture App Store ID: 6759441963.
+   - [COMPLETE] Choose App Store display name: ReLoved - Give & Find.
+   - [COMPLETE] App icons (logo source in `docs/img/reloved_logo.png`).
+   - [COMPLETE] Launch screen copy and layout.
+   - [COMPLETE] Basic App Store metadata (listing copy, keywords, categories) drafted in `docs/app_store_metadata.md`.
    - [] Build and distribute via TestFlight.
    - [] Deploy Firestore rules, indexes, Storage rules, and Functions.
 

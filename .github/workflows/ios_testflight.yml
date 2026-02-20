@@ -1,0 +1,61 @@
+name: iOS TestFlight
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-upload:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Create ExportOptions.plist
+        run: |
+          sed "s/__PROFILE_NAME__/${IOS_PROFILE_NAME}/g" ios/ExportOptions.plist.template > ios/ExportOptions.plist
+        env:
+          IOS_PROFILE_NAME: ${{ secrets.IOS_PROFILE_NAME }}
+
+      - name: Import signing certificate
+        run: |
+          echo "$IOS_CERT_P12_BASE64" | base64 --decode > /tmp/cert.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security import /tmp/cert.p12 -k build.keychain -P "$IOS_CERT_PASSWORD" -T /usr/bin/codesign
+          security set-keychain-settings -lut 21600 build.keychain
+          security list-keychains -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+        env:
+          IOS_CERT_P12_BASE64: ${{ secrets.IOS_CERT_P12_BASE64 }}
+          IOS_CERT_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+
+      - name: Install provisioning profile
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\\ Profiles
+          echo "$IOS_PROFILE_BASE64" | base64 --decode > ~/Library/MobileDevice/Provisioning\\ Profiles/reloved.mobileprovision
+        env:
+          IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
+
+      - name: Build IPA
+        run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+
+      - name: Install fastlane
+        run: sudo gem install fastlane
+
+      - name: Upload to TestFlight
+        run: fastlane upload_testflight
+        working-directory: app/ios
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_CONTENT: ${{ secrets.ASC_KEY_CONTENT }}

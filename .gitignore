@@ -17,3 +17,6 @@ node_modules/
 
 # Secrets
 **/*.env
+
+# Python
+.venv/
