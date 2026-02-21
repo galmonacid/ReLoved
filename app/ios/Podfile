@@ -1,0 +1,39 @@
+platform :ios, '13.0'
+
+# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+flutter_application_path = File.expand_path('..', __dir__)
+load File.join(flutter_application_path, '.ios', 'Flutter', 'podhelper.rb')
+
+flutter_ios_podfile_setup
+
+target 'Runner' do
+  use_frameworks!
+  use_modular_headers!
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+
+      other_cflags = config.build_settings['OTHER_CFLAGS']
+      if other_cflags.is_a?(Array)
+        config.build_settings['OTHER_CFLAGS'] = other_cflags.reject { |flag| flag == '-G' }
+      elsif other_cflags.is_a?(String)
+        config.build_settings['OTHER_CFLAGS'] = other_cflags.split(' ').reject { |flag| flag == '-G' }.join(' ')
+      end
+    end
+  end
+end
