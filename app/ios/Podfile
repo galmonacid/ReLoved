@@ -9,8 +9,21 @@ project 'Runner', {
   'Release' => :release,
 }
 
-flutter_application_path = File.expand_path('..', __dir__)
-load File.join(flutter_application_path, '.ios', 'Flutter', 'podhelper.rb')
+def flutter_root
+  generated_xcconfig = File.expand_path('Flutter/Generated.xcconfig', __dir__)
+  unless File.exist?(generated_xcconfig)
+    raise "Generated.xcconfig not found at #{generated_xcconfig}. Run flutter pub get first."
+  end
+
+  File.foreach(generated_xcconfig) do |line|
+    match = line.match(/FLUTTER_ROOT=(.*)/)
+    return match[1].strip if match
+  end
+
+  raise "FLUTTER_ROOT not found in #{generated_xcconfig}."
+end
+
+require File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper')
 
 flutter_ios_podfile_setup
 
