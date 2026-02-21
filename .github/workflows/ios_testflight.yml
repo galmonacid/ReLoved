@@ -42,7 +42,7 @@ jobs:
       - name: Install provisioning profile
         run: |
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          echo "$IOS_PROFILE_BASE64" | base64 --decode > "$HOME/Library/MobileDevice/Provisioning Profiles/reloved.mobileprovision"
+          echo "$IOS_PROFILE_BASE64" | tr -d '\n' | base64 --decode > "$HOME/Library/MobileDevice/Provisioning Profiles/reloved.mobileprovision"
         env:
           IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
 
