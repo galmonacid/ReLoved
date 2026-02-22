@@ -2,8 +2,24 @@ name: CI (Backend)
 
 on:
   pull_request:
+    paths:
+      - "backend/**"
+      - "firebase/**"
+      - "firebase.json"
+      - ".firebaserc"
+      - ".github/workflows/ci_backend.yml"
   push:
     branches: [ main ]
+    paths:
+      - "backend/**"
+      - "firebase/**"
+      - "firebase.json"
+      - ".firebaserc"
+      - ".github/workflows/ci_backend.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   functions:

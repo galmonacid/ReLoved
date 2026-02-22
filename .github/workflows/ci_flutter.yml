@@ -2,8 +2,18 @@ name: CI (Flutter)
 
 on:
   pull_request:
+    paths:
+      - "app/**"
+      - ".github/workflows/ci_flutter.yml"
   push:
     branches: [ main ]
+    paths:
+      - "app/**"
+      - ".github/workflows/ci_flutter.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   flutter:

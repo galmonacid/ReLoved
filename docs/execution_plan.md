@@ -73,6 +73,7 @@
    - [COMPLETE] Basic App Store metadata (listing copy, keywords, categories) drafted in `docs/app_store_metadata.md`.
    - [] Build and distribute via TestFlight.
    - [] Deploy Firestore rules, indexes, Storage rules, and Functions.
+   - [] After App Store launch: switch GitHub repository visibility back to private.
 
 10. [] **Post-release growth + insights**
    - [] Create analytics funnels in Firebase (login → publish → contact).
