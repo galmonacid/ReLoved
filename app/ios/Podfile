@@ -29,7 +29,6 @@ require File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper')
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  use_frameworks!
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
@@ -103,5 +102,15 @@ post_install do |installer|
     content = File.read(grpc_basic_seq)
     patched = content.gsub('Traits::template CallSeqFactory', 'Traits::CallSeqFactory')
     File.write(grpc_basic_seq, patched) if patched != content
+  end
+
+  # Ensure gRPC-C++ points to the modulemap CocoaPods actually generates.
+  Dir.glob(File.join(installer.sandbox.root.to_s, 'Target Support Files', 'gRPC-C++*', '*.xcconfig')).each do |xcconfig|
+    content = File.read(xcconfig)
+    patched = content.gsub(
+      '$(PODS_ROOT)/Headers/Private/grpc/gRPC-Core.modulemap',
+      '$(PODS_ROOT)/Target Support Files/gRPC-Core/gRPC-Core.modulemap'
+    )
+    File.write(xcconfig, patched) if patched != content
   end
 end
