@@ -41,11 +41,13 @@ post_install do |installer|
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
 
-      other_cflags = config.build_settings['OTHER_CFLAGS']
-      if other_cflags.is_a?(Array)
-        config.build_settings['OTHER_CFLAGS'] = other_cflags.reject { |flag| flag == '-G' }
-      elsif other_cflags.is_a?(String)
-        config.build_settings['OTHER_CFLAGS'] = other_cflags.split(' ').reject { |flag| flag == '-G' }.join(' ')
+      %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS OTHER_LDFLAGS].each do |key|
+        value = config.build_settings[key]
+        if value.is_a?(Array)
+          config.build_settings[key] = value.reject { |flag| flag.to_s.start_with?('-G') }
+        elsif value.is_a?(String)
+          config.build_settings[key] = value.split(' ').reject { |flag| flag.to_s.start_with?('-G') }.join(' ')
+        end
       end
     end
   end

@@ -47,7 +47,9 @@ jobs:
           IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
 
       - name: Build IPA
-        run: flutter build ipa --release --export-options-plist=ios/ExportOptions.plist
+        run: |
+          unset CFLAGS CXXFLAGS CPPFLAGS LDFLAGS OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS
+          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist -v
 
       - name: Install fastlane
         run: sudo gem install fastlane
