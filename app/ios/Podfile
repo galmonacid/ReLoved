@@ -71,17 +71,19 @@ post_install do |installer|
 
   # Xcode 16 + some gRPC-Core versions fail to parse this line:
   # `Traits::template CallSeqFactory(...)`.
-  grpc_basic_seq = File.join(
-    installer.sandbox.root.to_s,
-    'gRPC-Core',
-    'src',
-    'core',
-    'lib',
-    'promise',
-    'detail',
-    'basic_seq.h'
-  )
-  if File.exist?(grpc_basic_seq)
+  %w[gRPC-Core gRPC-C++].each do |grpc_target|
+    grpc_basic_seq = File.join(
+      installer.sandbox.root.to_s,
+      grpc_target,
+      'src',
+      'core',
+      'lib',
+      'promise',
+      'detail',
+      'basic_seq.h'
+    )
+    next unless File.exist?(grpc_basic_seq)
+
     content = File.read(grpc_basic_seq)
     patched = content.gsub('Traits::template CallSeqFactory', 'Traits::CallSeqFactory')
     File.write(grpc_basic_seq, patched) if patched != content
