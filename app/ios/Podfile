@@ -1,4 +1,5 @@
 platform :ios, '13.0'
+require 'shellwords'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -46,31 +47,29 @@ post_install do |installer|
 
       %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS OTHER_LDFLAGS].each do |key|
         value = config.build_settings[key]
-        if value.is_a?(Array)
-          cleaned = value.reject do |flag|
-            flag_s = flag.to_s
-            flag_s.start_with?('-G') ||
-              flag_s.include?('GCC_WARN_INHIBIT_ALL_WARNINGS') ||
-              flag_s == '-Werror=non-modular-include-in-framework-module'
+        flags =
+          if value.is_a?(Array)
+            value.map(&:to_s)
+          elsif value.is_a?(String)
+            Shellwords.split(value)
+          else
+            []
           end
-          if %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS].include?(key)
-            cleaned << '-Wno-error=non-modular-include-in-framework-module'
-            cleaned << '-Wno-non-modular-include-in-framework-module'
-          end
-          config.build_settings[key] = cleaned.uniq
-        elsif value.is_a?(String)
-          cleaned = value.split(' ').reject do |flag|
-            flag_s = flag.to_s
-            flag_s.start_with?('-G') ||
-              flag_s.include?('GCC_WARN_INHIBIT_ALL_WARNINGS') ||
-              flag_s == '-Werror=non-modular-include-in-framework-module'
-          end
-          if %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS].include?(key)
-            cleaned << '-Wno-error=non-modular-include-in-framework-module'
-            cleaned << '-Wno-non-modular-include-in-framework-module'
-          end
-          config.build_settings[key] = cleaned.uniq.join(' ')
+
+        flags.reject! do |flag|
+          flag_s = flag.to_s
+          flag_s.start_with?('-G') ||
+            flag_s.include?('GCC_WARN_INHIBIT_ALL_WARNINGS') ||
+            flag_s == '-Werror=non-modular-include-in-framework-module'
         end
+
+        if %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS].include?(key)
+          flags << '-Wno-error'
+          flags << '-Wno-error=non-modular-include-in-framework-module'
+          flags << '-Wno-non-modular-include-in-framework-module'
+        end
+
+        config.build_settings[key] = flags.uniq
       end
     end
 
