@@ -108,12 +108,11 @@ post_install do |installer|
 
   # When using modular headers without `use_frameworks!`, gRPC-C++ can look for
   # this modulemap in Headers/Private/grpc and fail if missing.
-  grpc_modulemap_src = File.join(
-    installer.sandbox.root.to_s,
-    'Target Support Files',
-    'gRPC-Core',
-    'gRPC-Core.modulemap'
+  grpc_modulemap_candidates = Dir.glob(
+    File.join(installer.sandbox.root.to_s, '**', 'gRPC-Core.modulemap')
   )
+  grpc_modulemap_src = grpc_modulemap_candidates.find { |path| path.include?('Target Support Files') } ||
+                       grpc_modulemap_candidates.first
   grpc_modulemap_dst_dir = File.join(
     installer.sandbox.root.to_s,
     'Headers',
@@ -124,7 +123,10 @@ post_install do |installer|
   if File.exist?(grpc_modulemap_src)
     FileUtils.mkdir_p(grpc_modulemap_dst_dir)
     src_realpath = File.realpath(grpc_modulemap_src) rescue grpc_modulemap_src
-    dst_realpath = File.exist?(grpc_modulemap_dst) ? (File.realpath(grpc_modulemap_dst) rescue grpc_modulemap_dst) : grpc_modulemap_dst
-    FileUtils.cp(grpc_modulemap_src, grpc_modulemap_dst) unless src_realpath == dst_realpath
+    dst_realpath = File.exist?(grpc_modulemap_dst) ? (File.realpath(grpc_modulemap_dst) rescue grpc_modulemap_dst) : nil
+    if dst_realpath != src_realpath
+      # Write avoids FileUtils.cp "same file" failures when symlinks collapse to the same inode.
+      File.write(grpc_modulemap_dst, File.read(grpc_modulemap_src))
+    end
   end
 end
