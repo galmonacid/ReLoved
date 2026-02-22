@@ -36,16 +36,18 @@ Future<void> _configureFirebase() async {
         return;
       }
       await FirebaseAppCheck.instance.activate(
-        webProvider: ReCaptchaV3Provider(AppConfig.appCheckWebKey),
+        providerWeb: ReCaptchaV3Provider(AppConfig.appCheckWebKey),
       );
       return;
     }
     await FirebaseAppCheck.instance.activate(
-      androidProvider:
-          kDebugMode ? AndroidProvider.debug : AndroidProvider.playIntegrity,
-      appleProvider: kDebugMode
-          ? AppleProvider.debug
-          : AppleProvider.appAttestWithDeviceCheckFallback,
+      providerAndroid:
+          kDebugMode
+              ? const AndroidDebugProvider()
+              : const AndroidPlayIntegrityProvider(),
+      providerApple: kDebugMode
+          ? const AppleDebugProvider()
+          : const AppleAppAttestWithDeviceCheckFallbackProvider(),
     );
   } catch (_) {
     if (!kDebugMode) {
