@@ -1,4 +1,5 @@
 platform :ios, '13.0'
+require 'fileutils'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -28,7 +29,6 @@ require File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper')
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  use_frameworks!
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
@@ -104,5 +104,25 @@ post_install do |installer|
     content = File.read(grpc_basic_seq)
     patched = content.gsub('Traits::template CallSeqFactory', 'Traits::CallSeqFactory')
     File.write(grpc_basic_seq, patched) if patched != content
+  end
+
+  # When using modular headers without `use_frameworks!`, gRPC-C++ can look for
+  # this modulemap in Headers/Private/grpc and fail if missing.
+  grpc_modulemap_src = File.join(
+    installer.sandbox.root.to_s,
+    'Target Support Files',
+    'gRPC-Core',
+    'gRPC-Core.modulemap'
+  )
+  grpc_modulemap_dst_dir = File.join(
+    installer.sandbox.root.to_s,
+    'Headers',
+    'Private',
+    'grpc'
+  )
+  grpc_modulemap_dst = File.join(grpc_modulemap_dst_dir, 'gRPC-Core.modulemap')
+  if File.exist?(grpc_modulemap_src)
+    FileUtils.mkdir_p(grpc_modulemap_dst_dir)
+    FileUtils.cp(grpc_modulemap_src, grpc_modulemap_dst)
   end
 end
