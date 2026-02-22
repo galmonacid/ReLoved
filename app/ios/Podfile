@@ -1,5 +1,4 @@
 platform :ios, '13.0'
-require 'fileutils'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -29,8 +28,6 @@ require File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper')
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  use_modular_headers!
-
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 end
 
@@ -40,9 +37,6 @@ post_install do |installer|
 
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
-      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-      config.build_settings['CLANG_WARN_NON_MODULAR_INCLUDE_IN_FRAMEWORK_MODULE'] = 'NO'
-      config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
 
       %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS OTHER_LDFLAGS].each do |key|
         value = config.build_settings[key]
@@ -50,26 +44,14 @@ post_install do |installer|
           cleaned = value.reject do |flag|
             flag_s = flag.to_s
             flag_s.start_with?('-G') ||
-              flag_s.include?('GCC_WARN_INHIBIT_ALL_WARNINGS') ||
-              flag_s.include?('Headers/Private/grpc/gRPC-Core.modulemap') ||
-              flag_s == '-Werror=non-modular-include-in-framework-module'
-          end
-          if %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS].include?(key)
-            cleaned << '-Wno-error=non-modular-include-in-framework-module'
-            cleaned << '-Wno-non-modular-include-in-framework-module'
+              flag_s.include?('GCC_WARN_INHIBIT_ALL_WARNINGS')
           end
           config.build_settings[key] = cleaned.uniq
         elsif value.is_a?(String)
           cleaned = value.split(' ').reject do |flag|
             flag_s = flag.to_s
             flag_s.start_with?('-G') ||
-              flag_s.include?('GCC_WARN_INHIBIT_ALL_WARNINGS') ||
-              flag_s.include?('Headers/Private/grpc/gRPC-Core.modulemap') ||
-              flag_s == '-Werror=non-modular-include-in-framework-module'
-          end
-          if %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS].include?(key)
-            cleaned << '-Wno-error=non-modular-include-in-framework-module'
-            cleaned << '-Wno-non-modular-include-in-framework-module'
+              flag_s.include?('GCC_WARN_INHIBIT_ALL_WARNINGS')
           end
           config.build_settings[key] = cleaned.uniq.join(' ')
         end
@@ -108,27 +90,4 @@ post_install do |installer|
     File.write(grpc_basic_seq, patched) if patched != content
   end
 
-  # When using modular headers without `use_frameworks!`, gRPC-C++ can look for
-  # this modulemap in Headers/Private/grpc and fail if missing.
-  grpc_modulemap_candidates = Dir.glob(
-    File.join(installer.sandbox.root.to_s, '**', 'gRPC-Core.modulemap')
-  )
-  grpc_modulemap_src = grpc_modulemap_candidates.find { |path| path.include?('Target Support Files') } ||
-                       grpc_modulemap_candidates.first
-  grpc_modulemap_dst_dir = File.join(
-    installer.sandbox.root.to_s,
-    'Headers',
-    'Private',
-    'grpc'
-  )
-  grpc_modulemap_dst = File.join(grpc_modulemap_dst_dir, 'gRPC-Core.modulemap')
-  if File.exist?(grpc_modulemap_src)
-    FileUtils.mkdir_p(grpc_modulemap_dst_dir)
-    src_realpath = File.realpath(grpc_modulemap_src) rescue grpc_modulemap_src
-    dst_realpath = File.exist?(grpc_modulemap_dst) ? (File.realpath(grpc_modulemap_dst) rescue grpc_modulemap_dst) : nil
-    if dst_realpath != src_realpath
-      # Write avoids FileUtils.cp "same file" failures when symlinks collapse to the same inode.
-      File.write(grpc_modulemap_dst, File.read(grpc_modulemap_src))
-    end
-  end
 end
