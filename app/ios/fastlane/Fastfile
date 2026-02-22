@@ -10,7 +10,8 @@ platform :ios do
       is_key_content_base64: true
     )
 
-    ipa_path = Dir[File.expand_path("../build/ios/ipa/*.ipa", __dir__)].first
+    # __dir__ is app/ios/fastlane; IPA is created under app/build/ios/ipa.
+    ipa_path = Dir[File.expand_path("../../build/ios/ipa/*.ipa", __dir__)].first
     UI.user_error!("IPA not found. Run flutter build ipa first.") unless ipa_path
 
     upload_to_testflight(
