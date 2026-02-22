@@ -123,6 +123,8 @@ post_install do |installer|
   grpc_modulemap_dst = File.join(grpc_modulemap_dst_dir, 'gRPC-Core.modulemap')
   if File.exist?(grpc_modulemap_src)
     FileUtils.mkdir_p(grpc_modulemap_dst_dir)
-    FileUtils.cp(grpc_modulemap_src, grpc_modulemap_dst)
+    src_realpath = File.realpath(grpc_modulemap_src) rescue grpc_modulemap_src
+    dst_realpath = File.exist?(grpc_modulemap_dst) ? (File.realpath(grpc_modulemap_dst) rescue grpc_modulemap_dst) : grpc_modulemap_dst
+    FileUtils.cp(grpc_modulemap_src, grpc_modulemap_dst) unless src_realpath == dst_realpath
   end
 end
