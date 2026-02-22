@@ -44,11 +44,28 @@ post_install do |installer|
       %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS OTHER_LDFLAGS].each do |key|
         value = config.build_settings[key]
         if value.is_a?(Array)
-          config.build_settings[key] = value.reject { |flag| flag.to_s.start_with?('-G') }
+          config.build_settings[key] = value.reject do |flag|
+            flag_s = flag.to_s
+            flag_s.start_with?('-G') || flag_s.include?('GCC_WARN_INHIBIT_ALL_WARNINGS')
+          end
         elsif value.is_a?(String)
-          config.build_settings[key] = value.split(' ').reject { |flag| flag.to_s.start_with?('-G') }.join(' ')
+          config.build_settings[key] = value.split(' ').reject do |flag|
+            flag_s = flag.to_s
+            flag_s.start_with?('-G') || flag_s.include?('GCC_WARN_INHIBIT_ALL_WARNINGS')
+          end.join(' ')
         end
       end
+    end
+
+    next unless target.name == 'BoringSSL-GRPC'
+
+    # Xcode 16 may choke on this malformed flag emitted by older BoringSSL-GRPC specs.
+    target.source_build_phase.files.each do |file|
+      next unless file.settings&.key?('COMPILER_FLAGS')
+
+      flags = file.settings['COMPILER_FLAGS'].to_s.split(' ')
+      flags = flags.reject { |flag| flag == '-GCC_WARN_INHIBIT_ALL_WARNINGS' || flag.start_with?('-G') }
+      file.settings['COMPILER_FLAGS'] = flags.join(' ')
     end
   end
 end
