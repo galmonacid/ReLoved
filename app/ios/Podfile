@@ -28,6 +28,7 @@ require File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper')
 flutter_ios_podfile_setup
 
 target 'Runner' do
+  use_frameworks!
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
@@ -39,18 +40,23 @@ post_install do |installer|
 
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
 
       %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS OTHER_LDFLAGS].each do |key|
         value = config.build_settings[key]
         if value.is_a?(Array)
           config.build_settings[key] = value.reject do |flag|
             flag_s = flag.to_s
-            flag_s.start_with?('-G') || flag_s.include?('GCC_WARN_INHIBIT_ALL_WARNINGS')
+            flag_s.start_with?('-G') ||
+              flag_s.include?('GCC_WARN_INHIBIT_ALL_WARNINGS') ||
+              flag_s == '-Werror=non-modular-include-in-framework-module'
           end
         elsif value.is_a?(String)
           config.build_settings[key] = value.split(' ').reject do |flag|
             flag_s = flag.to_s
-            flag_s.start_with?('-G') || flag_s.include?('GCC_WARN_INHIBIT_ALL_WARNINGS')
+            flag_s.start_with?('-G') ||
+              flag_s.include?('GCC_WARN_INHIBIT_ALL_WARNINGS') ||
+              flag_s == '-Werror=non-modular-include-in-framework-module'
           end.join(' ')
         end
       end
