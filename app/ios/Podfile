@@ -51,6 +51,7 @@ post_install do |installer|
             flag_s = flag.to_s
             flag_s.start_with?('-G') ||
               flag_s.include?('GCC_WARN_INHIBIT_ALL_WARNINGS') ||
+              flag_s.include?('Headers/Private/grpc/gRPC-Core.modulemap') ||
               flag_s == '-Werror=non-modular-include-in-framework-module'
           end
           if %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS].include?(key)
@@ -63,6 +64,7 @@ post_install do |installer|
             flag_s = flag.to_s
             flag_s.start_with?('-G') ||
               flag_s.include?('GCC_WARN_INHIBIT_ALL_WARNINGS') ||
+              flag_s.include?('Headers/Private/grpc/gRPC-Core.modulemap') ||
               flag_s == '-Werror=non-modular-include-in-framework-module'
           end
           if %w[OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS].include?(key)
