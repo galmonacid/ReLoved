@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 const fs = require("node:fs");
+const admin = require("firebase-admin");
 const {
   initializeTestEnvironment,
   assertFails,
@@ -53,6 +54,13 @@ const getTestEnv = async () => {
   return testEnvPromise;
 };
 
+const getAdminDb = () => {
+  if (admin.apps.length === 0) {
+    admin.initializeApp({ projectId });
+  }
+  return admin.firestore();
+};
+
 const resetEnv = async () => {
   const env = await getTestEnv();
   if (env.clearFirestore) {
@@ -68,6 +76,9 @@ test.after(async () => {
   if (testEnvPromise) {
     const env = await testEnvPromise;
     await env.cleanup();
+  }
+  if (admin.apps.length) {
+    await Promise.all(admin.apps.map((app) => app.delete()));
   }
 });
 
@@ -167,28 +178,26 @@ test("contactRequests are not writable from client", async () => {
 
 test("conversation participant can read conversation and messages", async () => {
   const testEnv = await resetEnv();
-  await testEnv.withSecurityRulesDisabled(async (context) => {
-    await context.firestore().collection("conversations").doc("item-1_alice").set({
-      itemId: "item-1",
-      ownerId: "owner",
-      interestedUserId: "alice",
-      participants: ["owner", "alice"],
-      status: "open",
-      createdAt: new Date()
-    });
-    await context
-      .firestore()
-      .collection("conversations")
-      .doc("item-1_alice")
-      .collection("messages")
-      .doc("m1")
-      .set({
-        senderId: "alice",
-        text: "Hola",
-        createdAt: new Date(),
-        isRedacted: false
-      });
+  const adminDb = getAdminDb();
+  await adminDb.collection("conversations").doc("item-1_alice").set({
+    itemId: "item-1",
+    ownerId: "owner",
+    interestedUserId: "alice",
+    participants: ["owner", "alice"],
+    status: "open",
+    createdAt: new Date()
   });
+  await adminDb
+    .collection("conversations")
+    .doc("item-1_alice")
+    .collection("messages")
+    .doc("m1")
+    .set({
+      senderId: "alice",
+      text: "Hola",
+      createdAt: new Date(),
+      isRedacted: false
+    });
 
   const db = testEnv.authenticatedContext("alice").firestore();
   await assertSucceeds(db.collection("conversations").doc("item-1_alice").get());
@@ -204,28 +213,26 @@ test("conversation participant can read conversation and messages", async () => 
 
 test("non-participant cannot read conversation or messages", async () => {
   const testEnv = await resetEnv();
-  await testEnv.withSecurityRulesDisabled(async (context) => {
-    await context.firestore().collection("conversations").doc("item-1_alice").set({
-      itemId: "item-1",
-      ownerId: "owner",
-      interestedUserId: "alice",
-      participants: ["owner", "alice"],
-      status: "open",
-      createdAt: new Date()
-    });
-    await context
-      .firestore()
-      .collection("conversations")
-      .doc("item-1_alice")
-      .collection("messages")
-      .doc("m1")
-      .set({
-        senderId: "alice",
-        text: "Hola",
-        createdAt: new Date(),
-        isRedacted: false
-      });
+  const adminDb = getAdminDb();
+  await adminDb.collection("conversations").doc("item-1_alice").set({
+    itemId: "item-1",
+    ownerId: "owner",
+    interestedUserId: "alice",
+    participants: ["owner", "alice"],
+    status: "open",
+    createdAt: new Date()
   });
+  await adminDb
+    .collection("conversations")
+    .doc("item-1_alice")
+    .collection("messages")
+    .doc("m1")
+    .set({
+      senderId: "alice",
+      text: "Hola",
+      createdAt: new Date(),
+      isRedacted: false
+    });
 
   const db = testEnv.authenticatedContext("bob").firestore();
   await assertFails(db.collection("conversations").doc("item-1_alice").get());
