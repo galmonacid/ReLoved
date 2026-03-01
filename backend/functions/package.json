@@ -12,8 +12,8 @@
     "logs": "firebase functions:log",
     "test:functions": "node --test tests/send_contact_email.test.cjs",
     "test:chat": "node --test tests/chat_functions.test.cjs",
-    "test:rules": "node --test tests/rules.test.cjs",
-    "test:integration": "node --test tests/integration_flows.test.cjs tests/chat_functions.test.cjs"
+    "test:rules": "node --test --test-concurrency=1 tests/rules.test.cjs",
+    "test:integration": "node --test --test-concurrency=1 tests/integration_flows.test.cjs tests/chat_functions.test.cjs"
   },
   "engines": {
     "node": "20"
