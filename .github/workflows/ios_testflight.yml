@@ -11,9 +11,6 @@ on:
 jobs:
   build-upload:
     runs-on: macos-latest
-    defaults:
-      run:
-        working-directory: app
     steps:
       - name: Confirm manual upload
         run: |
@@ -30,12 +27,14 @@ jobs:
 
       - name: Flutter pub get
         run: flutter pub get
+        working-directory: app
 
       - name: Create ExportOptions.plist
         run: |
           sed "s/__PROFILE_NAME__/${IOS_PROFILE_NAME}/g" ios/ExportOptions.plist.template > ios/ExportOptions.plist
         env:
           IOS_PROFILE_NAME: ${{ secrets.IOS_PROFILE_NAME }}
+        working-directory: app
 
       - name: Import signing certificate
         run: |
@@ -63,6 +62,7 @@ jobs:
           unset CFLAGS CXXFLAGS CPPFLAGS LDFLAGS OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS
           flutter build ipa --release --export-options-plist=ios/ExportOptions.plist -v \
             --dart-define=SHARE_BASE_URL=https://reloved-greenhilledge.web.app
+        working-directory: app
 
       - name: Install fastlane
         run: sudo gem install fastlane
