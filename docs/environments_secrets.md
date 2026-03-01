@@ -49,6 +49,16 @@ firebase functions:config:get
 - Privacy policy URL (Hosting): /privacy.html
 - Terms of service URL (Hosting): /terms.html
 - Support URL (Hosting): /support.html
+- Hosting serves Flutter web from `app/build/web`.
+- Deploy workflow copies `public/privacy.html`, `public/terms.html`, `public/support.html`, and `public/item_link.html` into `app/build/web`.
+
+## Share deep links behavior
+- Shared links use `/items/{itemId}` on `SHARE_BASE_URL`.
+- Hosting rewrites `/items/**` to `/item_link.html` (smart link handler), then catch-all to `/index.html`.
+- iPhone:
+  - App installed: opens app via `reloved://items/{itemId}`.
+  - App not installed: redirects to App Store (`IOS_APP_STORE_ID`).
+- Android/desktop: redirects to the web detail flow (`/?shared_item_id={itemId}`).
 
 ## GitHub Actions (iOS TestFlight)
 Required secrets:

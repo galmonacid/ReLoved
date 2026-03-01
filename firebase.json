@@ -13,11 +13,21 @@
   ],
   "hosting": {
     "site": "reloved-greenhilledge",
-    "public": "public",
+    "public": "app/build/web",
     "ignore": [
       "firebase.json",
       "**/.*",
       "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "/items/**",
+        "destination": "/item_link.html"
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
     ],
     "headers": [
       {

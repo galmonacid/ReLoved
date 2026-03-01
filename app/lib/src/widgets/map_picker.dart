@@ -7,10 +7,7 @@ import "motion/pressable_scale.dart";
 import "../utils/postcode_lookup.dart";
 
 class MapPickerResult {
-  const MapPickerResult({
-    required this.location,
-    this.postcode,
-  });
+  const MapPickerResult({required this.location, this.postcode});
 
   final LatLng location;
   final String? postcode;
@@ -31,6 +28,7 @@ class MapPicker extends StatefulWidget {
 }
 
 class _MapPickerState extends State<MapPicker> {
+  final MapController _mapController = MapController();
   late LatLng _selected;
   String? _postcodeLabel;
   bool _isLookingUpPostcode = false;
@@ -46,6 +44,7 @@ class _MapPickerState extends State<MapPicker> {
 
   @override
   void dispose() {
+    _mapController.dispose();
     _postcodeController.dispose();
     _reverseLookupTimer?.cancel();
     super.dispose();
@@ -71,6 +70,7 @@ class _MapPickerState extends State<MapPicker> {
         _selected = result.location;
         _postcodeLabel = result.postcode;
       });
+      _mapController.move(result.location, 13);
     } catch (_) {
       _showError("Could not look up the postcode.");
     } finally {
@@ -83,9 +83,9 @@ class _MapPickerState extends State<MapPicker> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _reverseLookupPostcode(LatLng location) async {
@@ -119,9 +119,7 @@ class _MapPickerState extends State<MapPicker> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Select location"),
-      ),
+      appBar: AppBar(title: const Text("Select location")),
       body: Column(
         children: [
           Padding(
@@ -169,6 +167,7 @@ class _MapPickerState extends State<MapPicker> {
             ),
           Expanded(
             child: FlutterMap(
+              mapController: _mapController,
               options: MapOptions(
                 initialCenter: widget.initialCenter,
                 initialZoom: 13,

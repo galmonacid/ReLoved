@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Open in ReLoved</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #eef1ea;
+        --card: #ffffff;
+        --primary: #2f6b3f;
+        --text: #111827;
+        --muted: #6b7280;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+        background: var(--bg);
+        color: var(--text);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .card {
+        width: min(480px, 100%);
+        background: var(--card);
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 6px 20px rgba(17, 24, 39, 0.08);
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 24px;
+        line-height: 1.3;
+      }
+
+      p {
+        margin: 0 0 16px;
+        color: var(--muted);
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+
+      .btn {
+        display: inline-block;
+        border: 0;
+        border-radius: 999px;
+        padding: 10px 16px;
+        font-size: 15px;
+        text-decoration: none;
+        cursor: pointer;
+      }
+
+      .btn-primary {
+        background: var(--primary);
+        color: #fff;
+      }
+
+      .btn-secondary {
+        background: #f3f4f6;
+        color: var(--text);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Opening ReLoved</h1>
+      <p id="message">Preparing your item link...</p>
+      <div class="actions">
+        <a id="open-app" class="btn btn-primary" href="#">Open app</a>
+        <a id="open-web" class="btn btn-secondary" href="/">Open web</a>
+      </div>
+    </main>
+
+    <script>
+      (function () {
+        const appStoreUrl = "https://apps.apple.com/app/id6759441963";
+        const pathParts = window.location.pathname.split("/").filter(Boolean);
+        const itemIdFromPath = pathParts.length >= 2 && pathParts[0] === "items"
+          ? pathParts[1]
+          : "";
+        const itemIdFromQuery = new URLSearchParams(window.location.search).get("shared_item_id") || "";
+        const itemId = itemIdFromPath || itemIdFromQuery;
+        const appUrl = itemId
+          ? "reloved://items/" + encodeURIComponent(itemId)
+          : "reloved://";
+        const webUrl = itemId
+          ? "https://reloved-greenhilledge.web.app/?shared_item_id=" + encodeURIComponent(itemId)
+          : "https://reloved-greenhilledge.web.app/";
+
+        const openApp = document.getElementById("open-app");
+        const openWeb = document.getElementById("open-web");
+        const message = document.getElementById("message");
+        const ua = navigator.userAgent || "";
+        const isAppleMobile = /iPhone|iPad|iPod/i.test(ua) ||
+          (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+        openApp.href = appUrl;
+        openWeb.href = webUrl;
+
+        if (!isAppleMobile) {
+          message.textContent = "Opening web version...";
+          window.location.replace(webUrl);
+          return;
+        }
+
+        message.textContent = "If the app is installed, it will open now.";
+        let redirected = false;
+        const timer = setTimeout(function () {
+          if (!redirected) {
+            redirected = true;
+            window.location.replace(appStoreUrl);
+          }
+        }, 1300);
+
+        document.addEventListener("visibilitychange", function () {
+          if (document.hidden) {
+            redirected = true;
+            clearTimeout(timer);
+          }
+        });
+
+        window.location.href = appUrl;
+      })();
+    </script>
+  </body>
+</html>

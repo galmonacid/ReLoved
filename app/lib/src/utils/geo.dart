@@ -1,6 +1,6 @@
 import "package:latlong2/latlong.dart";
 
-const LatLng defaultCenter = LatLng(40.4168, -3.7038);
+const LatLng defaultCenter = LatLng(52.0406, -0.7594);
 const String _geohashBase32 = "0123456789bcdefghjkmnpqrstuvwxyz";
 
 double distanceKm(LatLng a, LatLng b) {

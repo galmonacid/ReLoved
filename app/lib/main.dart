@@ -1,3 +1,6 @@
+import "dart:async";
+
+import "package:app_links/app_links.dart";
 import "package:firebase_analytics/firebase_analytics.dart";
 import "package:firebase_app_check/firebase_app_check.dart";
 import "package:firebase_core/firebase_core.dart";
@@ -12,24 +15,21 @@ import "theme/app_theme.dart";
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await _configureFirebase();
   runApp(const ReLovedApp());
 }
 
 Future<void> _configureFirebase() async {
   if (!kIsWeb) {
-    FlutterError.onError =
-        FirebaseCrashlytics.instance.recordFlutterFatalError;
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
     PlatformDispatcher.instance.onError = (error, stack) {
-      FirebaseCrashlytics.instance
-          .recordError(error, stack, fatal: true);
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
       return true;
     };
-    await FirebaseCrashlytics.instance
-        .setCrashlyticsCollectionEnabled(!kDebugMode);
+    await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(
+      !kDebugMode,
+    );
   }
 
   try {
@@ -43,10 +43,9 @@ Future<void> _configureFirebase() async {
       return;
     }
     await FirebaseAppCheck.instance.activate(
-      providerAndroid:
-          kDebugMode
-              ? const AndroidDebugProvider()
-              : const AndroidPlayIntegrityProvider(),
+      providerAndroid: kDebugMode
+          ? const AndroidDebugProvider()
+          : const AndroidPlayIntegrityProvider(),
       providerApple: kDebugMode
           ? const AppleDebugProvider()
           : const AppleAppAttestWithDeviceCheckFallbackProvider(),
@@ -58,8 +57,17 @@ Future<void> _configureFirebase() async {
   }
 }
 
-class ReLovedApp extends StatelessWidget {
+class ReLovedApp extends StatefulWidget {
   const ReLovedApp({super.key});
+
+  @override
+  State<ReLovedApp> createState() => _ReLovedAppState();
+}
+
+class _ReLovedAppState extends State<ReLovedApp> {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  StreamSubscription<Uri>? _linkSubscription;
+  String? _lastOpenedItemId;
 
   static String? _itemIdFromRouteName(String? routeName) {
     if (routeName == null || routeName.isEmpty) {
@@ -73,6 +81,10 @@ class ReLovedApp extends StatelessWidget {
   }
 
   static String? _itemIdFromUri(Uri uri) {
+    if (uri.host == "items" && uri.pathSegments.isNotEmpty) {
+      final itemId = uri.pathSegments.first.trim();
+      return itemId.isEmpty ? null : itemId;
+    }
     if (uri.pathSegments.length < 2) {
       return null;
     }
@@ -81,6 +93,14 @@ class ReLovedApp extends StatelessWidget {
     }
     final itemId = uri.pathSegments[1].trim();
     return itemId.isEmpty ? null : itemId;
+  }
+
+  static String? _itemIdFromSharedQuery(Uri uri) {
+    final sharedItemId = uri.queryParameters["shared_item_id"]?.trim();
+    if (sharedItemId == null || sharedItemId.isEmpty) {
+      return null;
+    }
+    return sharedItemId;
   }
 
   static Route<void> _homeRoute([RouteSettings? settings]) {
@@ -98,10 +118,59 @@ class ReLovedApp extends StatelessWidget {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _initIosDeepLinks();
+  }
+
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _initIosDeepLinks() {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) {
+      return;
+    }
+    final appLinks = AppLinks();
+    appLinks.getInitialLink().then(_handleDeepLinkUri).catchError((_) {});
+    _linkSubscription = appLinks.uriLinkStream.listen(
+      _handleDeepLinkUri,
+      onError: (_) {},
+    );
+  }
+
+  void _handleDeepLinkUri(Uri? uri) {
+    if (uri == null) {
+      return;
+    }
+    final itemId = _itemIdFromUri(uri);
+    if (itemId == null || _lastOpenedItemId == itemId) {
+      return;
+    }
+    _lastOpenedItemId = itemId;
+    final nav = _navigatorKey.currentState;
+    if (nav == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final deferredNav = _navigatorKey.currentState;
+        if (deferredNav == null) {
+          return;
+        }
+        deferredNav.push(_itemRoute(itemId));
+      });
+      return;
+    }
+    nav.push(_itemRoute(itemId));
+  }
+
+  @override
   Widget build(BuildContext context) {
     final analyticsEnabled = !(kIsWeb && kDebugMode);
-    final sharedItemId = _itemIdFromUri(Uri.base);
+    final sharedItemId =
+        _itemIdFromUri(Uri.base) ?? _itemIdFromSharedQuery(Uri.base);
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       title: 'ReLoved',
       theme: AppTheme.light,
       onGenerateInitialRoutes: (initialRoute) {
@@ -119,10 +188,9 @@ class ReLovedApp extends StatelessWidget {
         }
         return _homeRoute(settings);
       },
-      navigatorObservers:
-          analyticsEnabled
-              ? [FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance)]
-              : const [],
+      navigatorObservers: analyticsEnabled
+          ? [FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance)]
+          : const [],
     );
   }
 }

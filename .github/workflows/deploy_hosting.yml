@@ -1,0 +1,78 @@
+name: Deploy (Hosting)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "firebase.json"
+      - "public/**"
+      - ".github/workflows/deploy_hosting.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-hosting:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Auth to Google Cloud (service account)
+        uses: google-github-actions/auth@v2
+        if: ${{ env.FIREBASE_SERVICE_ACCOUNT != '' }}
+        with:
+          credentials_json: ${{ env.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Auth to Google Cloud (workload identity)
+        uses: google-github-actions/auth@v2
+        if: ${{ env.FIREBASE_SERVICE_ACCOUNT == '' }}
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+
+      - name: Validate auth configuration
+        if: ${{ env.FIREBASE_SERVICE_ACCOUNT == '' && (env.GCP_WORKLOAD_IDENTITY_PROVIDER == '' || env.GCP_SERVICE_ACCOUNT == '') }}
+        run: |
+          echo "Missing auth configuration. Set FIREBASE_SERVICE_ACCOUNT or both GCP_WORKLOAD_IDENTITY_PROVIDER and GCP_SERVICE_ACCOUNT."
+          exit 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Flutter pub get
+        working-directory: app
+        run: flutter pub get
+
+      - name: Build Flutter web
+        working-directory: app
+        run: |
+          flutter build web --release \
+            --dart-define=SHARE_BASE_URL=https://reloved-greenhilledge.web.app
+
+      - name: Copy Hosting static pages
+        run: |
+          cp public/privacy.html app/build/web/privacy.html
+          cp public/terms.html app/build/web/terms.html
+          cp public/support.html app/build/web/support.html
+          cp public/item_link.html app/build/web/item_link.html
+
+      - name: Install Firebase CLI
+        run: npm i -g firebase-tools@latest
+
+      - name: Deploy Hosting
+        run: firebase deploy --only hosting
