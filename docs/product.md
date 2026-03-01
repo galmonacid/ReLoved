@@ -1,6 +1,6 @@
-# Producto (MVP)
+# Producto (MVP+)
 
-## Visión
+## Vision
 Crear una app que conecte a personas que quieren dar cosas que no necesitan con personas que las buscan, de forma sencilla, fomentando el cuidado del medio ambiente.
 
 ## Usuario objetivo
@@ -10,66 +10,79 @@ Personas concienciadas con el medio ambiente que:
 
 ## Problema
 Hoy estas interacciones se hacen en grupos de WhatsApp o Facebook:
-- Las publicaciones se pierden rápidamente.
+- Las publicaciones se pierden rapidamente.
 - No hay buscador intuitivo.
-- La comunidad es pequeña y fragmentada.
+- La comunidad es pequena y fragmentada.
 
 ## Propuesta de valor
-Una app donde las personas pueden contactar de forma sencilla para dar cosas que no necesitan o encontrar algo que les hace falta de segunda mano.
+Una app donde las personas publican objetos y se ponen en contacto de forma simple por email o chat interno segun la preferencia del donor.
 
 ## Core loop
-1. Publicación de objeto: foto, título, descripción, postcode (UK), fecha automática.
-2. Búsqueda: filtrado por radio (3 mi / 10 mi) + texto; orden por más recientes.
-3. Contacto: formulario que envía email al dueño con mensaje libre.
-4. Valoración: puntuación simple (1–5) tras un intercambio.
+1. Publicacion de objeto: foto, titulo, descripcion, postcode (UK), fecha automatica.
+2. Busqueda: filtrado por radio (3 mi / 10 mi) + texto; orden por mas recientes.
+3. Contacto: canal por item (`email`, `chat` o `both`) definido por el donor.
+4. Valoracion: puntuacion simple (1-5) tras un intercambio.
 
-## Requisitos MVP
-- Registro mínimo: email, contraseña, nombre visible.
-- Publicación de objetos con foto y ubicación aproximada.
-- Búsqueda por radio + texto.
-- Contacto vía email (sin chat en la app).
+## Requisitos MVP actual
+- Registro minimo: email, contrasena, nombre visible.
+- Publicacion de objetos con foto y ubicacion aproximada.
+- Busqueda por radio + texto.
+- Contacto por email y/o chat segun preferencia del donor.
+- Inbox de conversaciones para usuarios autenticados.
 - Valoraciones simples.
 
 ## Restricciones
 - Sin pagos ni transacciones monetarias.
-- Sin chat interno en MVP.
-- Sin moderación avanzada.
+- Chat solo 1:1 y vinculado a item (no chat global entre usuarios).
+- Sin adjuntos multimedia en chat (solo texto).
+- Sin moderacion avanzada en esta fase (solo bloqueos/reportes basicos).
 - Sin login con Google o Apple en MVP.
 
-## Alcance geográfico
+## Alcance geografico
 - UK: entrada por postcode.
 - Radio fijo: 3 mi y 10 mi.
 
 ## Plataforma objetivo
 - Mobile (iOS y Android).
 
+## Decision de contacto
+- El donor decide por item:
+  - `email`: solo formulario email.
+  - `chat`: solo chat interno.
+  - `both`: chat + email.
+- Para items legacy sin campo `contactPreference`, default de runtime: `both`.
+
+## Ciclo de vida del chat
+- Hilo unico por `item + interesado`.
+- El donor puede cerrar y reabrir el chat.
+- Si item pasa a `given` o se elimina, las conversaciones se archivan en modo solo lectura.
+
 ## Roadmap
 ### Fase 1: Registro y perfil
-- Registro mínimo: email, contraseña, nombre visible.
-- Inicio de sesión básico.
+- Registro minimo: email, contrasena, nombre visible.
+- Inicio de sesion basico.
 
 ### Fase 2: Publicaciones de objetos
-- Subir objeto con foto, título, descripción, postcode (UK) y fecha automática.
-- Listado de objetos visibles según radio.
+- Subir objeto con foto, titulo, descripcion, postcode (UK) y fecha automatica.
+- Listado de objetos visibles segun radio.
 
-### Fase 3: Búsqueda
+### Fase 3: Busqueda
 - Filtrado por radio: 3 mi / 10 mi.
-- Búsqueda por texto (título + descripción).
-- Orden por fecha de publicación.
+- Busqueda por texto (titulo + descripcion).
+- Orden por fecha de publicacion.
 
 ### Fase 4: Contacto
-- Formulario de mensaje libre que envía email automático al dueño del objeto.
+- Email via Cloud Function con auditoria.
+- Chat interno por item, con inbox y estados open/closed/archived.
 
 ### Fase 5: Valoraciones
-- Valoración simple tras completar el intercambio.
+- Valoracion simple tras completar el intercambio.
 
 ### Fase 6: Lanzamiento MVP
 - Probar con usuarios reales en un radio inicial reducido.
 - Recoger feedback sobre usabilidad y valor del producto.
 
-### Fase 7: Chat integrado (fast follower)
-- Chat 1:1 entre dueño del objeto e interesado.
-- Solo texto plano.
-- Persistencia en Firestore.
-- Sin indicadores de escritura ni estados avanzados.
-- Email como fallback.
+### Fase 7: Mejoras posteriores
+- Push notifications de nuevos mensajes.
+- Moderacion avanzada.
+- Adjuntos multimedia en chat.

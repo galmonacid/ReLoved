@@ -165,6 +165,80 @@ test("contactRequests are not writable from client", async () => {
   );
 });
 
+test("conversation participant can read conversation and messages", async () => {
+  const testEnv = await resetEnv();
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().collection("conversations").doc("item-1_alice").set({
+      itemId: "item-1",
+      ownerId: "owner",
+      interestedUserId: "alice",
+      participants: ["owner", "alice"],
+      status: "open",
+      createdAt: new Date()
+    });
+    await context
+      .firestore()
+      .collection("conversations")
+      .doc("item-1_alice")
+      .collection("messages")
+      .doc("m1")
+      .set({
+        senderId: "alice",
+        text: "Hola",
+        createdAt: new Date(),
+        isRedacted: false
+      });
+  });
+
+  const db = testEnv.authenticatedContext("alice").firestore();
+  await assertSucceeds(db.collection("conversations").doc("item-1_alice").get());
+  await assertSucceeds(
+    db
+      .collection("conversations")
+      .doc("item-1_alice")
+      .collection("messages")
+      .doc("m1")
+      .get()
+  );
+});
+
+test("non-participant cannot read conversation or messages", async () => {
+  const testEnv = await resetEnv();
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().collection("conversations").doc("item-1_alice").set({
+      itemId: "item-1",
+      ownerId: "owner",
+      interestedUserId: "alice",
+      participants: ["owner", "alice"],
+      status: "open",
+      createdAt: new Date()
+    });
+    await context
+      .firestore()
+      .collection("conversations")
+      .doc("item-1_alice")
+      .collection("messages")
+      .doc("m1")
+      .set({
+        senderId: "alice",
+        text: "Hola",
+        createdAt: new Date(),
+        isRedacted: false
+      });
+  });
+
+  const db = testEnv.authenticatedContext("bob").firestore();
+  await assertFails(db.collection("conversations").doc("item-1_alice").get());
+  await assertFails(
+    db
+      .collection("conversations")
+      .doc("item-1_alice")
+      .collection("messages")
+      .doc("m1")
+      .get()
+  );
+});
+
 test("storage allows image upload by owner", async () => {
   const testEnv = await resetEnv();
   const storage = testEnv.authenticatedContext("alice").storage();

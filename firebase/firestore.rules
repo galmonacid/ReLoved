@@ -12,6 +12,10 @@ service cloud.firestore {
         && value.size() <= maxLen;
     }
 
+    function isValidContactPreference(value) {
+      return value in ["email", "chat", "both"];
+    }
+
     function isValidUserCreate() {
       return request.resource.data.keys().hasOnly([
         "displayName",
@@ -63,7 +67,9 @@ service cloud.firestore {
         "photoUrl",
         "photoPath",
         "createdAt",
+        "updatedAt",
         "status",
+        "contactPreference",
         "location"
       ])
       && request.resource.data.ownerId is string
@@ -74,7 +80,11 @@ service cloud.firestore {
       && (!request.resource.data.keys().hasAny(["photoPath"])
         || isNonEmptyString(request.resource.data.photoPath, 1, 512))
       && request.resource.data.createdAt is timestamp
+      && (!request.resource.data.keys().hasAny(["updatedAt"])
+        || request.resource.data.updatedAt is timestamp)
       && request.resource.data.status in ["available", "reserved", "given"]
+      && (!request.resource.data.keys().hasAny(["contactPreference"])
+        || isValidContactPreference(request.resource.data.contactPreference))
       && isValidLocation(request.resource.data.location);
     }
 
@@ -94,6 +104,16 @@ service cloud.firestore {
       && request.resource.data.stars >= 1
       && request.resource.data.stars <= 5
       && request.resource.data.createdAt is timestamp;
+    }
+
+    function conversationPath(conversationId) {
+      return /databases/$(database)/documents/conversations/$(conversationId);
+    }
+
+    function isConversationParticipant(conversationId) {
+      return isSignedIn()
+        && get(conversationPath(conversationId)).data.participants is list
+        && request.auth.uid in get(conversationPath(conversationId)).data.participants;
     }
 
     match /users/{userId} {
@@ -127,6 +147,26 @@ service cloud.firestore {
     }
 
     match /contactRequests/{id} {
+      allow read, write: if false; // only via Cloud Functions
+    }
+
+    match /conversations/{conversationId} {
+      allow read: if isSignedIn()
+        && resource.data.participants is list
+        && request.auth.uid in resource.data.participants;
+      allow write: if false; // only via Cloud Functions
+
+      match /messages/{messageId} {
+        allow read: if isConversationParticipant(conversationId);
+        allow write: if false; // only via Cloud Functions
+      }
+    }
+
+    match /chatReports/{reportId} {
+      allow read, write: if false; // only via Cloud Functions
+    }
+
+    match /chatRateLimits/{userId} {
       allow read, write: if false; // only via Cloud Functions
     }
   }

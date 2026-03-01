@@ -1,79 +1,59 @@
 # Execution Plan (MVP)
 
 ## Decisions (MVP defaults)
-- Email provider: SendGrid (simpler setup, solid docs, good free tier).
-- Location UX: Map picker with postcode lookup (UK) + approximate pin + geohash.
-- Access model: Public browsing; auth required to publish or contact.
+- Email provider: SendGrid.
+- Location UX: map picker + postcode lookup (UK) + approximate pin + geohash.
+- Access model: public browsing; auth required to publish/contact.
 - Release target: iOS first.
 - Firebase project ID: reloved-greenhilledge.
 - iOS bundle ID: com.greenhilledge.reloved.
-- Visual direction: white backgrounds with sage green as the primary accent.
+- Visual direction: white backgrounds with sage green accent.
 
-## Plan (start from scratch)
-1. [COMPLETE] **Engineering + agentic workflow (guardrails)**
-   - [COMPLETE] Define MVP Definition of Done in `docs/definition_of_done.md`.
-   - [COMPLETE] Establish agentic change protocol in `docs/agentic_protocol.md`.
-   - [COMPLETE] Document environments/secrets in `docs/environments_secrets.md`.
-   - [COMPLETE] Maintain decisions + risks log in `docs/decisions_risks_log.md`.
-2. [COMPLETE] **Product + UX definition**
-   - [COMPLETE] Confirm MVP scope and screens from `docs/`.
-   - [COMPLETE] Define flows: sign up/in, create item, browse/search, item detail, contact, rating.
-   - [COMPLETE] Choose minimal design system for speed.
-   - [COMPLETE] Output: `docs/ux_flows.md`
-3. [COMPLETE] **Project bootstrap**
-   - [COMPLETE] Create Flutter app in `app/`.
-   - [COMPLETE] Create Firebase project and enable Auth, Firestore, Storage, Functions.
-   - [COMPLETE] Run FlutterFire configure and add iOS bundle ID.
-4. [COMPLETE] **Data model + security**
-   - [COMPLETE] Implement Firestore rules with required fields, ownerId locking, and rating constraints.
-   - [COMPLETE] Add Storage rules for item photos.
-   - [COMPLETE] Add Firestore indexes for geo + recent ordering.
-5. [COMPLETE] **Backend (Functions)**
-   - [COMPLETE] Implement `sendContactEmail` with SendGrid integration.
-   - [COMPLETE] Validate auth, item ownership, and rate limits.
-   - [COMPLETE] Store full `contactRequests` record.
-6. [COMPLETE] **App core features**
-   - [COMPLETE] Auth screens + profile creation.
-   - [COMPLETE] Item create: photo upload + map pin selection + geohash.
-   - [COMPLETE] UK postcode lookup for location selection.
-   - [COMPLETE] Item description field for listings.
-   - [COMPLETE] Search: radius filter (3 mi / 10 mi) + recent ordering.
-   - [COMPLETE] Keyword search across title + description.
-   - [COMPLETE] Item detail: contact form + send request.
-   - [COMPLETE] Ratings flow after exchange.
-   - [COMPLETE] "Mis items" list for owners with status updates.
-   - [COMPLETE] Empty/loading/error states for each screen.
-   - [COMPLETE] Basic accessibility pass (labels, tap targets, contrast).
-   - [COMPLETE] Permission handling for photos and location (if needed).
-   - [COMPLETE] Default location uses device position.
-7. [COMPLETE] **Quality + tooling**
-   - [COMPLETE] Set up emulators for Firestore/Functions/Storage.
-   - [COMPLETE] Add unit tests for shared utils/models (geo + mapping).
-   - [COMPLETE] Add local verification script `scripts/verify_local.sh`.
-   - [COMPLETE] Add rules tests for Firestore + Storage with emulators.
-   - [COMPLETE] Add function tests (mock SendGrid, validate inputs).
-   - [COMPLETE] Add integration tests for critical flows (auth, publish, contact).
-   - [COMPLETE] Configure CI for Flutter analyze/test.
-   - [COMPLETE] Configure CI for Functions build.
-   - [COMPLETE] Configure CI for rules tests.
-8. [COMPLETE] **Release hardening + compliance**
-   - [COMPLETE] Add Crashlytics and basic analytics events for the funnel.
-   - [COMPLETE] Add privacy policy + terms and App Store privacy details.
-   - [COMPLETE] Configure Firebase App Check (production and emulator).
-   - [COMPLETE] Add data retention + account deletion process (manual MVP flow).
-   - [COMPLETE] Add performance hygiene (image compression, basic caching).
-9. [] **iOS release prep**
-   - [COMPLETE] Enroll in Apple Developer Program (UK, £79/year).
-   - [COMPLETE] Obtain Apple Developer Team ID: QUJ832A56F.
-   - [COMPLETE] Enable App ID capabilities: Associated Domains + Push Notifications.
-   - [COMPLETE] Create App Store Connect record and capture App Store ID: 6759441963.
-   - [COMPLETE] Choose App Store display name: ReLoved - Give & Find.
-   - [COMPLETE] App icons (logo source in `docs/img/reloved_logo.png`).
-   - [COMPLETE] Launch screen copy and layout.
-   - [COMPLETE] Basic App Store metadata (listing copy, keywords, categories) drafted in `docs/app_store_metadata.md`.
-   - [] Build and distribute via TestFlight.
-   - [] Deploy Firestore rules, indexes, Storage rules, and Functions.
-   - [] After App Store launch: switch GitHub repository visibility back to private.
+## Plan status
+1. [COMPLETE] Engineering guardrails and docs baseline.
+2. [COMPLETE] Product/UX baseline for auth, publish, search, detail, email contact, rating.
+3. [COMPLETE] Flutter app + Firebase bootstrap.
+4. [COMPLETE] Firestore/Storage model and security base.
+5. [COMPLETE] Backend function `sendContactEmail` + contact audit trail.
+6. [COMPLETE] Core app features (auth/publish/search/detail/contact/rating/profile).
+7. [COMPLETE] Quality tooling (tests, CI for flutter/backend/rules).
+8. [COMPLETE] Compliance baseline (privacy/terms/retention, app check).
+9. [IN PROGRESS] iOS release prep and distribution.
+10. [IN PROGRESS] Post-release analytics funnel expansion.
 
-10. [] **Post-release growth + insights**
-   - [] Create analytics funnels in Firebase (login → publish → contact).
+## Chat rollout (implemented)
+11. [COMPLETE] Internal chat by item with email coexistence
+   - [COMPLETE] Add `contactPreference` in item model (`email`, `chat`, `both`).
+   - [COMPLETE] Add callable functions for chat lifecycle:
+     - `upsertItemConversation`
+     - `sendChatMessage`
+     - `markConversationRead`
+     - `closeConversationByDonor`
+     - `reopenConversationByDonor`
+     - `setItemContactPreference`
+     - `blockConversationParticipant`
+     - `reportConversation`
+   - [COMPLETE] Add conversation archive trigger when item becomes unavailable.
+   - [COMPLETE] Add scheduled retention/redaction job for chat data.
+   - [COMPLETE] Add admin callable for account-deletion chat anonymization.
+   - [COMPLETE] Extend Firestore rules for conversations/messages/chatReports.
+   - [COMPLETE] Add Firestore indexes for chat queries.
+   - [COMPLETE] Add Inbox tab and Chat thread screens in Flutter.
+   - [COMPLETE] Update Item Detail CTA routing by `contactPreference`.
+   - [COMPLETE] Keep email contact flow as fallback/parallel path.
+   - [COMPLETE] Add analytics events for chat/contact channel selection.
+
+## Validation checklist
+- Flutter:
+  - `flutter analyze`
+  - `flutter test`
+- Functions:
+  - `npm --prefix backend/functions run build`
+  - `npm --prefix backend/functions run test:functions`
+  - `npm --prefix backend/functions run test:integration`
+- Rules:
+  - `npm --prefix backend/functions run test:rules` (requires Firestore emulator)
+
+## Notes
+- Rules/integration tests depend on Firebase emulators and compatible Java runtime.
+- Chat push notifications are intentionally out of scope for this phase.

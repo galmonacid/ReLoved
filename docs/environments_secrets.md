@@ -41,6 +41,11 @@ firebase functions:config:get
  - APP_STORE_DISPLAY_NAME (App Store name): ReLoved - Give & Find
   - This is the public App Store listing name (separate from the internal app name).
 
+## Chat operations config
+- No new external secret is required for chat core flows.
+- Optional operational requirement: admin custom claim for invoking `anonymizeUserChatData`.
+- Chat retention job (`purgeOldChatData`) runs on Cloud Scheduler / PubSub.
+
 ## Apple App ID setup (iOS)
 - Capabilities enabled on App ID: Associated Domains (for Universal Links), Push Notifications.
 - Implementation is pending; enable now to avoid reissuing profiles later.

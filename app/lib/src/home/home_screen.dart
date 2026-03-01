@@ -1,6 +1,7 @@
 import "package:firebase_auth/firebase_auth.dart";
 import "package:flutter/material.dart";
 import "../auth/auth_screen.dart";
+import "inbox_screen.dart";
 import "profile_screen.dart";
 import "publish_screen.dart";
 import "search_screen.dart";
@@ -22,13 +23,22 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context, snapshot) {
         final isSignedIn = snapshot.data != null;
         final pages = isSignedIn
-            ? const [SearchScreen(), PublishScreen(), ProfileScreen()]
+            ? const [
+                SearchScreen(),
+                InboxScreen(),
+                PublishScreen(),
+                ProfileScreen(),
+              ]
             : const [SearchScreen(), AuthScreen()];
         final items = isSignedIn
             ? const [
                 BottomNavigationBarItem(
                   icon: Icon(Icons.search),
                   label: "Search",
+                ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.chat_bubble_outline),
+                  label: "Inbox",
                 ),
                 BottomNavigationBarItem(
                   icon: Icon(Icons.add_circle_outline),
@@ -49,8 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   label: "Sign in",
                 ),
               ];
-        final effectiveIndex =
-            _currentIndex < pages.length ? _currentIndex : 0;
+        final effectiveIndex = _currentIndex < pages.length ? _currentIndex : 0;
         if (effectiveIndex != _currentIndex) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {

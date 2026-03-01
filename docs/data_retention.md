@@ -1,23 +1,30 @@
-# Data Retention y Eliminación de Cuenta (MVP)
+# Data Retention y Eliminacion de Cuenta (MVP)
 
-Última actualización: 2026-02-05
+Ultima actualizacion: 2026-03-01
 
 ## Retencion
-- Cuentas y publicaciones se conservan mientras la cuenta esté activa.
-- Logs tecnicos y eventos de analitica se conservan hasta 12 meses.
-- Solicitudes de contacto se conservan hasta 24 meses para soporte.
+- Cuentas y publicaciones: mientras la cuenta este activa.
+- Logs tecnicos y eventos de analitica: hasta 12 meses.
+- Solicitudes de contacto por email (`contactRequests`): hasta 24 meses para soporte.
+- Mensajes de chat:
+  - Conversaciones y mensajes activos: mientras exista relacion operativa del item.
+  - Redaccion por retencion: mensajes antiguos se redactan tras 24 meses.
+- Reportes de chat (`chatReports`): eliminacion tras 24 meses.
 
-## Eliminación de cuenta
-- El usuario solicita la eliminación desde la app (Perfil -> eliminar cuenta).
+## Eliminacion de cuenta
+- El usuario solicita la eliminacion desde la app/perfil (flujo de soporte).
 - Se elimina:
   - Documento de usuario en Firestore.
   - Publicaciones del usuario.
   - Fotos en Storage asociadas a sus items.
 - Se anonimiza:
-  - Registros historicos de contacto (se remueve el email).
-  - Ratings (se conserva el valor agregado sin identificador).
+  - Registros historicos de contacto email (se remueve email).
+  - Mensajes/hilos de chat asociados al usuario (redaccion y `senderId` anonimizado).
+  - Ratings (se conserva valor agregado sin identificador personal).
 
 ## Plazos
-- Eliminación en un plazo máximo de 30 días tras la solicitud.
+- Eliminacion completa en maximo 30 dias desde solicitud.
 
-> Este proceso es manual en MVP. Puede automatizarse en versiones futuras.
+## Operacion
+- Parte del proceso sigue siendo manual (MVP).
+- Existen utilidades backend para anonimizar datos de chat cuando soporte lo requiera.

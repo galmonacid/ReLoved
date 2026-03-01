@@ -3,10 +3,12 @@ import "package:firebase_auth/firebase_auth.dart";
 import "package:flutter/material.dart";
 import "../analytics/app_analytics.dart";
 import "../auth/auth_screen.dart";
+import "../chat/chat_service.dart";
 import "../models/item.dart";
 import "../utils/share_utils.dart";
 import "../widgets/item_image.dart";
 import "../widgets/motion/pressable_scale.dart";
+import "chat_thread_screen.dart";
 import "contact_screen.dart";
 
 class ItemDetailScreen extends StatefulWidget {
@@ -19,7 +21,8 @@ class ItemDetailScreen extends StatefulWidget {
 }
 
 class _ItemDetailScreenState extends State<ItemDetailScreen> {
-  bool _isUpdating = false;
+  bool _isUpdatingStatus = false;
+  bool _isUpdatingContactPreference = false;
 
   String _statusLabel(String status) {
     switch (status) {
@@ -34,6 +37,17 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     }
   }
 
+  String _contactPreferenceLabel(ContactPreference preference) {
+    switch (preference) {
+      case ContactPreference.email:
+        return "Email only";
+      case ContactPreference.chat:
+        return "Chat only";
+      case ContactPreference.both:
+        return "Email + Chat";
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -45,7 +59,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
   Future<void> _updateStatus(String status) async {
     setState(() {
-      _isUpdating = true;
+      _isUpdatingStatus = true;
     });
     try {
       await FirebaseFirestore.instance
@@ -55,7 +69,27 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     } finally {
       if (mounted) {
         setState(() {
-          _isUpdating = false;
+          _isUpdatingStatus = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _updateContactPreference(ContactPreference preference) async {
+    setState(() {
+      _isUpdatingContactPreference = true;
+    });
+    try {
+      await ChatService.setItemContactPreference(
+        itemId: widget.itemId,
+        contactPreference: preference,
+      );
+    } catch (error) {
+      _showError(error.toString());
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdatingContactPreference = false;
         });
       }
     }
@@ -130,9 +164,135 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     );
 
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Thanks for your rating.")),
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("Thanks for your rating.")));
+  }
+
+  Future<User?> _ensureSignedIn() async {
+    final current = FirebaseAuth.instance.currentUser;
+    if (current != null) {
+      return current;
+    }
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const AuthScreen()));
+    return FirebaseAuth.instance.currentUser;
+  }
+
+  Future<void> _openChat(Item item) async {
+    final user = await _ensureSignedIn();
+    if (user == null || !mounted) {
+      return;
+    }
+
+    try {
+      await AppAnalytics.logEvent(
+        name: "contact_channel_selected",
+        parameters: {"itemId": item.id, "channel": "chat"},
+      );
+      final conversationId = await ChatService.upsertItemConversation(item.id);
+      if (!mounted) {
+        return;
+      }
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ChatThreadScreen(conversationId: conversationId),
+        ),
+      );
+    } catch (error) {
+      _showError(error.toString());
+    }
+  }
+
+  Future<void> _openEmailContact(Item item) async {
+    final user = await _ensureSignedIn();
+    if (user == null || !mounted) {
+      return;
+    }
+
+    await AppAnalytics.logEvent(
+      name: "contact_channel_selected",
+      parameters: {"itemId": item.id, "channel": "email"},
     );
+    if (!mounted) {
+      return;
+    }
+
+    final sent = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => ContactScreen(itemId: item.id, title: item.title),
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    if (sent == true) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Message sent.")));
+    }
+  }
+
+  void _showError(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Widget _contactSection(Item item) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (item.status == "given") {
+      return const Text("This item is no longer available.");
+    }
+
+    switch (item.contactPreference) {
+      case ContactPreference.email:
+        return SizedBox(
+          width: double.infinity,
+          child: PressableScale(
+            child: ElevatedButton(
+              onPressed: () => _openEmailContact(item),
+              child: const Text("Contact by email"),
+            ),
+          ),
+        );
+      case ContactPreference.chat:
+        return SizedBox(
+          width: double.infinity,
+          child: PressableScale(
+            child: ElevatedButton(
+              onPressed: () => _openChat(item),
+              child: const Text("Open chat"),
+            ),
+          ),
+        );
+      case ContactPreference.both:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            PressableScale(
+              child: ElevatedButton(
+                onPressed: () => _openChat(item),
+                child: const Text("Open chat"),
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => _openEmailContact(item),
+              child: const Text("Contact by email"),
+            ),
+            if (user == null)
+              Text(
+                "Sign in to start chatting or email the donor.",
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+          ],
+        );
+    }
   }
 
   @override
@@ -155,9 +315,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           );
         }
         if (!snapshot.hasData || !snapshot.data!.exists) {
-          return const Scaffold(
-            body: Center(child: Text("Item not found.")),
-          );
+          return const Scaffold(body: Center(child: Text("Item not found.")));
         }
         final item = Item.fromDoc(snapshot.data!);
         final isOwner = user?.uid == item.ownerId;
@@ -201,6 +359,10 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 Text("Status: ${_statusLabel(item.status)}"),
                 const SizedBox(height: 4),
                 Text("Location: ${item.location.approxAreaText}"),
+                const SizedBox(height: 4),
+                Text(
+                  "Contact: ${_contactPreferenceLabel(item.contactPreference)}",
+                ),
                 const SizedBox(height: 20),
                 if (isOwner) ...[
                   const Text("Update status"),
@@ -216,12 +378,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                         value: "reserved",
                         child: Text("Reserved"),
                       ),
-                      DropdownMenuItem(
-                        value: "given",
-                        child: Text("Given"),
-                      ),
+                      DropdownMenuItem(value: "given", child: Text("Given")),
                     ],
-                    onChanged: _isUpdating
+                    onChanged: _isUpdatingStatus
                         ? null
                         : (value) {
                             if (value != null) {
@@ -229,39 +388,29 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                             }
                           },
                   ),
-                ] else ...[
-                  SizedBox(
-                    width: double.infinity,
-                    child: PressableScale(
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          if (user == null) {
-                            await Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const AuthScreen(),
-                              ),
-                            );
-                            return;
-                          }
-                          final sent = await Navigator.of(context).push<bool>(
-                            MaterialPageRoute(
-                              builder: (_) => ContactScreen(
-                                itemId: item.id,
-                                title: item.title,
-                              ),
-                            ),
-                          );
-                          if (!context.mounted) return;
-                          if (sent == true) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text("Message sent.")),
-                            );
-                          }
-                        },
-                        child: const Text("Contact"),
-                      ),
-                    ),
+                  const SizedBox(height: 16),
+                  const Text("Contact preference"),
+                  const SizedBox(height: 8),
+                  DropdownButton<ContactPreference>(
+                    value: item.contactPreference,
+                    items: ContactPreference.values
+                        .map(
+                          (preference) => DropdownMenuItem<ContactPreference>(
+                            value: preference,
+                            child: Text(_contactPreferenceLabel(preference)),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: _isUpdatingContactPreference
+                        ? null
+                        : (value) {
+                            if (value != null) {
+                              _updateContactPreference(value);
+                            }
+                          },
                   ),
+                ] else ...[
+                  _contactSection(item),
                   const SizedBox(height: 12),
                   if (item.status == "given" && user != null)
                     FutureBuilder<bool>(

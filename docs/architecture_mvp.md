@@ -31,14 +31,14 @@ Lanzar el MVP en el menor tiempo posible para validar el interés real de los us
 - Entrada de ubicación por postcode en UK (normalizado)
 
 ## Fuera de alcance del MVP
-- Chat en tiempo real (fast follower)
-- Notificaciones push
+- Notificaciones push para chat
+- Adjuntos multimedia en chat
 - Pagos
 - Moderación avanzada
 - Login social (Google / Apple)
 - Escalado multi-región
 
 ## Evolución prevista (post-MVP)
-- Añadir chat integrado usando Firestore (fast follower)
+- Añadir push notifications para inbox/chat si hay tracción
 - Evaluar optimización de geo-búsqueda si el uso lo justifica
-- Introducir notificaciones push si hay tracción
+- Introducir moderación automática para reportes de chat

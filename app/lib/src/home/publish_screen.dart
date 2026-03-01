@@ -12,6 +12,7 @@ import "../utils/geo.dart";
 import "../utils/location.dart";
 import "../utils/postcode_lookup.dart";
 import "../analytics/app_analytics.dart";
+import "../models/item.dart";
 import "../widgets/map_picker.dart";
 import "../widgets/motion/pressable_scale.dart";
 import "item_detail_screen.dart";
@@ -33,6 +34,7 @@ class _PublishScreenState extends State<PublishScreen> {
   XFile? _imageFile;
   Uint8List? _imageBytes;
   LatLng? _location;
+  ContactPreference _contactPreference = ContactPreference.both;
   bool _isLoading = false;
 
   @override
@@ -139,9 +141,9 @@ class _PublishScreenState extends State<PublishScreen> {
 
     try {
       final docRef = FirebaseFirestore.instance.collection("items").doc();
-      final storageRef = FirebaseStorage.instance
-          .ref()
-          .child("itemPhotos/${user.uid}/${docRef.id}/photo.jpg");
+      final storageRef = FirebaseStorage.instance.ref().child(
+        "itemPhotos/${user.uid}/${docRef.id}/photo.jpg",
+      );
       final photoPath = storageRef.fullPath;
       if (kIsWeb) {
         final bytes = _imageBytes;
@@ -181,6 +183,7 @@ class _PublishScreenState extends State<PublishScreen> {
         "photoPath": photoPath,
         "createdAt": FieldValue.serverTimestamp(),
         "status": "available",
+        "contactPreference": contactPreferenceToString(_contactPreference),
         "location": {
           "lat": _location!.latitude,
           "lng": _location!.longitude,
@@ -201,11 +204,10 @@ class _PublishScreenState extends State<PublishScreen> {
       setState(() {
         _imageFile = null;
         _location = null;
+        _contactPreference = ContactPreference.both;
       });
       Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ItemDetailScreen(itemId: docRef.id),
-        ),
+        MaterialPageRoute(builder: (_) => ItemDetailScreen(itemId: docRef.id)),
       );
     } catch (error) {
       _showError("Could not publish.");
@@ -219,17 +221,15 @@ class _PublishScreenState extends State<PublishScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Publish"),
-      ),
+      appBar: AppBar(title: const Text("Publish")),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -255,6 +255,45 @@ class _PublishScreenState extends State<PublishScreen> {
                       helperText: "Shown to other users.",
                     ),
                   ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              "How can people contact you?",
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ChoiceChip(
+                  label: const Text("Email only"),
+                  selected: _contactPreference == ContactPreference.email,
+                  onSelected: (_) {
+                    setState(() {
+                      _contactPreference = ContactPreference.email;
+                    });
+                  },
+                ),
+                ChoiceChip(
+                  label: const Text("Chat only"),
+                  selected: _contactPreference == ContactPreference.chat,
+                  onSelected: (_) {
+                    setState(() {
+                      _contactPreference = ContactPreference.chat;
+                    });
+                  },
+                ),
+                ChoiceChip(
+                  label: const Text("Email + Chat"),
+                  selected: _contactPreference == ContactPreference.both,
+                  onSelected: (_) {
+                    setState(() {
+                      _contactPreference = ContactPreference.both;
+                    });
+                  },
                 ),
               ],
             ),
@@ -309,18 +348,21 @@ class _PublishScreenState extends State<PublishScreen> {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.photo_camera_outlined, size: 32),
+                                const Icon(
+                                  Icons.photo_camera_outlined,
+                                  size: 32,
+                                ),
                                 const SizedBox(height: 12),
                                 Text(
                                   "Select photo",
-                                  style: Theme.of(context).textTheme.titleMedium,
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.titleMedium,
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
                                   "Tap to choose from gallery",
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
+                                  style: Theme.of(context).textTheme.bodySmall
                                       ?.copyWith(color: AppColors.muted),
                                 ),
                               ],

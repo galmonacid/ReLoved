@@ -1,6 +1,39 @@
 import "package:cloud_firestore/cloud_firestore.dart";
 import "package:latlong2/latlong.dart";
 
+enum ContactPreference { email, chat, both }
+
+ContactPreference contactPreferenceFromString(String? value) {
+  switch (value) {
+    case "email":
+      return ContactPreference.email;
+    case "chat":
+      return ContactPreference.chat;
+    case "both":
+      return ContactPreference.both;
+    default:
+      return ContactPreference.both;
+  }
+}
+
+String contactPreferenceToString(ContactPreference preference) {
+  switch (preference) {
+    case ContactPreference.email:
+      return "email";
+    case ContactPreference.chat:
+      return "chat";
+    case ContactPreference.both:
+      return "both";
+  }
+}
+
+extension ContactPreferenceX on ContactPreference {
+  bool get allowsEmail =>
+      this == ContactPreference.email || this == ContactPreference.both;
+  bool get allowsChat =>
+      this == ContactPreference.chat || this == ContactPreference.both;
+}
+
 class ItemLocation {
   ItemLocation({
     required this.lat,
@@ -45,6 +78,7 @@ class Item {
     required this.photoPath,
     required this.createdAt,
     required this.status,
+    required this.contactPreference,
     required this.location,
   });
 
@@ -56,6 +90,7 @@ class Item {
   final String photoPath;
   final DateTime? createdAt;
   final String status;
+  final ContactPreference contactPreference;
   final ItemLocation location;
 
   factory Item.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
@@ -70,6 +105,9 @@ class Item {
       photoPath: (data["photoPath"] as String?) ?? "",
       createdAt: createdAt is Timestamp ? createdAt.toDate() : null,
       status: (data["status"] as String?) ?? "available",
+      contactPreference: contactPreferenceFromString(
+        data["contactPreference"] as String?,
+      ),
       location: ItemLocation.fromMap(
         (data["location"] as Map<String, dynamic>?) ?? {},
       ),
