@@ -7,6 +7,8 @@ import "package:flutter/material.dart";
 import "firebase_options.dart";
 import "src/auth/auth_gate.dart";
 import "src/config/app_config.dart";
+import "src/home/item_detail_screen.dart";
+import "theme/app_theme.dart";
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -59,30 +61,68 @@ Future<void> _configureFirebase() async {
 class ReLovedApp extends StatelessWidget {
   const ReLovedApp({super.key});
 
+  static String? _itemIdFromRouteName(String? routeName) {
+    if (routeName == null || routeName.isEmpty) {
+      return null;
+    }
+    final uri = Uri.tryParse(routeName);
+    if (uri == null) {
+      return null;
+    }
+    return _itemIdFromUri(uri);
+  }
+
+  static String? _itemIdFromUri(Uri uri) {
+    if (uri.pathSegments.length < 2) {
+      return null;
+    }
+    if (uri.pathSegments.first != "items") {
+      return null;
+    }
+    final itemId = uri.pathSegments[1].trim();
+    return itemId.isEmpty ? null : itemId;
+  }
+
+  static Route<void> _homeRoute([RouteSettings? settings]) {
+    return MaterialPageRoute<void>(
+      builder: (_) => const AuthGate(),
+      settings: settings,
+    );
+  }
+
+  static Route<void> _itemRoute(String itemId, [RouteSettings? settings]) {
+    return MaterialPageRoute<void>(
+      builder: (_) => ItemDetailScreen(itemId: itemId),
+      settings: settings,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    const sageGreen = Color(0xFF9CAF88);
-    final analytics = FirebaseAnalytics.instance;
+    final analyticsEnabled = !(kIsWeb && kDebugMode);
+    final sharedItemId = _itemIdFromUri(Uri.base);
     return MaterialApp(
       title: 'ReLoved',
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: sageGreen,
-          brightness: Brightness.light,
-        ),
-        scaffoldBackgroundColor: Colors.white,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black87,
-          surfaceTintColor: Colors.white,
-          elevation: 0,
-        ),
-      ),
-      navigatorObservers: [
-        FirebaseAnalyticsObserver(analytics: analytics),
-      ],
-      home: const AuthGate(),
+      theme: AppTheme.light,
+      onGenerateInitialRoutes: (initialRoute) {
+        final routes = <Route<void>>[_homeRoute()];
+        final itemId = _itemIdFromRouteName(initialRoute) ?? sharedItemId;
+        if (itemId != null) {
+          routes.add(_itemRoute(itemId));
+        }
+        return routes;
+      },
+      onGenerateRoute: (settings) {
+        final itemId = _itemIdFromRouteName(settings.name);
+        if (itemId != null) {
+          return _itemRoute(itemId, settings);
+        }
+        return _homeRoute(settings);
+      },
+      navigatorObservers:
+          analyticsEnabled
+              ? [FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance)]
+              : const [],
     );
   }
 }

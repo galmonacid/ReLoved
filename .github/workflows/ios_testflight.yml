@@ -61,7 +61,8 @@ jobs:
       - name: Build IPA
         run: |
           unset CFLAGS CXXFLAGS CPPFLAGS LDFLAGS OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS
-          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist -v
+          flutter build ipa --release --export-options-plist=ios/ExportOptions.plist -v \
+            --dart-define=SHARE_BASE_URL=https://reloved-greenhilledge.web.app
 
       - name: Install fastlane
         run: sudo gem install fastlane

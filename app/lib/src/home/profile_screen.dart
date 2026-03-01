@@ -2,10 +2,13 @@ import "package:cloud_firestore/cloud_firestore.dart";
 import "package:firebase_auth/firebase_auth.dart";
 import "package:flutter/material.dart";
 import "package:url_launcher/url_launcher.dart";
+import "../../theme/app_colors.dart";
 import "../config/app_config.dart";
 import "../models/item.dart";
 import "../utils/share_utils.dart";
 import "../widgets/item_image.dart";
+import "../widgets/motion/fade_in_item.dart";
+import "../widgets/motion/pressable_scale.dart";
 import "item_detail_screen.dart";
 
 class ProfileScreen extends StatelessWidget {
@@ -114,16 +117,40 @@ class ProfileScreen extends StatelessWidget {
             final data = snapshot.data?.data() ?? {};
             final displayName = (data["displayName"] as String?) ?? "Usuario";
             final email = (data["email"] as String?) ?? user.email ?? "";
+            final initial = displayName.trim().isEmpty
+                ? "U"
+                : displayName.trim().substring(0, 1).toUpperCase();
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  displayName,
-                  style: Theme.of(context).textTheme.headlineSmall,
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 24,
+                      backgroundColor: AppColors.sageSoft,
+                      foregroundColor: AppColors.primary,
+                      child: Text(initial),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            displayName,
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            email,
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 4),
-                Text(email),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 FutureBuilder<Map<String, dynamic>>(
                   future: _loadRatings(user.uid),
                   builder: (context, ratingSnapshot) {
@@ -146,7 +173,7 @@ class ProfileScreen extends StatelessWidget {
                   "My items",
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Expanded(
                   child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                     stream: FirebaseFirestore.instance
@@ -176,89 +203,106 @@ class ProfileScreen extends StatelessWidget {
                       return ListView.separated(
                         itemCount: items.length,
                         separatorBuilder: (context, index) =>
-                            const Divider(height: 1),
+                            const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           final item = items[index];
-                          return ListTile(
-                            leading: ClipRRect(
-                              borderRadius: BorderRadius.circular(6),
-                              child: ItemImage(
-                                photoUrl: item.photoUrl,
-                                photoPath: item.photoPath,
-                                width: 48,
-                                height: 48,
-                                fit: BoxFit.cover,
-                                semanticLabel: "Foto de ${item.title}",
+                          return FadeInItem(
+                            key: ValueKey("profile-${item.id}"),
+                            delay: Duration(milliseconds: (index % 5) * 30),
+                            child: PressableScale(
+                              child: Card(
+                                child: ListTile(
+                                  leading: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: ItemImage(
+                                      photoUrl: item.photoUrl,
+                                      photoPath: item.photoPath,
+                                      width: 48,
+                                      height: 48,
+                                      fit: BoxFit.cover,
+                                      semanticLabel: "Foto de ${item.title}",
+                                    ),
+                                  ),
+                                  title: Text(item.title),
+                                  subtitle: Text(
+                                    "Status: ${_statusLabel(item.status)}",
+                                  ),
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        onPressed: () => shareItem(context, item),
+                                        icon: const Icon(Icons.share),
+                                        tooltip: "Share",
+                                      ),
+                                      const Icon(Icons.chevron_right),
+                                    ],
+                                  ),
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            ItemDetailScreen(itemId: item.id),
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
                             ),
-                            title: Text(item.title),
-                            subtitle: Text("Status: ${_statusLabel(item.status)}"),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  onPressed: () => shareItem(context, item),
-                                  icon: const Icon(Icons.share),
-                                  tooltip: "Share",
-                                ),
-                                const Icon(Icons.chevron_right),
-                              ],
-                            ),
-                            onTap: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      ItemDetailScreen(itemId: item.id),
-                                ),
-                              );
-                            },
                           );
                         },
                       );
                     },
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 24),
                 Text(
                   "Support & legal",
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () => _openUrl(
-                      context,
-                      AppConfig.privacyPolicyUrl,
+                const SizedBox(height: 12),
+                PressableScale(
+                  child: Card(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ListTile(
+                          title: const Text("Privacy policy"),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => _openUrl(
+                            context,
+                            AppConfig.privacyPolicyUrl,
+                          ),
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          title: const Text("Terms of service"),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => _openUrl(
+                            context,
+                            AppConfig.termsUrl,
+                          ),
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          title: const Text("Request account deletion"),
+                          trailing: const Icon(Icons.chevron_right),
+                          textColor: AppColors.error,
+                          iconColor: AppColors.error,
+                          onTap: () => _requestDeletion(context, user),
+                        ),
+                        const Divider(height: 1),
+                        ListTile(
+                          title: const Text("Sign out"),
+                          trailing: const Icon(Icons.chevron_right),
+                          textColor: AppColors.error,
+                          iconColor: AppColors.error,
+                          onTap: () async {
+                            await FirebaseAuth.instance.signOut();
+                          },
+                        ),
+                      ],
                     ),
-                    child: const Text("Privacy policy"),
-                  ),
-                ),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () => _openUrl(
-                      context,
-                      AppConfig.termsUrl,
-                    ),
-                    child: const Text("Terms of service"),
-                  ),
-                ),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () => _requestDeletion(context, user),
-                    child: const Text("Request account deletion"),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: () async {
-                      await FirebaseAuth.instance.signOut();
-                    },
-                    child: const Text("Sign out"),
                   ),
                 ),
               ],

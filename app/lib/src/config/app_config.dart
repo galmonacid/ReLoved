@@ -17,12 +17,15 @@ class AppConfig {
       "https://reloved-greenhilledge.web.app/privacy.html";
   static const String _defaultTermsUrl =
       "https://reloved-greenhilledge.web.app/terms.html";
+  static const String _defaultShareBaseUrl =
+      "https://reloved-greenhilledge.web.app";
 
   static String get privacyPolicyUrl =>
       _privacyPolicyUrl.isNotEmpty ? _privacyPolicyUrl : _defaultPrivacyPolicyUrl;
   static String get termsUrl =>
       _termsUrl.isNotEmpty ? _termsUrl : _defaultTermsUrl;
-  static String get shareBaseUrl => _shareBaseUrl;
+  static String get shareBaseUrl =>
+      _shareBaseUrl.isNotEmpty ? _shareBaseUrl : _defaultShareBaseUrl;
 
   static bool get hasPrivacyPolicy => privacyPolicyUrl.isNotEmpty;
   static bool get hasTerms => termsUrl.isNotEmpty;

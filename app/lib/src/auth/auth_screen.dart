@@ -1,7 +1,7 @@
 import "package:cloud_firestore/cloud_firestore.dart";
 import "package:firebase_auth/firebase_auth.dart";
-import "package:firebase_analytics/firebase_analytics.dart";
 import "package:flutter/material.dart";
+import "../analytics/app_analytics.dart";
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -48,7 +48,7 @@ class _AuthScreenState extends State<AuthScreen> {
           email: email,
           password: password,
         );
-        await FirebaseAnalytics.instance.logLogin();
+        await AppAnalytics.logLogin();
       } else {
         final credential =
             await FirebaseAuth.instance.createUserWithEmailAndPassword(
@@ -66,7 +66,7 @@ class _AuthScreenState extends State<AuthScreen> {
           "ratingAvg": 0,
           "ratingCount": 0,
         });
-        await FirebaseAnalytics.instance.logSignUp(signUpMethod: "password");
+        await AppAnalytics.logSignUp(signUpMethod: "password");
       }
     } on FirebaseAuthException catch (error) {
       _showError(error.message ?? "Authentication error.");
@@ -92,7 +92,7 @@ class _AuthScreenState extends State<AuthScreen> {
     });
     try {
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
-      await FirebaseAnalytics.instance.logEvent(
+      await AppAnalytics.logEvent(
         name: "password_reset_request",
       );
       if (!mounted) return;

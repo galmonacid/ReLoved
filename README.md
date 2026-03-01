@@ -29,7 +29,7 @@ This generates `lib/firebase_options.dart` and adds platform config files.
 ### 2) Run the app
 ```bash
 cd app
-flutter run
+flutter run --dart-define=SHARE_BASE_URL=https://reloved-greenhilledge.web.app
 ```
 
 ### 3) Initialize Firebase resources (once)

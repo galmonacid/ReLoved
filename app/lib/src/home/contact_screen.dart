@@ -1,7 +1,8 @@
 import "package:cloud_functions/cloud_functions.dart";
 import "package:firebase_auth/firebase_auth.dart";
-import "package:firebase_analytics/firebase_analytics.dart";
 import "package:flutter/material.dart";
+import "../analytics/app_analytics.dart";
+import "../widgets/motion/pressable_scale.dart";
 
 class ContactScreen extends StatefulWidget {
   const ContactScreen({
@@ -49,7 +50,7 @@ class _ContactScreenState extends State<ContactScreen> {
         region: "us-central1",
       ).httpsCallable("sendContactEmail");
       await callable.call({"itemId": widget.itemId, "message": message});
-      await FirebaseAnalytics.instance.logEvent(
+      await AppAnalytics.logEvent(
         name: "contact_send",
         parameters: {"itemId": widget.itemId},
       );
@@ -106,21 +107,22 @@ class _ContactScreenState extends State<ContactScreen> {
               maxLines: 6,
               decoration: const InputDecoration(
                 labelText: "Message",
-                border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _send,
-                child: _isLoading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Text("Send"),
+              child: PressableScale(
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _send,
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text("Send"),
+                ),
               ),
             ),
           ],

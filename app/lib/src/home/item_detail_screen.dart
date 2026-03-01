@@ -1,11 +1,12 @@
 import "package:cloud_firestore/cloud_firestore.dart";
-import "package:firebase_analytics/firebase_analytics.dart";
 import "package:firebase_auth/firebase_auth.dart";
 import "package:flutter/material.dart";
+import "../analytics/app_analytics.dart";
 import "../auth/auth_screen.dart";
 import "../models/item.dart";
 import "../utils/share_utils.dart";
 import "../widgets/item_image.dart";
+import "../widgets/motion/pressable_scale.dart";
 import "contact_screen.dart";
 
 class ItemDetailScreen extends StatefulWidget {
@@ -36,7 +37,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   @override
   void initState() {
     super.initState();
-    FirebaseAnalytics.instance.logEvent(
+    AppAnalytics.logEvent(
       name: "view_item",
       parameters: {"itemId": widget.itemId},
     );
@@ -123,7 +124,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       "stars": result,
       "createdAt": FieldValue.serverTimestamp(),
     });
-    await FirebaseAnalytics.instance.logEvent(
+    await AppAnalytics.logEvent(
       name: "submit_rating",
       parameters: {"itemId": item.id, "stars": result},
     );
@@ -177,7 +178,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(16),
                   child: ItemImage(
                     photoUrl: item.photoUrl,
                     photoPath: item.photoPath,
@@ -231,32 +232,34 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                 ] else ...[
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        if (user == null) {
-                          await Navigator.of(context).push(
+                    child: PressableScale(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          if (user == null) {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const AuthScreen(),
+                              ),
+                            );
+                            return;
+                          }
+                          final sent = await Navigator.of(context).push<bool>(
                             MaterialPageRoute(
-                              builder: (_) => const AuthScreen(),
+                              builder: (_) => ContactScreen(
+                                itemId: item.id,
+                                title: item.title,
+                              ),
                             ),
                           );
-                          return;
-                        }
-                        final sent = await Navigator.of(context).push<bool>(
-                          MaterialPageRoute(
-                            builder: (_) => ContactScreen(
-                              itemId: item.id,
-                              title: item.title,
-                            ),
-                          ),
-                        );
-                        if (!context.mounted) return;
-                        if (sent == true) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Message sent.")),
-                          );
-                        }
-                      },
-                      child: const Text("Contact"),
+                          if (!context.mounted) return;
+                          if (sent == true) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text("Message sent.")),
+                            );
+                          }
+                        },
+                        child: const Text("Contact"),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -267,7 +270,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                         final alreadyRated = ratingSnapshot.data ?? false;
                         return SizedBox(
                           width: double.infinity,
-                          child: OutlinedButton(
+                          child: TextButton(
                             onPressed: alreadyRated
                                 ? null
                                 : () => _showRatingDialog(item),

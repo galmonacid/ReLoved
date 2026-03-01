@@ -61,9 +61,24 @@ class _HomeScreenState extends State<HomeScreen> {
           });
         }
         return Scaffold(
-          body: IndexedStack(
-            index: effectiveIndex,
-            children: pages,
+          body: Stack(
+            children: List.generate(pages.length, (index) {
+              final active = index == effectiveIndex;
+              return Positioned.fill(
+                child: IgnorePointer(
+                  ignoring: !active,
+                  child: ExcludeSemantics(
+                    excluding: !active,
+                    child: AnimatedOpacity(
+                      opacity: active ? 1 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInOut,
+                      child: pages[index],
+                    ),
+                  ),
+                ),
+              );
+            }),
           ),
           bottomNavigationBar: BottomNavigationBar(
             currentIndex: effectiveIndex,

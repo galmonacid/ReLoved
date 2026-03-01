@@ -2,6 +2,8 @@ import "dart:async";
 import "package:flutter/material.dart";
 import "package:flutter_map/flutter_map.dart";
 import "package:latlong2/latlong.dart";
+import "../../theme/app_colors.dart";
+import "motion/pressable_scale.dart";
 import "../utils/postcode_lookup.dart";
 
 class MapPickerResult {
@@ -123,35 +125,40 @@ class _MapPickerState extends State<MapPicker> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _postcodeController,
-                    textCapitalization: TextCapitalization.characters,
-                    decoration: const InputDecoration(
-                      labelText: "Search by postcode",
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: _isLookingUpPostcode ? null : _lookupPostcode,
-                  child: _isLookingUpPostcode
-                      ? const SizedBox(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: TextField(
+              controller: _postcodeController,
+              textCapitalization: TextCapitalization.characters,
+              onSubmitted: (_) {
+                if (!_isLookingUpPostcode) {
+                  _lookupPostcode();
+                }
+              },
+              decoration: InputDecoration(
+                hintText: "Search by postcode",
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _isLookingUpPostcode
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text("Search"),
-                ),
-              ],
+                        ),
+                      )
+                    : IconButton(
+                        onPressed: _lookupPostcode,
+                        icon: const Icon(Icons.search),
+                        tooltip: "Search",
+                      ),
+                fillColor: AppColors.sageSoft,
+                filled: true,
+              ),
             ),
           ),
           if (_postcodeLabel != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
@@ -186,7 +193,7 @@ class _MapPickerState extends State<MapPicker> {
                       height: 40,
                       child: const Icon(
                         Icons.location_pin,
-                        color: Colors.red,
+                        color: AppColors.error,
                         size: 40,
                       ),
                     ),
@@ -199,16 +206,18 @@ class _MapPickerState extends State<MapPicker> {
             padding: const EdgeInsets.all(16),
             child: SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop(
-                    MapPickerResult(
-                      location: _selected,
-                      postcode: _postcodeLabel,
-                    ),
-                  );
-                },
-                child: const Text("Confirm location"),
+              child: PressableScale(
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(
+                      MapPickerResult(
+                        location: _selected,
+                        postcode: _postcodeLabel,
+                      ),
+                    );
+                  },
+                  child: const Text("Confirm location"),
+                ),
               ),
             ),
           ),

@@ -34,7 +34,7 @@ firebase functions:config:get
 - TERMS_URL (public URL)
 - SUPPORT_EMAIL (support inbox for deletion requests)
 - APP_CHECK_WEB_KEY (reCAPTCHA v3 site key for App Check on web)
-- SHARE_BASE_URL (base URL for share links, e.g. https://greenhilledge.co.uk)
+- SHARE_BASE_URL (base URL for share links, recommended: https://reloved-greenhilledge.web.app)
 - IOS_TEAM_ID (Apple Developer Team ID for Universal Links): QUJ832A56F
 - IOS_APP_STORE_ID (App Store ID for app store fallback): 6759441963
 - ANDROID_PACKAGE_NAME (package name for Android deep link fallback)

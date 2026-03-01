@@ -1,17 +1,19 @@
 import "dart:io";
 import "package:cloud_firestore/cloud_firestore.dart";
 import "package:firebase_auth/firebase_auth.dart";
-import "package:firebase_analytics/firebase_analytics.dart";
 import "package:firebase_storage/firebase_storage.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:flutter/services.dart";
 import "package:image_picker/image_picker.dart";
 import "package:latlong2/latlong.dart";
+import "../../theme/app_colors.dart";
 import "../utils/geo.dart";
 import "../utils/location.dart";
 import "../utils/postcode_lookup.dart";
+import "../analytics/app_analytics.dart";
 import "../widgets/map_picker.dart";
+import "../widgets/motion/pressable_scale.dart";
 import "item_detail_screen.dart";
 
 class PublishScreen extends StatefulWidget {
@@ -186,7 +188,7 @@ class _PublishScreenState extends State<PublishScreen> {
           "approxAreaText": area,
         },
       });
-      await FirebaseAnalytics.instance.logEvent(
+      await AppAnalytics.logEvent(
         name: "publish_item",
         parameters: {"itemId": docRef.id},
       );
@@ -256,7 +258,7 @@ class _PublishScreenState extends State<PublishScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
             Row(
               children: [
                 Expanded(
@@ -271,49 +273,75 @@ class _PublishScreenState extends State<PublishScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: _pickLocation,
-              icon: const Icon(Icons.map_outlined),
-              label: Text(_location == null
-                  ? "Select location"
-                  : "Change location"),
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton.icon(
-              onPressed: _pickImage,
-              icon: const Icon(Icons.photo),
-              label: Text(_imageFile == null
-                  ? "Select photo"
-                  : "Change photo"),
-            ),
-            if (_imageFile != null) ...[
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: kIsWeb
-                    ? Image.memory(
-                        _imageBytes ?? Uint8List(0),
-                        height: 180,
-                        fit: BoxFit.cover,
-                      )
-                    : Image.file(
-                        File(_imageFile!.path),
-                        height: 180,
-                        fit: BoxFit.cover,
-                      ),
+            const SizedBox(height: 12),
+            PressableScale(
+              child: Card(
+                child: ListTile(
+                  onTap: _pickLocation,
+                  leading: const Icon(Icons.map_outlined),
+                  trailing: const Icon(Icons.chevron_right),
+                  title: Text(
+                    _location == null ? "Select location" : "Change location",
+                  ),
+                ),
               ),
-            ],
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _publish,
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text("Publish"),
+            ),
+            const SizedBox(height: 24),
+            PressableScale(
+              child: InkWell(
+                onTap: _pickImage,
+                borderRadius: BorderRadius.circular(16),
+                child: Card(
+                  clipBehavior: Clip.antiAlias,
+                  child: AspectRatio(
+                    aspectRatio: 4 / 3,
+                    child: _imageFile != null
+                        ? (kIsWeb
+                              ? Image.memory(
+                                  _imageBytes ?? Uint8List(0),
+                                  fit: BoxFit.cover,
+                                )
+                              : Image.file(
+                                  File(_imageFile!.path),
+                                  fit: BoxFit.cover,
+                                ))
+                        : Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.photo_camera_outlined, size: 32),
+                                const SizedBox(height: 12),
+                                Text(
+                                  "Select photo",
+                                  style: Theme.of(context).textTheme.titleMedium,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  "Tap to choose from gallery",
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(color: AppColors.muted),
+                                ),
+                              ],
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            PressableScale(
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _publish,
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text("Publish"),
+              ),
             ),
           ],
         ),
