@@ -25,6 +25,7 @@ Una app donde las personas publican objetos y se ponen en contacto de forma simp
 
 ## Requisitos MVP actual
 - Registro minimo: email, contrasena, nombre visible.
+- Login social: Google (iOS + Web) y Apple (iOS).
 - Publicacion de objetos con foto y ubicacion aproximada.
 - Busqueda por radio + texto.
 - Contacto por email y/o chat segun preferencia del donor.
@@ -36,7 +37,12 @@ Una app donde las personas publican objetos y se ponen en contacto de forma simp
 - Chat solo 1:1 y vinculado a item (no chat global entre usuarios).
 - Sin adjuntos multimedia en chat (solo texto).
 - Sin moderacion avanzada en esta fase (solo bloqueos/reportes basicos).
-- Sin login con Google o Apple en MVP.
+- Android queda fuera de alcance para login social en esta iteracion.
+
+## Politica de cuentas (auth)
+- Se mantiene `email/password` como metodo base.
+- Si el mismo email intenta entrar por otro proveedor, se vinculan credenciales para evitar cuentas duplicadas.
+- Si una cuenta existente usa password, el flujo de linking solicita password antes de vincular Google/Apple.
 
 ## Alcance geografico
 - UK: entrada por postcode.
@@ -60,7 +66,7 @@ Una app donde las personas publican objetos y se ponen en contacto de forma simp
 ## Roadmap
 ### Fase 1: Registro y perfil
 - Registro minimo: email, contrasena, nombre visible.
-- Inicio de sesion basico.
+- Inicio de sesion con email/password y social login (Google/Apple).
 
 ### Fase 2: Publicaciones de objetos
 - Subir objeto con foto, titulo, descripcion, postcode (UK) y fecha automatica.

@@ -19,21 +19,17 @@ class AppAnalytics {
     } catch (_) {}
   }
 
-  static Future<void> logLogin() async {
+  static Future<void> logLogin({String? loginMethod}) async {
     if (!_enabled) return;
     try {
-      await FirebaseAnalytics.instance.logLogin();
+      await FirebaseAnalytics.instance.logLogin(loginMethod: loginMethod);
     } catch (_) {}
   }
 
-  static Future<void> logSignUp({
-    required String signUpMethod,
-  }) async {
+  static Future<void> logSignUp({required String signUpMethod}) async {
     if (!_enabled) return;
     try {
-      await FirebaseAnalytics.instance.logSignUp(
-        signUpMethod: signUpMethod,
-      );
+      await FirebaseAnalytics.instance.logSignUp(signUpMethod: signUpMethod);
     } catch (_) {}
   }
 }

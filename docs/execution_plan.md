@@ -20,9 +20,11 @@
 8. [COMPLETE] Compliance baseline (privacy/terms/retention, app check).
 9. [IN PROGRESS] iOS release prep and distribution.
 10. [IN PROGRESS] Post-release analytics funnel expansion.
+11. [COMPLETE] Social auth rollout (Google + Apple with account linking).
+12. [COMPLETE] iOS Google Sign-In config hardening (OAuth plist alignment).
 
 ## Chat rollout (implemented)
-11. [COMPLETE] Internal chat by item with email coexistence
+12. [COMPLETE] Internal chat by item with email coexistence
    - [COMPLETE] Add `contactPreference` in item model (`email`, `chat`, `both`).
    - [COMPLETE] Add callable functions for chat lifecycle:
      - `upsertItemConversation`
@@ -42,6 +44,19 @@
    - [COMPLETE] Update Item Detail CTA routing by `contactPreference`.
    - [COMPLETE] Keep email contact flow as fallback/parallel path.
    - [COMPLETE] Add analytics events for chat/contact channel selection.
+
+## Social auth rollout (implemented)
+- [COMPLETE] Add auth service abstraction for social providers:
+  - `signInWithGoogle()` (iOS native + Web popup)
+  - `signInWithApple()` (iOS only)
+  - account linking resolver for `account-exists-with-different-credential`
+- [COMPLETE] Keep email/password auth as existing baseline option.
+- [COMPLETE] Extend auth UI with social entry points and provider-specific loading/error states.
+- [COMPLETE] Ensure post-login user profile upsert preserves existing rating fields.
+- [COMPLETE] Extend analytics login/signup method tagging (`password`, `google`, `apple`).
+- [COMPLETE] Add iOS entitlement scaffolding for Sign in with Apple.
+- [COMPLETE] Add unit tests for social auth strategy helpers.
+- [COMPLETE] Replaced iOS Google URL scheme placeholder and refreshed OAuth plist keys.
 
 ## Validation checklist
 - Flutter:

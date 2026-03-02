@@ -12,6 +12,12 @@
 - 2026-03-01: Donor can close/reopen chat; auto-archive when item is unavailable.
 - 2026-03-01: Chat notifications limited to in-app inbox (no push in this phase).
 - 2026-03-01: Safety baseline for chat: rate limiting + block + report.
+- 2026-03-02: Social auth enabled with coexistence model:
+  - Google login on iOS/Web
+  - Sign in with Apple on iOS
+  - Email/password remains available
+- 2026-03-02: Account linking policy adopted to enforce one account per email across providers.
+- 2026-03-02: Android social login deferred until Android OAuth/Firebase config is added.
 
 ## Risks
 - Email deliverability depends on SendGrid domain verification.
@@ -21,6 +27,12 @@
 - iOS privacy compliance requires clear disclosure for photo/location/chat usage.
 - Legal texts require periodic compliance review.
 - Firebase composite indexes for chat queries must remain in sync with app/query changes.
+- OAuth config drift risk:
+  - iOS Google URL scheme (`REVERSED_CLIENT_ID`) and Apple key config can desync from Firebase setup.
+- Login conversion risk if provider setup is incomplete:
+  - missing provider enablement in Firebase causes runtime `operation-not-allowed`.
+- Account linking UX risk:
+  - users with existing password accounts need an additional password step when linking social providers.
 
 ## Open questions
 - Do we need a staging Firebase project?

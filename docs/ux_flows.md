@@ -27,7 +27,13 @@
 2. Usuario puede navegar sin sesion.
 3. Usuario nuevo: Registro (email, password, displayName).
 4. Usuario existente: Login.
-5. Success -> Buscar / Inbox / Publicar / Perfil.
+5. Opciones sociales:
+   - Google en iOS y Web.
+   - Apple solo en iOS.
+6. Si el email ya existe con otro proveedor:
+   - se activa flujo de account linking;
+   - en caso de cuenta password, se solicita password para vincular.
+7. Success -> Buscar / Inbox / Publicar / Perfil.
 
 ### Publicar item
 1. Tab Publicar -> requiere login.
