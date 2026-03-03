@@ -29,7 +29,6 @@
 4. Usuario existente: Login.
 5. Opciones sociales:
    - Google en iOS y Web.
-   - Apple solo en iOS.
 6. Si el email ya existe con otro proveedor:
    - se activa flujo de account linking;
    - en caso de cuenta password, se solicita password para vincular.

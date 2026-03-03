@@ -21,9 +21,8 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isLogin = true;
   bool _isEmailLoading = false;
   bool _isGoogleLoading = false;
-  bool _isAppleLoading = false;
 
-  bool get _isLoading => _isEmailLoading || _isGoogleLoading || _isAppleLoading;
+  bool get _isLoading => _isEmailLoading || _isGoogleLoading;
 
   @override
   void dispose() {
@@ -144,34 +143,6 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  Future<void> _signInWithApple() async {
-    setState(() {
-      _isAppleLoading = true;
-    });
-    try {
-      final result = await _authService.signInWithApple(
-        requestPasswordForLinking: _promptPasswordForLinking,
-      );
-      await _logSocialAuth(result);
-      if (!mounted) return;
-      if (result.didLinkProvider) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Account linked successfully.")),
-        );
-      }
-    } on AuthServiceException catch (error) {
-      _showError(error.message);
-    } catch (_) {
-      _showError("Could not complete Sign in with Apple.");
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isAppleLoading = false;
-        });
-      }
-    }
-  }
-
   Future<void> _logSocialAuth(SocialSignInResult result) async {
     if (result.isNewUser) {
       await AppAnalytics.logSignUp(signUpMethod: result.loginMethod);
@@ -238,10 +209,6 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     final showGoogle = isGoogleSignInSupported(
-      isWeb: kIsWeb,
-      platform: defaultTargetPlatform,
-    );
-    final showApple = isAppleSignInSupported(
       isWeb: kIsWeb,
       platform: defaultTargetPlatform,
     );
@@ -314,7 +281,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             : "Already have an account? Sign in",
                       ),
                     ),
-                    if (showGoogle || showApple) ...[
+                    if (showGoogle) ...[
                       const SizedBox(height: 16),
                       Row(
                         children: [
@@ -344,23 +311,6 @@ class _AuthScreenState extends State<AuthScreen> {
                                     ),
                                   )
                                 : const Text("Continue with Google"),
-                          ),
-                        ),
-                      if (showGoogle && showApple) const SizedBox(height: 12),
-                      if (showApple)
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.tonal(
-                            onPressed: _isLoading ? null : _signInWithApple,
-                            child: _isAppleLoading
-                                ? const SizedBox(
-                                    height: 18,
-                                    width: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Text("Continue with Apple"),
                           ),
                         ),
                     ],

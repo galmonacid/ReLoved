@@ -14,10 +14,10 @@
 - 2026-03-01: Safety baseline for chat: rate limiting + block + report.
 - 2026-03-02: Social auth enabled with coexistence model:
   - Google login on iOS/Web
-  - Sign in with Apple on iOS
   - Email/password remains available
 - 2026-03-02: Account linking policy adopted to enforce one account per email across providers.
 - 2026-03-02: Android social login deferred until Android OAuth/Firebase config is added.
+- 2026-03-03: Apple sign-in removed before first public TestFlight release; auth scope is email/password + Google.
 
 ## Risks
 - Email deliverability depends on SendGrid domain verification.
@@ -28,7 +28,7 @@
 - Legal texts require periodic compliance review.
 - Firebase composite indexes for chat queries must remain in sync with app/query changes.
 - OAuth config drift risk:
-  - iOS Google URL scheme (`REVERSED_CLIENT_ID`) and Apple key config can desync from Firebase setup.
+  - iOS Google URL scheme (`REVERSED_CLIENT_ID`) can desync from Firebase setup.
 - Login conversion risk if provider setup is incomplete:
   - missing provider enablement in Firebase causes runtime `operation-not-allowed`.
 - Account linking UX risk:

@@ -20,7 +20,7 @@
 8. [COMPLETE] Compliance baseline (privacy/terms/retention, app check).
 9. [IN PROGRESS] iOS release prep and distribution.
 10. [IN PROGRESS] Post-release analytics funnel expansion.
-11. [COMPLETE] Social auth rollout (Google + Apple with account linking).
+11. [COMPLETE] Social auth rollout (Google with account linking).
 12. [COMPLETE] iOS Google Sign-In config hardening (OAuth plist alignment).
 
 ## Chat rollout (implemented)
@@ -48,15 +48,14 @@
 ## Social auth rollout (implemented)
 - [COMPLETE] Add auth service abstraction for social providers:
   - `signInWithGoogle()` (iOS native + Web popup)
-  - `signInWithApple()` (iOS only)
   - account linking resolver for `account-exists-with-different-credential`
 - [COMPLETE] Keep email/password auth as existing baseline option.
-- [COMPLETE] Extend auth UI with social entry points and provider-specific loading/error states.
+- [COMPLETE] Extend auth UI with Google social entry point and provider-specific loading/error states.
 - [COMPLETE] Ensure post-login user profile upsert preserves existing rating fields.
-- [COMPLETE] Extend analytics login/signup method tagging (`password`, `google`, `apple`).
-- [COMPLETE] Add iOS entitlement scaffolding for Sign in with Apple.
+- [COMPLETE] Extend analytics login/signup method tagging (`password`, `google`).
 - [COMPLETE] Add unit tests for social auth strategy helpers.
 - [COMPLETE] Replaced iOS Google URL scheme placeholder and refreshed OAuth plist keys.
+- [COMPLETE] Removed Apple sign-in codepath and iOS entitlement before first public TestFlight release.
 
 ## Validation checklist
 - Flutter:

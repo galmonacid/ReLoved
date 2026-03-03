@@ -8,7 +8,7 @@ Lanzar el MVP en el menor tiempo posible para validar el interés real de los us
 
 ## Stack tecnológico
 - **App móvil**: Flutter (iOS y Android)
-- **Autenticación**: Firebase Authentication (email/password + Google en iOS/Web + Apple en iOS)
+- **Autenticación**: Firebase Authentication (email/password + Google en iOS/Web)
 - **Base de datos**: Cloud Firestore
 - **Almacenamiento de imágenes**: Firebase Storage
 - **Backend serverless**: Cloud Functions (TypeScript)
@@ -39,7 +39,6 @@ Lanzar el MVP en el menor tiempo posible para validar el interés real de los us
 
 ## Scope de autenticación social (release actual)
 - Google login habilitado en iOS y Web.
-- Sign in with Apple habilitado solo en iOS.
 - Android permanece fuera de alcance para login social en esta iteración (sin configuración OAuth Android activa).
 - Se mantiene política de una cuenta por email:
   - Si el email ya existe con otro método, se ejecuta flujo de account linking.

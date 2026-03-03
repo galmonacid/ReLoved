@@ -20,11 +20,6 @@ void main() {
       expect(strategy, AuthLinkStrategy.google);
     });
 
-    test("returns apple when apple method exists", () {
-      final strategy = resolveLinkStrategy(["apple.com"]);
-      expect(strategy, AuthLinkStrategy.apple);
-    });
-
     test("returns unsupported when no known methods exist", () {
       final strategy = resolveLinkStrategy(["phone"]);
       expect(strategy, AuthLinkStrategy.unsupported);
@@ -49,21 +44,6 @@ void main() {
     test("google is not supported on Android native in this release", () {
       expect(
         isGoogleSignInSupported(isWeb: false, platform: TargetPlatform.android),
-        isFalse,
-      );
-    });
-
-    test("apple is only supported on iOS native", () {
-      expect(
-        isAppleSignInSupported(isWeb: false, platform: TargetPlatform.iOS),
-        isTrue,
-      );
-      expect(
-        isAppleSignInSupported(isWeb: true, platform: TargetPlatform.iOS),
-        isFalse,
-      );
-      expect(
-        isAppleSignInSupported(isWeb: false, platform: TargetPlatform.android),
         isFalse,
       );
     });

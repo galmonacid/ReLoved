@@ -10,7 +10,6 @@
 - iOS bundle ID: com.greenhilledge.reloved
 - Firebase Auth providers enabled:
   - Google
-  - Apple
 - Authorized domains:
   - reloved-greenhilledge.web.app
   - reloved-greenhilledge.firebaseapp.com
@@ -56,8 +55,7 @@ firebase functions:config:get
 ## Apple App ID setup (iOS)
 - Capabilities enabled on App ID: Associated Domains (for Universal Links), Push Notifications.
 - Implementation is pending; enable now to avoid reissuing profiles later.
-- Sign in with Apple capability enabled for `com.greenhilledge.reloved`.
-- Firebase Apple provider configured with Team ID, Service ID, Key ID and private key.
+- Sign in with Apple is intentionally disabled in this release.
 
 ## iOS Google Sign-In setup
 - `GoogleService-Info.plist` must contain OAuth keys (`CLIENT_ID` and `REVERSED_CLIENT_ID`).

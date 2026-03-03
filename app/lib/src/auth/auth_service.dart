@@ -1,14 +1,9 @@
-import "dart:convert";
-import "dart:math";
-
 import "package:cloud_firestore/cloud_firestore.dart";
-import "package:crypto/crypto.dart";
 import "package:firebase_auth/firebase_auth.dart";
 import "package:flutter/foundation.dart";
 import "package:google_sign_in/google_sign_in.dart";
-import "package:sign_in_with_apple/sign_in_with_apple.dart";
 
-enum AuthLinkStrategy { password, google, apple, unsupported }
+enum AuthLinkStrategy { password, google, unsupported }
 
 AuthLinkStrategy resolveLinkStrategy(List<String> methods) {
   if (methods.contains(EmailAuthProvider.EMAIL_PASSWORD_SIGN_IN_METHOD)) {
@@ -16,9 +11,6 @@ AuthLinkStrategy resolveLinkStrategy(List<String> methods) {
   }
   if (methods.contains(GoogleAuthProvider.GOOGLE_SIGN_IN_METHOD)) {
     return AuthLinkStrategy.google;
-  }
-  if (methods.contains("apple.com")) {
-    return AuthLinkStrategy.apple;
   }
   return AuthLinkStrategy.unsupported;
 }
@@ -28,13 +20,6 @@ bool isGoogleSignInSupported({
   required TargetPlatform platform,
 }) {
   return isWeb || platform == TargetPlatform.iOS;
-}
-
-bool isAppleSignInSupported({
-  required bool isWeb,
-  required TargetPlatform platform,
-}) {
-  return !isWeb && platform == TargetPlatform.iOS;
 }
 
 typedef LinkPasswordPrompt =
@@ -80,9 +65,6 @@ class AuthService {
   bool get _googleSupported =>
       isGoogleSignInSupported(isWeb: kIsWeb, platform: defaultTargetPlatform);
 
-  bool get _appleSupported =>
-      isAppleSignInSupported(isWeb: kIsWeb, platform: defaultTargetPlatform);
-
   Future<SocialSignInResult> signInWithGoogle({
     LinkPasswordPrompt? requestPasswordForLinking,
   }) async {
@@ -106,24 +88,6 @@ class AuthService {
     return _signInWithCredential(
       credential: credential,
       loginMethod: "google",
-      requestPasswordForLinking: requestPasswordForLinking,
-    );
-  }
-
-  Future<SocialSignInResult> signInWithApple({
-    LinkPasswordPrompt? requestPasswordForLinking,
-  }) async {
-    if (!_appleSupported) {
-      throw const AuthServiceException(
-        code: "unsupported-platform",
-        message: "Sign in with Apple is currently available on iOS only.",
-      );
-    }
-
-    final credential = await _buildAppleCredential();
-    return _signInWithCredential(
-      credential: credential,
-      loginMethod: "apple",
       requestPasswordForLinking: requestPasswordForLinking,
     );
   }
@@ -315,17 +279,6 @@ class AuthService {
       }
     }
 
-    if (_appleSupported && attemptedLoginMethod != "apple") {
-      try {
-        final credential = await _buildAppleCredential();
-        return await _auth.signInWithCredential(credential);
-      } on AuthServiceException catch (error) {
-        lastKnownError = error;
-      } on FirebaseAuthException catch (error) {
-        lastKnownError = _toAuthServiceException(error);
-      }
-    }
-
     throw lastKnownError ??
         const AuthServiceException(
           code: "linking-required",
@@ -388,51 +341,6 @@ class AuthService {
     }
   }
 
-  Future<AuthCredential> _buildAppleCredential() async {
-    try {
-      final rawNonce = _generateNonce();
-      final nonce = _sha256ofString(rawNonce);
-
-      final appleIdCredential = await SignInWithApple.getAppleIDCredential(
-        scopes: const [
-          AppleIDAuthorizationScopes.email,
-          AppleIDAuthorizationScopes.fullName,
-        ],
-        nonce: nonce,
-      );
-
-      final identityToken = appleIdCredential.identityToken;
-      if (identityToken == null || identityToken.isEmpty) {
-        throw const AuthServiceException(
-          code: "apple-missing-token",
-          message: "Could not read an Apple identity token.",
-        );
-      }
-
-      return OAuthProvider(
-        "apple.com",
-      ).credential(idToken: identityToken, rawNonce: rawNonce);
-    } on SignInWithAppleAuthorizationException catch (error) {
-      if (error.code == AuthorizationErrorCode.canceled) {
-        throw const AuthServiceException(
-          code: "apple-cancelled",
-          message: "Sign in with Apple was cancelled.",
-        );
-      }
-      throw const AuthServiceException(
-        code: "apple-auth-error",
-        message: "Could not complete Sign in with Apple.",
-      );
-    } on AuthServiceException {
-      rethrow;
-    } catch (_) {
-      throw const AuthServiceException(
-        code: "apple-unexpected-error",
-        message: "Could not complete Sign in with Apple.",
-      );
-    }
-  }
-
   AuthServiceException _toAuthServiceException(FirebaseAuthException error) {
     switch (error.code) {
       case "popup-closed-by-user":
@@ -480,21 +388,5 @@ class AuthService {
       return email.split("@").first;
     }
     return "User";
-  }
-
-  String _generateNonce([int length = 32]) {
-    const charset =
-        "0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._";
-    final random = Random.secure();
-    return List.generate(
-      length,
-      (_) => charset[random.nextInt(charset.length)],
-    ).join();
-  }
-
-  String _sha256ofString(String input) {
-    final bytes = utf8.encode(input);
-    final digest = sha256.convert(bytes);
-    return digest.toString();
   }
 }
