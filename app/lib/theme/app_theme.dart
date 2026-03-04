@@ -15,19 +15,20 @@ class AppTheme {
   static const double spaceXl = 32;
 
   static ThemeData get light {
-    final scheme = ColorScheme.fromSeed(
-      seedColor: AppColors.primary,
-      brightness: Brightness.light,
-    ).copyWith(
-      primary: AppColors.primary,
-      onPrimary: Colors.white,
-      secondary: AppColors.sage,
-      surface: Colors.white,
-      onSurface: AppColors.text,
-      error: AppColors.error,
-      onError: Colors.white,
-      outline: AppColors.border,
-    );
+    final scheme =
+        ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          brightness: Brightness.light,
+        ).copyWith(
+          primary: AppColors.primary,
+          onPrimary: Colors.white,
+          secondary: AppColors.sage,
+          surface: Colors.white,
+          onSurface: AppColors.text,
+          error: AppColors.error,
+          onError: Colors.white,
+          outline: AppColors.border,
+        );
 
     final base = GoogleFonts.interTextTheme();
     final textTheme = base.copyWith(
@@ -67,9 +68,7 @@ class AppTheme {
         fontWeight: FontWeight.w400,
         color: AppColors.muted,
       ),
-      labelMedium: base.labelMedium?.copyWith(
-        color: AppColors.muted,
-      ),
+      labelMedium: base.labelMedium?.copyWith(color: AppColors.muted),
     );
 
     final rounded = RoundedRectangleBorder(
@@ -124,10 +123,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radius),
-          borderSide: const BorderSide(
-            color: AppColors.primary,
-            width: 1.2,
-          ),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.2),
         ),
         hintStyle: textTheme.bodySmall?.copyWith(color: AppColors.muted),
         labelStyle: textTheme.bodySmall?.copyWith(color: AppColors.muted),
@@ -140,6 +136,16 @@ class AppTheme {
       dividerTheme: const DividerThemeData(
         color: AppColors.border,
         thickness: 1,
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: Colors.white,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: AppColors.muted,
+        selectedIconTheme: IconThemeData(color: AppColors.primary),
+        unselectedIconTheme: IconThemeData(color: AppColors.muted),
+        selectedLabelStyle: TextStyle(fontWeight: FontWeight.w600),
+        showUnselectedLabels: true,
+        type: BottomNavigationBarType.fixed,
       ),
       navigationBarTheme: NavigationBarThemeData(
         indicatorColor: AppColors.sageSoft,

@@ -14,7 +14,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _currentIndex = 0;
+  int _guestIndex = 0;
+  int _authIndex = 0;
 
   @override
   Widget build(BuildContext context) {
@@ -59,12 +60,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   label: "Sign in",
                 ),
               ];
-        final effectiveIndex = _currentIndex < pages.length ? _currentIndex : 0;
-        if (effectiveIndex != _currentIndex) {
+        final activeIndex = isSignedIn ? _authIndex : _guestIndex;
+        final effectiveIndex = activeIndex < pages.length ? activeIndex : 0;
+        if (effectiveIndex != activeIndex) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
               setState(() {
-                _currentIndex = effectiveIndex;
+                if (isSignedIn) {
+                  _authIndex = effectiveIndex;
+                } else {
+                  _guestIndex = effectiveIndex;
+                }
               });
             }
           });
@@ -93,7 +99,11 @@ class _HomeScreenState extends State<HomeScreen> {
             currentIndex: effectiveIndex,
             onTap: (value) {
               setState(() {
-                _currentIndex = value;
+                if (isSignedIn) {
+                  _authIndex = value;
+                } else {
+                  _guestIndex = value;
+                }
               });
             },
             items: items,

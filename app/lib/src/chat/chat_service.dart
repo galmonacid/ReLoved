@@ -15,15 +15,26 @@ class ChatService {
     return FirebaseFirestore.instance
         .collection("conversations")
         .where("participants", arrayContains: uid)
-        .orderBy("lastMessageAt", descending: true)
         .limit(100)
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
+        .map((snapshot) {
+          final conversations = snapshot.docs
               .map(Conversation.fromDoc)
               .where((conversation) => conversation.isParticipant(uid))
-              .toList(growable: false),
-        );
+              .toList(growable: true);
+
+          int rankingTimestamp(Conversation conversation) {
+            return conversation.lastMessageAt?.millisecondsSinceEpoch ??
+                conversation.updatedAt?.millisecondsSinceEpoch ??
+                conversation.createdAt?.millisecondsSinceEpoch ??
+                0;
+          }
+
+          conversations.sort(
+            (a, b) => rankingTimestamp(b).compareTo(rankingTimestamp(a)),
+          );
+          return conversations;
+        });
   }
 
   static Stream<Conversation?> streamConversation(String conversationId) {
