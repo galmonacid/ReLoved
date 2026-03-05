@@ -8,13 +8,11 @@ admin.initializeApp();
 const db = admin.firestore();
 const CHAT_FUNCTION_REGION = "us-central1";
 const chatCallable = functions.region(CHAT_FUNCTION_REGION).runWith({
-  minInstances: 1,
   memory: "256MB",
   timeoutSeconds: 60
 });
 const PAYMENTS_REGION = "us-central1";
 const paymentCallable = functions.region(PAYMENTS_REGION).runWith({
-  minInstances: 1,
   memory: "256MB",
   timeoutSeconds: 60
 });
