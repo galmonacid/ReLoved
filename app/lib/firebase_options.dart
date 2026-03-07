@@ -72,5 +72,4 @@ class DefaultFirebaseOptions {
     authDomain: 'reloved-greenhilledge.firebaseapp.com',
     storageBucket: 'reloved-greenhilledge.firebasestorage.app',
   );
-
 }
