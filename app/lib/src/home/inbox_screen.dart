@@ -3,6 +3,7 @@ import "package:flutter/material.dart";
 import "../../theme/app_colors.dart";
 import "../chat/chat_service.dart";
 import "../models/conversation.dart";
+import "../testing/test_keys.dart";
 import "../widgets/item_image.dart";
 import "../widgets/motion/pressable_scale.dart";
 import "chat_thread_screen.dart";
@@ -39,6 +40,7 @@ class InboxScreen extends StatelessWidget {
     }
 
     return Scaffold(
+      key: const ValueKey(TestKeys.inboxScreen),
       appBar: AppBar(title: const Text("Inbox")),
       body: StreamBuilder<List<Conversation>>(
         stream: ChatService.streamUserConversations(user.uid),
@@ -72,6 +74,9 @@ class InboxScreen extends StatelessWidget {
               return PressableScale(
                 child: Card(
                   child: InkWell(
+                    key: ValueKey(
+                      TestKeys.inboxConversationTile(conversation.id),
+                    ),
                     borderRadius: BorderRadius.circular(16),
                     onTap: () {
                       Navigator.of(context).push(
@@ -143,6 +148,11 @@ class InboxScreen extends StatelessWidget {
                               const SizedBox(height: 8),
                               if (unread > 0)
                                 Container(
+                                  key: ValueKey(
+                                    TestKeys.inboxConversationUnreadBadge(
+                                      conversation.id,
+                                    ),
+                                  ),
                                   padding: const EdgeInsets.symmetric(
                                     horizontal: 8,
                                     vertical: 3,

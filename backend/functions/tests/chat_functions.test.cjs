@@ -18,7 +18,8 @@ const {
   reopenConversationByDonor,
   blockConversationParticipant,
   reportConversation,
-  markConversationRead
+  markConversationRead,
+  getMonetizationStatus
 } = require("../lib/index");
 
 const projectId = "reloved-test";
@@ -51,6 +52,24 @@ const clearFirestore = async () => {
       await doc.ref.delete();
     }
   }
+};
+
+const londonWeekKey = () => {
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(now);
+  const values = {};
+  for (const part of parts) {
+    values[part.type] = part.value;
+  }
+  const d = new Date(Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day)));
+  const mondayBasedDay = (d.getUTCDay() + 6) % 7;
+  const monday = new Date(d.getTime() - mondayBasedDay * 24 * 60 * 60 * 1000);
+  return monday.toISOString().slice(0, 10);
 };
 
 const seedOwnerAndItem = async ({
@@ -241,4 +260,66 @@ test("email contact blocked when item is chat-only", async () => {
       return true;
     }
   );
+});
+
+test("monetization status: free user over publish and contact limits", async () => {
+  ensureAdmin();
+  await clearFirestore();
+
+  await db.collection("users").doc("u-free").set({
+    displayName: "Free User",
+    email: "u-free@example.com",
+    createdAt: new Date(),
+    ratingAvg: 0,
+    ratingCount: 0
+  });
+
+  await Promise.all([
+    db.collection("items").doc("a").set({
+      ownerId: "u-free",
+      title: "A",
+      description: "A",
+      photoUrl: "https://example.com/a.jpg",
+      photoPath: "itemPhotos/u-free/a/photo.jpg",
+      createdAt: new Date(),
+      status: "available",
+      contactPreference: "both",
+      location: { lat: 0, lng: 0, geohash: "s00000000", approxAreaText: "A" }
+    }),
+    db.collection("items").doc("b").set({
+      ownerId: "u-free",
+      title: "B",
+      description: "B",
+      photoUrl: "https://example.com/b.jpg",
+      photoPath: "itemPhotos/u-free/b/photo.jpg",
+      createdAt: new Date(),
+      status: "reserved",
+      contactPreference: "both",
+      location: { lat: 0, lng: 0, geohash: "s00000001", approxAreaText: "B" }
+    }),
+    db.collection("items").doc("c").set({
+      ownerId: "u-free",
+      title: "C",
+      description: "C",
+      photoUrl: "https://example.com/c.jpg",
+      photoPath: "itemPhotos/u-free/c/photo.jpg",
+      createdAt: new Date(),
+      status: "available",
+      contactPreference: "both",
+      location: { lat: 0, lng: 0, geohash: "s00000002", approxAreaText: "C" }
+    })
+  ]);
+
+  await db.collection("usageCounters").doc("u-free").set({
+    currentWeekKey: londonWeekKey(),
+    weeklyUniqueContacts: 10,
+    updatedAt: new Date()
+  });
+
+  const wrapped = functionsTest.wrap(getMonetizationStatus);
+  const result = await wrapped({}, authContext("u-free", "u-free@example.com"));
+  assert.equal(result.ok, true);
+  assert.equal(result.supportTier, "free");
+  assert.equal(result.canPublish, false);
+  assert.equal(result.canContact, false);
 });

@@ -2,11 +2,10 @@ import "dart:convert";
 import "package:http/http.dart" as http;
 import "package:latlong2/latlong.dart";
 
+import "../config/e2e_config.dart";
+
 class PostcodeResult {
-  const PostcodeResult({
-    required this.postcode,
-    required this.location,
-  });
+  const PostcodeResult({required this.postcode, required this.location});
 
   final String postcode;
   final LatLng location;
@@ -30,6 +29,12 @@ String normalizeUkPostcode(String raw) {
 }
 
 Future<PostcodeResult?> lookupUkPostcode(String rawPostcode) async {
+  if (E2EConfig.enabled) {
+    return PostcodeResult(
+      postcode: E2EConfig.fixedPostcode,
+      location: const LatLng(52.0406, -0.7594),
+    );
+  }
   final cleaned = normalizeUkPostcode(rawPostcode);
   if (cleaned.isEmpty) return null;
   final cached = _postcodeCache[cleaned];
@@ -58,18 +63,17 @@ Future<PostcodeResult?> lookupUkPostcode(String rawPostcode) async {
 }
 
 Future<String?> reverseUkPostcode(LatLng location) async {
+  if (E2EConfig.enabled) {
+    return E2EConfig.fixedPostcode;
+  }
   final key =
       "${location.latitude.toStringAsFixed(4)},${location.longitude.toStringAsFixed(4)}";
   final cached = _reverseCache[key];
   if (cached != null) return cached;
-  final uri = Uri.https(
-    "api.postcodes.io",
-    "/postcodes",
-    {
-      "lon": location.longitude.toString(),
-      "lat": location.latitude.toString(),
-    },
-  );
+  final uri = Uri.https("api.postcodes.io", "/postcodes", {
+    "lon": location.longitude.toString(),
+    "lat": location.latitude.toString(),
+  });
   final response = await http.get(uri);
   if (response.statusCode != 200) return null;
   final data = jsonDecode(response.body) as Map<String, dynamic>;

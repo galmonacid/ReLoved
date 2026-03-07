@@ -9,13 +9,11 @@ admin.initializeApp();
 const db = admin.firestore();
 const CHAT_FUNCTION_REGION = "us-central1";
 const chatCallable = functions.region(CHAT_FUNCTION_REGION).runWith({
-    minInstances: 1,
     memory: "256MB",
     timeoutSeconds: 60
 });
 const PAYMENTS_REGION = "us-central1";
 const paymentCallable = functions.region(PAYMENTS_REGION).runWith({
-    minInstances: 1,
     memory: "256MB",
     timeoutSeconds: 60
 });
@@ -128,7 +126,16 @@ function getConversationId(itemId, interestedUserId) {
     return `${itemId}_${interestedUserId}`;
 }
 function getTimestampMs(value) {
-    if (value instanceof admin.firestore.Timestamp) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+        return value;
+    }
+    if (value instanceof Date) {
+        return value.getTime();
+    }
+    if (value != null &&
+        typeof value === "object" &&
+        "toMillis" in value &&
+        typeof value.toMillis === "function") {
         return value.toMillis();
     }
     return null;
@@ -310,7 +317,7 @@ function supportStatusValue(value) {
     return "inactive";
 }
 function nowTimestamp() {
-    return admin.firestore.Timestamp.now();
+    return new Date();
 }
 function weekKeyForLondon(date = new Date()) {
     const parts = new Intl.DateTimeFormat("en-CA", {
@@ -372,7 +379,7 @@ async function findUidByStripeCustomerId(customerId) {
     return snapshot.docs[0].id;
 }
 async function registerUniqueWeeklyContact(tx, uid, itemId, source, now) {
-    const weekKey = weekKeyForLondon(now.toDate());
+    const weekKey = weekKeyForLondon(now);
     const eventRef = db.collection("usageContactEvents").doc(contactEventId(uid, weekKey, itemId));
     const eventSnap = await tx.get(eventRef);
     const counterRef = db.collection("usageCounters").doc(uid);
@@ -533,10 +540,11 @@ async function archiveConversationsForItem(itemId) {
             break;
         }
         const batch = db.batch();
+        const updatedAt = new Date();
         for (const doc of snapshot.docs) {
             batch.update(doc.ref, {
                 status: CHAT_STATUSES.archivedUnavailable,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                updatedAt
             });
             archived++;
         }
@@ -997,6 +1005,11 @@ exports.sendChatMessage = chatCallable.https.onCall(async (data, context) => {
     const payload = isObject(data) ? data : {};
     const conversationId = requireNonEmptyString(payload.conversationId, "conversationId", 1, 256);
     const text = requireNonEmptyString(payload.text, "text", 1, 1000);
+    functions.logger.info("sendChatMessage requested", {
+        senderId,
+        conversationId,
+        textLength: text.length
+    });
     const conversationRef = db.collection("conversations").doc(conversationId);
     const rateRef = db.collection("chatRateLimits").doc(senderId);
     const messageId = await db.runTransaction(async (tx) => {
@@ -1018,8 +1031,8 @@ exports.sendChatMessage = chatCallable.https.onCall(async (data, context) => {
             throw new functions.https.HttpsError("failed-precondition", "Conversation participants invalid");
         }
         const rateSnap = await tx.get(rateRef);
-        const now = admin.firestore.Timestamp.now();
-        const nowMs = now.toMillis();
+        const now = new Date();
+        const nowMs = now.getTime();
         const rateData = (rateSnap.data() || {});
         const lastMessageMs = getTimestampMs(rateData.lastMessageAt);
         if (lastMessageMs && nowMs - lastMessageMs < 2000) {
@@ -1042,7 +1055,7 @@ exports.sendChatMessage = chatCallable.https.onCall(async (data, context) => {
         tx.set(messageRef, {
             senderId,
             text,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdAt: now,
             isRedacted: false,
             redactedAt: null,
             redactionReason: null
@@ -1054,8 +1067,8 @@ exports.sendChatMessage = chatCallable.https.onCall(async (data, context) => {
         const preview = text.length > 120 ? `${text.substring(0, 117)}...` : text;
         tx.set(conversationRef, {
             participants: [ownerId, interestedUserId],
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            lastMessageAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: now,
+            lastMessageAt: now,
             lastMessageSenderId: senderId,
             lastMessagePreview: preview,
             ownerUnreadCount: senderId === ownerId ? 0 : ownerUnreadCount + 1,
@@ -1065,9 +1078,14 @@ exports.sendChatMessage = chatCallable.https.onCall(async (data, context) => {
             lastMessageAt: now,
             minuteWindowStart,
             minuteCount,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            updatedAt: now
         }, { merge: true });
         return messageRef.id;
+    });
+    functions.logger.info("sendChatMessage succeeded", {
+        senderId,
+        conversationId,
+        messageId
     });
     return { ok: true, messageId };
 });
@@ -1076,6 +1094,7 @@ exports.markConversationRead = chatCallable.https.onCall(async (data, context) =
     const payload = isObject(data) ? data : {};
     const conversationId = requireNonEmptyString(payload.conversationId, "conversationId", 1, 256);
     const conversationRef = db.collection("conversations").doc(conversationId);
+    const updatedAt = new Date();
     await db.runTransaction(async (tx) => {
         const snap = await tx.get(conversationRef);
         if (!snap.exists) {
@@ -1086,16 +1105,26 @@ exports.markConversationRead = chatCallable.https.onCall(async (data, context) =
         const ownerId = typeof conversation.ownerId === "string" ? conversation.ownerId : "";
         const interestedUserId = typeof conversation.interestedUserId === "string" ? conversation.interestedUserId : "";
         if (uid === ownerId) {
+            const ownerUnreadCount = typeof conversation.ownerUnreadCount === "number" ? conversation.ownerUnreadCount : 0;
+            if (ownerUnreadCount <= 0) {
+                return;
+            }
             tx.update(conversationRef, {
                 ownerUnreadCount: 0,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                updatedAt
             });
             return;
         }
         if (uid === interestedUserId) {
+            const interestedUnreadCount = typeof conversation.interestedUnreadCount === "number"
+                ? conversation.interestedUnreadCount
+                : 0;
+            if (interestedUnreadCount <= 0) {
+                return;
+            }
             tx.update(conversationRef, {
                 interestedUnreadCount: 0,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                updatedAt
             });
             return;
         }

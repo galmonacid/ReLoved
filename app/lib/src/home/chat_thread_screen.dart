@@ -5,12 +5,17 @@ import "../analytics/app_analytics.dart";
 import "../chat/chat_service.dart";
 import "../models/chat_message.dart";
 import "../models/conversation.dart";
+import "../testing/test_keys.dart";
 import "../widgets/motion/pressable_scale.dart";
 
 class ChatThreadScreen extends StatefulWidget {
-  const ChatThreadScreen({super.key, required this.conversationId});
+  const ChatThreadScreen({super.key, required this.conversationId})
+    : itemId = null;
+  const ChatThreadScreen.fromItem({super.key, required this.itemId})
+    : conversationId = null;
 
-  final String conversationId;
+  final String? conversationId;
+  final String? itemId;
 
   @override
   State<ChatThreadScreen> createState() => _ChatThreadScreenState();
@@ -21,17 +26,19 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _isSending = false;
   bool _isMarkingRead = false;
+  bool _isResolvingConversation = false;
+  String? _conversationId;
+  String? _resolveError;
 
   @override
   void initState() {
     super.initState();
-    AppAnalytics.logEvent(
-      name: "chat_open",
-      parameters: {"conversationId": widget.conversationId},
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _markRead();
-    });
+    _conversationId = widget.conversationId;
+    if (_conversationId != null) {
+      _onConversationReady(_conversationId!);
+      return;
+    }
+    _resolveConversation();
   }
 
   @override
@@ -41,8 +48,54 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     super.dispose();
   }
 
+  void _onConversationReady(String conversationId) {
+    AppAnalytics.logEvent(
+      name: "chat_open",
+      parameters: {"conversationId": conversationId},
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _markRead();
+    });
+  }
+
+  Future<void> _resolveConversation() async {
+    final itemId = widget.itemId;
+    if (itemId == null || _isResolvingConversation) {
+      return;
+    }
+    setState(() {
+      _isResolvingConversation = true;
+      _resolveError = null;
+    });
+    try {
+      final resolvedConversationId = await ChatService.upsertItemConversation(
+        itemId,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _conversationId = resolvedConversationId;
+        _isResolvingConversation = false;
+      });
+      _onConversationReady(resolvedConversationId);
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isResolvingConversation = false;
+        _resolveError = _firebaseErrorMessage(error);
+      });
+    }
+  }
+
   Future<void> _markRead() async {
     if (_isMarkingRead) {
+      return;
+    }
+    final conversationId = _conversationId;
+    if (conversationId == null) {
       return;
     }
     final user = FirebaseAuth.instance.currentUser;
@@ -51,7 +104,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     }
     _isMarkingRead = true;
     try {
-      await ChatService.markConversationRead(widget.conversationId);
+      await ChatService.markConversationRead(conversationId);
     } catch (_) {
       // Ignore intermittent failures.
     } finally {
@@ -60,6 +113,10 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   }
 
   Future<void> _send() async {
+    final conversationId = _conversationId;
+    if (conversationId == null) {
+      return;
+    }
     final text = _messageController.text.trim();
     if (text.isEmpty || _isSending) {
       return;
@@ -70,14 +127,11 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     });
 
     try {
-      await ChatService.sendMessage(
-        conversationId: widget.conversationId,
-        text: text,
-      );
+      await ChatService.sendMessage(conversationId: conversationId, text: text);
       _messageController.clear();
       await AppAnalytics.logEvent(
         name: "chat_message_send",
-        parameters: {"conversationId": widget.conversationId},
+        parameters: {"conversationId": conversationId},
       );
       if (!mounted) {
         return;
@@ -107,11 +161,15 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   }
 
   Future<void> _closeConversation() async {
+    final conversationId = _conversationId;
+    if (conversationId == null) {
+      return;
+    }
     try {
-      await ChatService.closeConversationByDonor(widget.conversationId);
+      await ChatService.closeConversationByDonor(conversationId);
       await AppAnalytics.logEvent(
         name: "chat_close",
-        parameters: {"conversationId": widget.conversationId},
+        parameters: {"conversationId": conversationId},
       );
     } catch (error) {
       _showError(_firebaseErrorMessage(error));
@@ -119,11 +177,15 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   }
 
   Future<void> _reopenConversation() async {
+    final conversationId = _conversationId;
+    if (conversationId == null) {
+      return;
+    }
     try {
-      await ChatService.reopenConversationByDonor(widget.conversationId);
+      await ChatService.reopenConversationByDonor(conversationId);
       await AppAnalytics.logEvent(
         name: "chat_reopen",
-        parameters: {"conversationId": widget.conversationId},
+        parameters: {"conversationId": conversationId},
       );
     } catch (error) {
       _showError(_firebaseErrorMessage(error));
@@ -304,11 +366,49 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      return const Scaffold(body: Center(child: Text("Sign in required.")));
+      return const Scaffold(
+        key: ValueKey(TestKeys.chatThreadScreen),
+        body: Center(child: Text("Sign in required.")),
+      );
     }
 
+    if (_conversationId == null) {
+      return Scaffold(
+        key: const ValueKey(TestKeys.chatThreadScreen),
+        appBar: AppBar(title: const Text("Item chat")),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_isResolvingConversation) const CircularProgressIndicator(),
+                if (_isResolvingConversation) const SizedBox(height: 12),
+                Text(
+                  _isResolvingConversation
+                      ? "Opening chat..."
+                      : (_resolveError ?? "Could not open chat."),
+                  textAlign: TextAlign.center,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: AppColors.body),
+                ),
+                if (!_isResolvingConversation) const SizedBox(height: 16),
+                if (!_isResolvingConversation)
+                  ElevatedButton(
+                    onPressed: _resolveConversation,
+                    child: const Text("Retry"),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final conversationId = _conversationId!;
     return StreamBuilder<Conversation?>(
-      stream: ChatService.streamConversation(widget.conversationId),
+      stream: ChatService.streamConversation(conversationId),
       builder: (context, conversationSnapshot) {
         if (conversationSnapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
@@ -328,7 +428,9 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
           );
         }
 
-        if (conversation.isParticipant(user.uid)) {
+        if (conversation.isParticipant(user.uid) &&
+            conversation.unreadForUser(user.uid) > 0 &&
+            conversation.lastMessageSenderId != user.uid) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _markRead();
           });
@@ -338,6 +440,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         final isReadOnly = conversation.isReadOnly;
 
         return Scaffold(
+          key: const ValueKey(TestKeys.chatThreadScreen),
           appBar: AppBar(
             title: Text(
               conversation.itemTitle.isEmpty
@@ -346,6 +449,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
             ),
             actions: [
               PopupMenuButton<String>(
+                key: const ValueKey(TestKeys.chatMenuButton),
                 onSelected: (value) async {
                   switch (value) {
                     case "close":
@@ -510,6 +614,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                     children: [
                       Expanded(
                         child: TextField(
+                          key: const ValueKey(TestKeys.chatMessageField),
                           controller: _messageController,
                           enabled: !isReadOnly && !_isSending,
                           minLines: 1,
@@ -524,6 +629,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                       const SizedBox(width: 8),
                       PressableScale(
                         child: ElevatedButton(
+                          key: const ValueKey(TestKeys.chatSendButton),
                           onPressed: isReadOnly || _isSending ? null : _send,
                           style: ElevatedButton.styleFrom(
                             minimumSize: const Size(52, 52),

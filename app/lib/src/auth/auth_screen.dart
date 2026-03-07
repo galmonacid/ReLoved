@@ -3,6 +3,7 @@ import "package:firebase_auth/firebase_auth.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "../analytics/app_analytics.dart";
+import "../testing/test_keys.dart";
 import "auth_service.dart";
 
 class AuthScreen extends StatefulWidget {
@@ -231,17 +232,20 @@ class _AuthScreenState extends State<AuthScreen> {
                     const SizedBox(height: 20),
                     if (!_isLogin)
                       TextField(
+                        key: const ValueKey(TestKeys.authDisplayNameField),
                         controller: _displayNameController,
                         decoration: const InputDecoration(
                           labelText: "Display name",
                         ),
                       ),
                     TextField(
+                      key: const ValueKey(TestKeys.authEmailField),
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
                       decoration: const InputDecoration(labelText: "Email"),
                     ),
                     TextField(
+                      key: const ValueKey(TestKeys.authPasswordField),
                       controller: _passwordController,
                       obscureText: true,
                       decoration: const InputDecoration(labelText: "Password"),
@@ -250,6 +254,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(
+                        key: const ValueKey(TestKeys.authSubmitButton),
                         onPressed: _isLoading ? null : _submit,
                         child: _isEmailLoading
                             ? const SizedBox(
@@ -268,6 +273,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         child: const Text("Forgot your password?"),
                       ),
                     TextButton(
+                      key: const ValueKey(TestKeys.authModeToggleButton),
                       onPressed: _isLoading
                           ? null
                           : () {

@@ -1,6 +1,7 @@
 import "package:firebase_auth/firebase_auth.dart";
 import "package:flutter/material.dart";
 import "../auth/auth_screen.dart";
+import "../testing/test_keys.dart";
 import "inbox_screen.dart";
 import "profile_screen.dart";
 import "publish_screen.dart";
@@ -34,29 +35,41 @@ class _HomeScreenState extends State<HomeScreen> {
         final items = isSignedIn
             ? const [
                 BottomNavigationBarItem(
-                  icon: Icon(Icons.search),
+                  icon: Icon(Icons.search, key: ValueKey(TestKeys.navSearch)),
                   label: "Search",
                 ),
                 BottomNavigationBarItem(
-                  icon: Icon(Icons.chat_bubble_outline),
+                  icon: Icon(
+                    Icons.chat_bubble_outline,
+                    key: ValueKey(TestKeys.navInbox),
+                  ),
                   label: "Inbox",
                 ),
                 BottomNavigationBarItem(
-                  icon: Icon(Icons.add_circle_outline),
+                  icon: Icon(
+                    Icons.add_circle_outline,
+                    key: ValueKey(TestKeys.navPublish),
+                  ),
                   label: "Publish",
                 ),
                 BottomNavigationBarItem(
-                  icon: Icon(Icons.person_outline),
+                  icon: Icon(
+                    Icons.person_outline,
+                    key: ValueKey(TestKeys.navProfile),
+                  ),
                   label: "Profile",
                 ),
               ]
             : const [
                 BottomNavigationBarItem(
-                  icon: Icon(Icons.search),
+                  icon: Icon(Icons.search, key: ValueKey(TestKeys.navSearch)),
                   label: "Search",
                 ),
                 BottomNavigationBarItem(
-                  icon: Icon(Icons.login),
+                  icon: Icon(
+                    Icons.login,
+                    key: ValueKey(TestKeys.guestSignInTab),
+                  ),
                   label: "Sign in",
                 ),
               ];

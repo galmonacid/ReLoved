@@ -10,6 +10,7 @@ import "../utils/postcode_lookup.dart";
 import "../widgets/item_image.dart";
 import "../widgets/map_picker.dart";
 import "../widgets/motion/pressable_scale.dart";
+import "../testing/test_keys.dart";
 import "item_detail_screen.dart";
 
 class SearchScreen extends StatefulWidget {
@@ -51,10 +52,8 @@ class _SearchScreenState extends State<SearchScreen> {
   Future<void> _pickCenter() async {
     final selected = await Navigator.of(context).push<MapPickerResult>(
       MaterialPageRoute(
-        builder: (_) => MapPicker(
-          initialCenter: _center,
-          initialPostcode: _centerLabel,
-        ),
+        builder: (_) =>
+            MapPicker(initialCenter: _center, initialPostcode: _centerLabel),
       ),
     );
     if (selected != null && mounted) {
@@ -88,9 +87,7 @@ class _SearchScreenState extends State<SearchScreen> {
     if (items.isEmpty) {
       return const SliverFillRemaining(
         hasScrollBody: false,
-        child: Center(
-          child: Text("No items in this radius."),
-        ),
+        child: Center(child: Text("No items in this radius.")),
       );
     }
     const horizontalPadding = 16.0;
@@ -121,6 +118,7 @@ class _SearchScreenState extends State<SearchScreen> {
             final item = items[index];
             return PressableScale(
               child: Card(
+                key: ValueKey(TestKeys.searchItemCard(item.id)),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(16),
                   onTap: () {
@@ -195,6 +193,7 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: const ValueKey(TestKeys.searchScreen),
       backgroundColor: Colors.white,
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: FirebaseFirestore.instance
@@ -210,13 +209,15 @@ class _SearchScreenState extends State<SearchScreen> {
                     .where((item) => item.status == "available")
                     .where((item) {
                       if (_query.isEmpty) return true;
-                      final haystack =
-                          "${item.title} ${item.description}".toLowerCase();
+                      final haystack = "${item.title} ${item.description}"
+                          .toLowerCase();
                       return haystack.contains(_query);
                     })
                     .where((item) {
-                      final distanceKmValue =
-                          distanceKm(_center, item.location.toLatLng());
+                      final distanceKmValue = distanceKm(
+                        _center,
+                        item.location.toLatLng(),
+                      );
                       return distanceKmValue <= _radiusMiles * _kmPerMile;
                     })
                     .toList()
@@ -252,11 +253,13 @@ class _SearchScreenState extends State<SearchScreen> {
                         SizedBox(
                           height: 52,
                           child: SearchBar(
+                            key: const ValueKey(TestKeys.searchKeywordField),
                             controller: _searchController,
                             hintText: "Search by keyword",
                             elevation: WidgetStateProperty.all(0),
-                            backgroundColor:
-                                WidgetStateProperty.all(AppColors.sageSoft),
+                            backgroundColor: WidgetStateProperty.all(
+                              AppColors.sageSoft,
+                            ),
                             leading: const Icon(Icons.search),
                             trailing: [
                               if (_query.isNotEmpty)
@@ -307,9 +310,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               side: BorderSide.none,
                               backgroundColor: Colors.white,
                               selectedColor: AppColors.primary,
-                              labelStyle: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
+                              labelStyle: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(
                                     color: _radiusMiles == 3
                                         ? Colors.white
@@ -327,9 +328,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               side: BorderSide.none,
                               backgroundColor: Colors.white,
                               selectedColor: AppColors.primary,
-                              labelStyle: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
+                              labelStyle: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(
                                     color: _radiusMiles == 10
                                         ? Colors.white

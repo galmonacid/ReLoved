@@ -1,8 +1,12 @@
 import "package:geolocator/geolocator.dart";
 import "package:latlong2/latlong.dart";
+import "../config/e2e_config.dart";
 import "geo.dart";
 
 Future<LatLng> getCurrentLocationOrDefault() async {
+  if (E2EConfig.enabled) {
+    return defaultCenter;
+  }
   final serviceEnabled = await Geolocator.isLocationServiceEnabled();
   if (!serviceEnabled) {
     return defaultCenter;

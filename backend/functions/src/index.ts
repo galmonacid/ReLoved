@@ -63,8 +63,8 @@ type ConversationRecord = {
 };
 
 type ChatRateRecord = {
-  lastMessageAt?: admin.firestore.Timestamp;
-  minuteWindowStart?: admin.firestore.Timestamp;
+  lastMessageAt?: unknown;
+  minuteWindowStart?: unknown;
   minuteCount?: number;
 };
 
@@ -207,8 +207,19 @@ function getConversationId(itemId: string, interestedUserId: string): string {
 }
 
 function getTimestampMs(value: unknown): number | null {
-  if (value instanceof admin.firestore.Timestamp) {
-    return value.toMillis();
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+  if (
+    value != null &&
+    typeof value === "object" &&
+    "toMillis" in value &&
+    typeof (value as { toMillis?: unknown }).toMillis === "function"
+  ) {
+    return (value as { toMillis: () => number }).toMillis();
   }
   return null;
 }
@@ -440,8 +451,8 @@ function supportStatusValue(value: unknown): SupportStatus {
   return "inactive";
 }
 
-function nowTimestamp(): admin.firestore.Timestamp {
-  return admin.firestore.Timestamp.now();
+function nowTimestamp(): Date {
+  return new Date();
 }
 
 function weekKeyForLondon(date: Date = new Date()): string {
@@ -523,9 +534,9 @@ async function registerUniqueWeeklyContact(
   uid: string,
   itemId: string,
   source: "email" | "chat",
-  now: admin.firestore.Timestamp
+  now: Date
 ): Promise<ContactUsageUpdateResult> {
-  const weekKey = weekKeyForLondon(now.toDate());
+  const weekKey = weekKeyForLondon(now);
   const eventRef = db.collection("usageContactEvents").doc(contactEventId(uid, weekKey, itemId));
   const eventSnap = await tx.get(eventRef);
 
@@ -729,10 +740,11 @@ async function archiveConversationsForItem(itemId: string): Promise<number> {
     }
 
     const batch = db.batch();
+    const updatedAt = new Date();
     for (const doc of snapshot.docs) {
       batch.update(doc.ref, {
         status: CHAT_STATUSES.archivedUnavailable,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        updatedAt
       });
       archived++;
     }
@@ -1281,6 +1293,12 @@ export const sendChatMessage = chatCallable.https.onCall(async (data, context) =
   const conversationId = requireNonEmptyString(payload.conversationId, "conversationId", 1, 256);
   const text = requireNonEmptyString(payload.text, "text", 1, 1000);
 
+  functions.logger.info("sendChatMessage requested", {
+    senderId,
+    conversationId,
+    textLength: text.length
+  });
+
   const conversationRef = db.collection("conversations").doc(conversationId);
   const rateRef = db.collection("chatRateLimits").doc(senderId);
 
@@ -1309,8 +1327,8 @@ export const sendChatMessage = chatCallable.https.onCall(async (data, context) =
     }
 
     const rateSnap = await tx.get(rateRef);
-    const now = admin.firestore.Timestamp.now();
-    const nowMs = now.toMillis();
+    const now = new Date();
+    const nowMs = now.getTime();
     const rateData = (rateSnap.data() || {}) as ChatRateRecord;
     const lastMessageMs = getTimestampMs(rateData.lastMessageAt);
     if (lastMessageMs && nowMs - lastMessageMs < 2000) {
@@ -1334,7 +1352,7 @@ export const sendChatMessage = chatCallable.https.onCall(async (data, context) =
     tx.set(messageRef, {
       senderId,
       text,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: now,
       isRedacted: false,
       redactedAt: null,
       redactionReason: null
@@ -1352,8 +1370,8 @@ export const sendChatMessage = chatCallable.https.onCall(async (data, context) =
       conversationRef,
       {
         participants: [ownerId, interestedUserId],
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        lastMessageAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: now,
+        lastMessageAt: now,
         lastMessageSenderId: senderId,
         lastMessagePreview: preview,
         ownerUnreadCount: senderId === ownerId ? 0 : ownerUnreadCount + 1,
@@ -1368,7 +1386,7 @@ export const sendChatMessage = chatCallable.https.onCall(async (data, context) =
         lastMessageAt: now,
         minuteWindowStart,
         minuteCount,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        updatedAt: now
       },
       { merge: true }
     );
@@ -1376,6 +1394,11 @@ export const sendChatMessage = chatCallable.https.onCall(async (data, context) =
     return messageRef.id;
   });
 
+  functions.logger.info("sendChatMessage succeeded", {
+    senderId,
+    conversationId,
+    messageId
+  });
   return { ok: true, messageId };
 });
 
@@ -1385,6 +1408,7 @@ export const markConversationRead = chatCallable.https.onCall(async (data, conte
   const conversationId = requireNonEmptyString(payload.conversationId, "conversationId", 1, 256);
 
   const conversationRef = db.collection("conversations").doc(conversationId);
+  const updatedAt = new Date();
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(conversationRef);
     if (!snap.exists) {
@@ -1396,16 +1420,28 @@ export const markConversationRead = chatCallable.https.onCall(async (data, conte
     const interestedUserId =
       typeof conversation.interestedUserId === "string" ? conversation.interestedUserId : "";
     if (uid === ownerId) {
+      const ownerUnreadCount =
+        typeof conversation.ownerUnreadCount === "number" ? conversation.ownerUnreadCount : 0;
+      if (ownerUnreadCount <= 0) {
+        return;
+      }
       tx.update(conversationRef, {
         ownerUnreadCount: 0,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        updatedAt
       });
       return;
     }
     if (uid === interestedUserId) {
+      const interestedUnreadCount =
+        typeof conversation.interestedUnreadCount === "number"
+          ? conversation.interestedUnreadCount
+          : 0;
+      if (interestedUnreadCount <= 0) {
+        return;
+      }
       tx.update(conversationRef, {
         interestedUnreadCount: 0,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        updatedAt
       });
       return;
     }
