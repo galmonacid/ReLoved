@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import "dart:ui";
 
 import "package:app/src/home/chat_thread_screen.dart";

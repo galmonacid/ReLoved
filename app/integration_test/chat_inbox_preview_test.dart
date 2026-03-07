@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import "package:app/src/home/inbox_screen.dart";
 import "package:app/src/models/conversation.dart";
 import "package:cloud_firestore/cloud_firestore.dart";
