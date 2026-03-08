@@ -451,32 +451,70 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
       return Scaffold(
         key: const ValueKey(TestKeys.chatThreadScreen),
         appBar: AppBar(title: const Text("Item chat")),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (_isResolvingConversation) const CircularProgressIndicator(),
-                if (_isResolvingConversation) const SizedBox(height: 12),
-                Text(
-                  _isResolvingConversation
-                      ? "Opening chat..."
-                      : (_resolveError ?? "Could not open chat."),
-                  textAlign: TextAlign.center,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: AppColors.body),
-                ),
-                if (!_isResolvingConversation) const SizedBox(height: 16),
-                if (!_isResolvingConversation)
-                  ElevatedButton(
-                    onPressed: _resolveConversation,
-                    child: const Text("Retry"),
+        body: Column(
+          children: [
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_isResolvingConversation)
+                        const CircularProgressIndicator(),
+                      if (_isResolvingConversation) const SizedBox(height: 12),
+                      Text(
+                        _isResolvingConversation
+                            ? "Opening chat..."
+                            : (_resolveError ?? "Could not open chat."),
+                        textAlign: TextAlign.center,
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.copyWith(color: AppColors.body),
+                      ),
+                      if (!_isResolvingConversation) const SizedBox(height: 16),
+                      if (!_isResolvingConversation)
+                        ElevatedButton(
+                          onPressed: _resolveConversation,
+                          child: const Text("Retry"),
+                        ),
+                    ],
                   ),
-              ],
+                ),
+              ),
             ),
-          ),
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        enabled: false,
+                        minLines: 1,
+                        maxLines: 2,
+                        decoration: const InputDecoration(
+                          hintText: "Opening chat...",
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    PressableScale(
+                      child: ElevatedButton(
+                        onPressed: null,
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size(52, 52),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                        ),
+                        child: const Icon(Icons.send),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       );
     }

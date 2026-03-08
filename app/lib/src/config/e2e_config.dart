@@ -42,6 +42,10 @@ class E2EConfig {
     "FUNCTIONS_EMULATOR_PORT",
     defaultValue: 5001,
   );
+  static const String chatFunctionsRegion = String.fromEnvironment(
+    "CHAT_FUNCTIONS_REGION",
+    defaultValue: "europe-west2",
+  );
 
   static const String storageHost = String.fromEnvironment(
     "STORAGE_EMULATOR_HOST",
@@ -96,9 +100,12 @@ class E2EConfig {
       firestoreHost,
       firestorePort,
     );
-    FirebaseFunctions.instanceFor(
-      region: "us-central1",
-    ).useFunctionsEmulator(functionsHost, functionsPort);
+    final functionRegions = <String>{"us-central1", chatFunctionsRegion};
+    for (final region in functionRegions) {
+      FirebaseFunctions.instanceFor(
+        region: region,
+      ).useFunctionsEmulator(functionsHost, functionsPort);
+    }
     FirebaseStorage.instance.useStorageEmulator(storageHost, storagePort);
   }
 }

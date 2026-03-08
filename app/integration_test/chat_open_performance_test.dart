@@ -52,6 +52,11 @@ void main() {
       stopwatch.start();
       await robot.pressByKey(TestKeys.itemOpenChatButton);
       await robot.waitFor(
+        find.byKey(const ValueKey(TestKeys.chatThreadScreen)).hitTestable(),
+        timeout: const Duration(seconds: 30),
+      );
+      final shellElapsedMs = stopwatch.elapsedMilliseconds;
+      await robot.waitFor(
         find.byKey(const ValueKey(TestKeys.chatMessageField)).hitTestable(),
         timeout: const Duration(seconds: 30),
       );
@@ -61,6 +66,7 @@ void main() {
       print("CHAT_OPEN_PERF_E2E elapsed_ms=$elapsedMs budget_ms=$budgetMs");
       final reportData = binding.reportData ??= <String, dynamic>{};
       reportData["chat_open_perf_elapsed_ms"] = elapsedMs;
+      reportData["chat_open_shell_elapsed_ms"] = shellElapsedMs;
       reportData["chat_open_perf_budget_ms"] = budgetMs;
       reportData["chat_open_perf_item_id"] = fixture.item.id;
       reportData["chat_open_perf_step"] = "done";

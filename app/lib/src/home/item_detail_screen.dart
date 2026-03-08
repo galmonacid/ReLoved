@@ -29,6 +29,8 @@ class ItemDetailScreen extends StatefulWidget {
 class _ItemDetailScreenState extends State<ItemDetailScreen> {
   bool _isUpdatingStatus = false;
   bool _isUpdatingContactPreference = false;
+  String? _prefetchedMonetizationUid;
+  String? _prefetchedConversationKey;
 
   String _statusLabel(String status) {
     switch (status) {
@@ -361,6 +363,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
   Widget _contactSection(Item item) {
     final user = FirebaseAuth.instance.currentUser;
+    _maybePrefetchMonetizationStatus(user);
+    _maybePrefetchConversation(user, item);
     if (item.status == "given") {
       return const Text("This item is no longer available.");
     }
@@ -555,6 +559,36 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           ),
         );
       },
+    );
+  }
+
+  void _maybePrefetchMonetizationStatus(User? user) {
+    final uid = user?.uid;
+    if (uid == null || _prefetchedMonetizationUid == uid) {
+      return;
+    }
+    _prefetchedMonetizationUid = uid;
+    unawaited(MonetizationService.prefetchStatus());
+  }
+
+  void _maybePrefetchConversation(User? user, Item item) {
+    if (user == null || user.uid == item.ownerId) {
+      return;
+    }
+    if (item.status != "available" ||
+        item.contactPreference == ContactPreference.email) {
+      return;
+    }
+    final key = "${item.id}:${user.uid}";
+    if (_prefetchedConversationKey == key) {
+      return;
+    }
+    _prefetchedConversationKey = key;
+    unawaited(
+      ChatService.prefetchConversationForItem(
+        itemId: item.id,
+        interestedUserId: user.uid,
+      ),
     );
   }
 }

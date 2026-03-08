@@ -42,6 +42,10 @@ const int _functionsPort = int.fromEnvironment(
   "FUNCTIONS_EMULATOR_PORT",
   defaultValue: 5001,
 );
+const String _chatFunctionsRegion = String.fromEnvironment(
+  "CHAT_FUNCTIONS_REGION",
+  defaultValue: "europe-west2",
+);
 
 const String _storageHost = String.fromEnvironment(
   "STORAGE_EMULATOR_HOST",
@@ -84,9 +88,12 @@ Future<void> ensureFirebaseTestInitialized() async {
       _firestoreHost,
       _firestorePort,
     );
-    FirebaseFunctions.instanceFor(
-      region: "us-central1",
-    ).useFunctionsEmulator(_functionsHost, _functionsPort);
+    final functionRegions = <String>{"us-central1", _chatFunctionsRegion};
+    for (final region in functionRegions) {
+      FirebaseFunctions.instanceFor(
+        region: region,
+      ).useFunctionsEmulator(_functionsHost, _functionsPort);
+    }
     FirebaseStorage.instance.useStorageEmulator(_storageHost, _storagePort);
   }
 

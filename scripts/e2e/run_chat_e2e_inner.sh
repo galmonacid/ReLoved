@@ -153,6 +153,7 @@ for target in "${TARGETS[@]}"; do
     --dart-define=FIRESTORE_EMULATOR_PORT=8080
     --dart-define=FUNCTIONS_EMULATOR_HOST=127.0.0.1
     --dart-define=FUNCTIONS_EMULATOR_PORT=5001
+    --dart-define=CHAT_FUNCTIONS_REGION="${E2E_CHAT_FUNCTIONS_REGION:-us-central1}"
     --dart-define=STORAGE_EMULATOR_HOST=127.0.0.1
     --dart-define=STORAGE_EMULATOR_PORT=9199
     --dart-define=E2E_CONTROL_BASE_URL="$CONTROL_BASE_URL"

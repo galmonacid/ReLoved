@@ -7,13 +7,54 @@ import "../models/item.dart";
 class ChatService {
   ChatService._();
 
+  static const String _chatFunctionsRegion = String.fromEnvironment(
+    "CHAT_FUNCTIONS_REGION",
+    defaultValue: "europe-west2",
+  );
   static final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
-    region: "us-central1",
+    region: _chatFunctionsRegion,
   );
 
   static const Duration _emptyDuration = Duration.zero;
+  static const Duration _prefetchLookupWaitTimeout = Duration(
+    milliseconds: 450,
+  );
+
+  static final Map<String, ConversationResolution>
+  _conversationResolutionCache = <String, ConversationResolution>{};
+  static final Map<String, Future<ConversationResolution>>
+  _conversationResolutionInFlight = <String, Future<ConversationResolution>>{};
+  static final Map<String, String> _prefetchedConversationIds =
+      <String, String>{};
+  static final Map<String, Future<String?>> _prefetchLookupInFlight =
+      <String, Future<String?>>{};
 
   static int _durationMs(Duration duration) => duration.inMilliseconds;
+
+  static String _conversationKey({
+    required String itemId,
+    required String interestedUserId,
+  }) {
+    return "$itemId::$interestedUserId";
+  }
+
+  static ConversationResolution _cachedResolution({
+    required String conversationId,
+    bool serverLookupAttempted = false,
+    int serverLookupMs = 0,
+  }) {
+    return ConversationResolution(
+      conversationId: conversationId,
+      source: ConversationResolutionSource.cache,
+      totalMs: 0,
+      cacheLookupMs: 0,
+      serverLookupMs: serverLookupMs,
+      callableMs: 0,
+      cacheLookupAttempted: false,
+      serverLookupAttempted: serverLookupAttempted,
+      callableAttempted: false,
+    );
+  }
 
   static Future<String?> _existingConversationId({
     required String itemId,
@@ -36,11 +77,87 @@ class ChatService {
     required String itemId,
     required String interestedUserId,
   }) async {
+    final key = _conversationKey(
+      itemId: itemId,
+      interestedUserId: interestedUserId,
+    );
+    final cachedResolution = _conversationResolutionCache[key];
+    if (cachedResolution != null) {
+      return cachedResolution;
+    }
+
+    final prefetchedConversationId = _prefetchedConversationIds[key];
+    if (prefetchedConversationId != null) {
+      final resolution = _cachedResolution(
+        conversationId: prefetchedConversationId,
+      );
+      _conversationResolutionCache[key] = resolution;
+      return resolution;
+    }
+
+    final inFlightResolution = _conversationResolutionInFlight[key];
+    if (inFlightResolution != null) {
+      return inFlightResolution;
+    }
+
+    final request = _resolveConversationForItemUncached(
+      key: key,
+      itemId: itemId,
+      interestedUserId: interestedUserId,
+    );
+    _conversationResolutionInFlight[key] = request;
+    try {
+      final resolution = await request;
+      _conversationResolutionCache[key] = resolution;
+      _prefetchedConversationIds[key] = resolution.conversationId;
+      return resolution;
+    } finally {
+      if (identical(_conversationResolutionInFlight[key], request)) {
+        _conversationResolutionInFlight.remove(key);
+      }
+    }
+  }
+
+  static Future<ConversationResolution> _resolveConversationForItemUncached({
+    required String key,
+    required String itemId,
+    required String interestedUserId,
+  }) async {
     final totalWatch = Stopwatch()..start();
     var cacheLookupDuration = _emptyDuration;
+    var serverLookupDuration = _emptyDuration;
     var callableDuration = _emptyDuration;
     var cacheLookupAttempted = false;
+    var serverLookupAttempted = false;
     var callableAttempted = false;
+
+    final inFlightServerLookup = _prefetchLookupInFlight[key];
+    if (inFlightServerLookup != null) {
+      serverLookupAttempted = true;
+      final serverLookupWatch = Stopwatch()..start();
+      try {
+        final prefetchedConversationId = await inFlightServerLookup.timeout(
+          _prefetchLookupWaitTimeout,
+        );
+        serverLookupDuration = serverLookupWatch.elapsed;
+        if (prefetchedConversationId != null) {
+          _prefetchedConversationIds[key] = prefetchedConversationId;
+          return ConversationResolution(
+            conversationId: prefetchedConversationId,
+            source: ConversationResolutionSource.cache,
+            totalMs: _durationMs(totalWatch.elapsed),
+            cacheLookupMs: 0,
+            serverLookupMs: _durationMs(serverLookupDuration),
+            callableMs: 0,
+            cacheLookupAttempted: false,
+            serverLookupAttempted: serverLookupAttempted,
+            callableAttempted: false,
+          );
+        }
+      } catch (_) {
+        serverLookupDuration = serverLookupWatch.elapsed;
+      }
+    }
 
     try {
       cacheLookupAttempted = true;
@@ -57,10 +174,10 @@ class ChatService {
           source: ConversationResolutionSource.cache,
           totalMs: _durationMs(totalWatch.elapsed),
           cacheLookupMs: _durationMs(cacheLookupDuration),
-          serverLookupMs: 0,
+          serverLookupMs: _durationMs(serverLookupDuration),
           callableMs: 0,
           cacheLookupAttempted: cacheLookupAttempted,
-          serverLookupAttempted: false,
+          serverLookupAttempted: serverLookupAttempted,
           callableAttempted: callableAttempted,
         );
       }
@@ -78,12 +195,57 @@ class ChatService {
       source: ConversationResolutionSource.callable,
       totalMs: _durationMs(totalWatch.elapsed),
       cacheLookupMs: _durationMs(cacheLookupDuration),
-      serverLookupMs: 0,
+      serverLookupMs: _durationMs(serverLookupDuration),
       callableMs: _durationMs(callableDuration),
       cacheLookupAttempted: cacheLookupAttempted,
-      serverLookupAttempted: false,
+      serverLookupAttempted: serverLookupAttempted,
       callableAttempted: callableAttempted,
     );
+  }
+
+  static Future<void> prefetchConversationForItem({
+    required String itemId,
+    required String interestedUserId,
+  }) async {
+    final key = _conversationKey(
+      itemId: itemId,
+      interestedUserId: interestedUserId,
+    );
+    if (_conversationResolutionCache.containsKey(key) ||
+        _prefetchedConversationIds.containsKey(key)) {
+      return;
+    }
+    final existingLookup = _prefetchLookupInFlight[key];
+    if (existingLookup != null) {
+      await existingLookup;
+      return;
+    }
+    final lookup = (() async {
+      try {
+        return await _existingConversationId(
+          itemId: itemId,
+          interestedUserId: interestedUserId,
+          source: Source.server,
+        );
+      } catch (_) {
+        return null;
+      }
+    })();
+    _prefetchLookupInFlight[key] = lookup;
+    try {
+      final conversationId = await lookup;
+      if (conversationId == null) {
+        return;
+      }
+      _prefetchedConversationIds[key] = conversationId;
+      _conversationResolutionCache[key] = _cachedResolution(
+        conversationId: conversationId,
+      );
+    } finally {
+      if (identical(_prefetchLookupInFlight[key], lookup)) {
+        _prefetchLookupInFlight.remove(key);
+      }
+    }
   }
 
   static Stream<List<Conversation>> streamUserConversations(String uid) {

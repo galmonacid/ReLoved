@@ -148,6 +148,7 @@ for target in "${TARGET_LIST[@]}"; do
     --dart-define=E2E_PROJECT_ID="$PROJECT_ID"
     --dart-define=E2E_CONTROL_BASE_URL="$CONTROL_BASE_URL"
     --dart-define=E2E_FIXED_POSTCODE="${E2E_FIXED_POSTCODE:-MK9 3QA}"
+    --dart-define=CHAT_FUNCTIONS_REGION="${E2E_CHAT_FUNCTIONS_REGION:-europe-west2}"
     --dart-define=E2E_DISABLE_ANALYTICS=true
     --dart-define=E2E_DISABLE_FIREBASE_SIDE_EFFECTS=true
     --dart-define=E2E_CHAT_OPEN_BUDGET_MS="${E2E_CHAT_OPEN_BUDGET_MS:-2500}"

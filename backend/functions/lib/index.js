@@ -7,8 +7,9 @@ const sgMail = require("@sendgrid/mail");
 const crypto_1 = require("crypto");
 admin.initializeApp();
 const db = admin.firestore();
-const CHAT_FUNCTION_REGION = "us-central1";
-const chatCallable = functions.region(CHAT_FUNCTION_REGION).runWith({
+const CHAT_PRIMARY_REGION = "europe-west2";
+const CHAT_LEGACY_REGION = "us-central1";
+const chatCallable = functions.region(CHAT_PRIMARY_REGION, CHAT_LEGACY_REGION).runWith({
     memory: "256MB",
     timeoutSeconds: 60
 });
@@ -1142,7 +1143,7 @@ exports.upsertItemConversation = chatCallable.https.onCall(async (data, context)
     return { ok: true, conversationId, created };
 });
 exports.onConversationCreatedTrackChatUsage = functions
-    .region(CHAT_FUNCTION_REGION)
+    .region(CHAT_PRIMARY_REGION)
     .firestore.document("conversations/{conversationId}")
     .onCreate(async (snapshot, _context) => {
     const conversation = (snapshot.data() || {});
