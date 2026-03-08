@@ -13,6 +13,8 @@ import "../utils/location.dart";
 import "../utils/postcode_lookup.dart";
 import "../analytics/app_analytics.dart";
 import "../models/item.dart";
+import "../models/monetization.dart";
+import "../monetization/monetization_service.dart";
 import "../widgets/map_picker.dart";
 import "../widgets/motion/pressable_scale.dart";
 import "item_detail_screen.dart";
@@ -135,6 +137,10 @@ class _PublishScreenState extends State<PublishScreen> {
       return;
     }
 
+    if (!await _checkPublishSoftLimit()) {
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -217,6 +223,55 @@ class _PublishScreenState extends State<PublishScreen> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<bool> _checkPublishSoftLimit() async {
+    try {
+      final status = await MonetizationService.getStatus();
+      final features = status.features;
+      if (!features.monetizationEnabled || !features.enforcePublishLimit) {
+        return true;
+      }
+      if (status.canPublish) {
+        return true;
+      }
+      await AppAnalytics.logEvent(
+        name: "monetization_flag_state",
+        parameters: features.analyticsParams(
+          source: paywallContextToWire(PaywallContext.publish),
+        ),
+      );
+      await AppAnalytics.logEvent(
+        name: "paywall_shown",
+        parameters: {
+          "context": paywallContextToWire(PaywallContext.publish),
+          "over_by": status.publishOverBy,
+          "tier": status.isMonthlySupporter ? "supporter_monthly" : "free",
+          ...features.analyticsParams(
+            source: paywallContextToWire(PaywallContext.publish),
+          ),
+        },
+      );
+      if (!mounted) {
+        return false;
+      }
+      final decision = await showSoftPaywallSheet(
+        context: context,
+        paywallContext: PaywallContext.publish,
+        status: status,
+      );
+      if (decision == SoftPaywallDecision.continueFree) {
+        await AppAnalytics.logEvent(
+          name: "paywall_continue_free",
+          parameters: {"context": paywallContextToWire(PaywallContext.publish)},
+        );
+        return true;
+      }
+      return false;
+    } catch (_) {
+      // Soft paywall must never block core behavior on errors.
+      return true;
     }
   }
 

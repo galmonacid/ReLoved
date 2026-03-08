@@ -9,6 +9,9 @@ Campos:
 - createdAt (timestamp)
 - ratingAvg (number, default 0)
 - ratingCount (number, default 0)
+- supportTier (string): free | supporter_monthly
+- supportStatus (string): inactive | active | past_due | canceled
+- supportPeriodEnd (timestamp, opcional)
 
 Notas:
 - No se almacenan datos personales adicionales en el MVP.
@@ -157,3 +160,98 @@ Campos:
 Uso:
 - Auditoria basica
 - Prevencion de abuso
+
+---
+
+## monetizationProfiles/{uid}
+Estado de soporte monetario por usuario.
+
+Campos:
+- supportTier (string): free | supporter_monthly
+- supportStatus (string): inactive | active | past_due | canceled
+- supportPeriodEnd (timestamp, opcional)
+- stripeCustomerId (string, opcional)
+- stripeSubscriptionId (string, opcional)
+- stripePriceId (string, opcional)
+- oneOffDonationCount (number, opcional)
+- lastOneOffDonationAt (timestamp, opcional)
+- lastOneOffAmount (number, opcional)
+- updatedAt (timestamp)
+
+Uso:
+- Entitlements para limites soft de publish/contact.
+- Sincronizacion via webhook Stripe.
+
+---
+
+## billingCustomers/{uid}
+Mapeo interno usuario -> customer de Stripe.
+
+Campos:
+- customerId (string)
+- email (string, opcional)
+- createdAt (timestamp)
+- updatedAt (timestamp)
+
+Uso:
+- Crear checkout/portal de Stripe.
+- Resolucion de webhooks por customer.
+
+---
+
+## usageCounters/{uid}
+Contadores agregados de uso para monetizacion.
+
+Campos:
+- currentWeekKey (string, formato YYYY-MM-DD del lunes Europe/London)
+- weeklyUniqueContacts (number)
+- updatedAt (timestamp)
+
+Uso:
+- Calculo rapido de limite semanal de nuevos contactos.
+
+---
+
+## usageContactEvents/{uid_weekKey_itemId}
+Eventos de deduplicacion de "nuevo contacto semanal por item".
+
+Campos:
+- uid (string)
+- itemId (string)
+- weekKey (string)
+- source (string): email | chat
+- createdAt (timestamp)
+
+Uso:
+- Evitar doble conteo cuando el mismo usuario contacta varias veces el mismo item en la semana.
+
+---
+
+## stripeWebhookEvents/{eventId}
+Idempotencia de eventos webhook Stripe.
+
+Campos:
+- eventType (string)
+- livemode (boolean)
+- processedAt (timestamp)
+
+Uso:
+- Evitar reprocesado de eventos duplicados.
+
+---
+
+## runtimeConfig/monetization
+Configuracion runtime de monetizacion (feature flags + umbrales), fuente de verdad para backend.
+
+Campos:
+- flags.monetizationEnabled (bool)
+- flags.supportUiEnabled (bool)
+- flags.checkoutEnabled (bool)
+- flags.enforcePublishLimit (bool)
+- flags.enforceContactLimit (bool)
+- thresholds.free.publishLimit (int)
+- thresholds.free.contactLimit (int)
+- thresholds.supporter.publishLimit (int)
+- thresholds.supporter.contactLimit (int)
+- window.timeZone (string IANA)
+- window.weekStartIsoDay (int 1..7)

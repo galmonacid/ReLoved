@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:cloud_firestore/cloud_firestore.dart";
 import "package:firebase_auth/firebase_auth.dart";
 import "package:flutter/material.dart";
@@ -5,6 +7,9 @@ import "../analytics/app_analytics.dart";
 import "../auth/auth_screen.dart";
 import "../chat/chat_service.dart";
 import "../models/item.dart";
+import "../models/monetization.dart";
+import "../monetization/monetization_service.dart";
+import "../testing/test_keys.dart";
 import "../utils/share_utils.dart";
 import "../widgets/item_image.dart";
 import "../widgets/motion/pressable_scale.dart";
@@ -185,29 +190,31 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     if (user == null || !mounted) {
       return;
     }
+    final canProceed = await _checkContactSoftLimit();
+    if (!canProceed || !mounted) {
+      return;
+    }
 
-    try {
-      await AppAnalytics.logEvent(
+    unawaited(
+      AppAnalytics.logEvent(
         name: "contact_channel_selected",
         parameters: {"itemId": item.id, "channel": "chat"},
-      );
-      final conversationId = await ChatService.upsertItemConversation(item.id);
-      if (!mounted) {
-        return;
-      }
-      await Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ChatThreadScreen(conversationId: conversationId),
-        ),
-      );
-    } catch (error) {
-      _showError(error.toString());
-    }
+      ),
+    );
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChatThreadScreen.fromItem(itemId: item.id),
+      ),
+    );
   }
 
   Future<void> _openEmailContact(Item item) async {
     final user = await _ensureSignedIn();
     if (user == null || !mounted) {
+      return;
+    }
+    final canProceed = await _checkContactSoftLimit();
+    if (!canProceed || !mounted) {
       return;
     }
 
@@ -231,6 +238,55 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text("Message sent.")));
+    }
+  }
+
+  Future<bool> _checkContactSoftLimit() async {
+    try {
+      final status = await MonetizationService.getStatus();
+      final features = status.features;
+      if (!features.monetizationEnabled || !features.enforceContactLimit) {
+        return true;
+      }
+      if (status.canContact) {
+        return true;
+      }
+      await AppAnalytics.logEvent(
+        name: "monetization_flag_state",
+        parameters: features.analyticsParams(
+          source: paywallContextToWire(PaywallContext.contact),
+        ),
+      );
+      await AppAnalytics.logEvent(
+        name: "paywall_shown",
+        parameters: {
+          "context": paywallContextToWire(PaywallContext.contact),
+          "over_by": status.contactOverBy,
+          "tier": status.isMonthlySupporter ? "supporter_monthly" : "free",
+          ...features.analyticsParams(
+            source: paywallContextToWire(PaywallContext.contact),
+          ),
+        },
+      );
+      if (!mounted) {
+        return false;
+      }
+      final decision = await showSoftPaywallSheet(
+        context: context,
+        paywallContext: PaywallContext.contact,
+        status: status,
+      );
+      if (decision == SoftPaywallDecision.continueFree) {
+        await AppAnalytics.logEvent(
+          name: "paywall_continue_free",
+          parameters: {"context": paywallContextToWire(PaywallContext.contact)},
+        );
+        return true;
+      }
+      return false;
+    } catch (_) {
+      // Soft paywall must never block core behavior on errors.
+      return true;
     }
   }
 
@@ -265,6 +321,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           width: double.infinity,
           child: PressableScale(
             child: ElevatedButton(
+              key: const ValueKey(TestKeys.itemOpenChatButton),
               onPressed: () => _openChat(item),
               child: const Text("Open chat"),
             ),
@@ -276,6 +333,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           children: [
             PressableScale(
               child: ElevatedButton(
+                key: const ValueKey(TestKeys.itemOpenChatButton),
                 onPressed: () => _openChat(item),
                 child: const Text("Open chat"),
               ),
@@ -320,6 +378,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         final item = Item.fromDoc(snapshot.data!);
         final isOwner = user?.uid == item.ownerId;
         return Scaffold(
+          key: const ValueKey(TestKeys.itemDetailScreen),
           appBar: AppBar(
             title: Text(item.title),
             actions: [

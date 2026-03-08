@@ -7,20 +7,44 @@ import "package:firebase_core/firebase_core.dart";
 import "package:firebase_crashlytics/firebase_crashlytics.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
-import "firebase_options.dart";
 import "src/auth/auth_gate.dart";
+import "src/analytics/app_analytics.dart";
 import "src/config/app_config.dart";
+import "src/config/e2e_config.dart";
 import "src/home/item_detail_screen.dart";
 import "theme/app_theme.dart";
 
+bool _firebaseCoreInitialized = false;
+bool _firebaseServicesConfigured = false;
+bool _firebaseSideEffectsConfigured = false;
+
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  await _configureFirebase();
+  await ensureAppInitialized();
   runApp(const ReLovedApp());
 }
 
+Future<void> ensureAppInitialized() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  if (!_firebaseCoreInitialized) {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(options: E2EConfig.firebaseOptions);
+    }
+    _firebaseCoreInitialized = true;
+  }
+  if (!_firebaseServicesConfigured) {
+    await E2EConfig.configureFirebaseServices();
+    _firebaseServicesConfigured = true;
+  }
+  if (!_firebaseSideEffectsConfigured) {
+    await _configureFirebase();
+    _firebaseSideEffectsConfigured = true;
+  }
+}
+
 Future<void> _configureFirebase() async {
+  if (E2EConfig.disableFirebaseSideEffects) {
+    return;
+  }
   if (!kIsWeb) {
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
     PlatformDispatcher.instance.onError = (error, stack) {
@@ -68,6 +92,7 @@ class _ReLovedAppState extends State<ReLovedApp> {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   StreamSubscription<Uri>? _linkSubscription;
   String? _lastOpenedItemId;
+  String? _lastSupportCheckoutResult;
 
   static String? _itemIdFromRouteName(String? routeName) {
     if (routeName == null || routeName.isEmpty) {
@@ -101,6 +126,24 @@ class _ReLovedAppState extends State<ReLovedApp> {
       return null;
     }
     return sharedItemId;
+  }
+
+  static String? _supportCheckoutResultFromUri(Uri uri) {
+    final queryValue = uri.queryParameters["support_checkout"]?.trim();
+    if (queryValue == "success" || queryValue == "cancel") {
+      return queryValue;
+    }
+    if (uri.scheme != "reloved" || uri.host != "support") {
+      return null;
+    }
+    if (uri.pathSegments.isEmpty) {
+      return null;
+    }
+    final action = uri.pathSegments.first.trim();
+    if (action == "success" || action == "cancel") {
+      return action;
+    }
+    return null;
   }
 
   static Route<void> _homeRoute([RouteSettings? settings]) {
@@ -141,8 +184,42 @@ class _ReLovedAppState extends State<ReLovedApp> {
     );
   }
 
+  void _handleSupportCheckoutResult(String result) {
+    if (_lastSupportCheckoutResult == result) {
+      return;
+    }
+    _lastSupportCheckoutResult = result;
+    AppAnalytics.logEvent(
+      name: result == "success"
+          ? "support_checkout_success"
+          : "support_checkout_cancel",
+      parameters: const {},
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final currentContext = _navigatorKey.currentContext;
+      if (currentContext == null) {
+        return;
+      }
+      final messenger = ScaffoldMessenger.of(currentContext);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            result == "success"
+                ? "Thanks for supporting ReLoved."
+                : "Checkout canceled.",
+          ),
+        ),
+      );
+    });
+  }
+
   void _handleDeepLinkUri(Uri? uri) {
     if (uri == null) {
+      return;
+    }
+    final supportCheckout = _supportCheckoutResultFromUri(uri);
+    if (supportCheckout != null) {
+      _handleSupportCheckoutResult(supportCheckout);
       return;
     }
     final itemId = _itemIdFromUri(uri);
@@ -166,9 +243,14 @@ class _ReLovedAppState extends State<ReLovedApp> {
 
   @override
   Widget build(BuildContext context) {
-    final analyticsEnabled = !(kIsWeb && kDebugMode);
+    final analyticsEnabled =
+        !E2EConfig.disableAnalytics && !(kIsWeb && kDebugMode);
     final sharedItemId =
         _itemIdFromUri(Uri.base) ?? _itemIdFromSharedQuery(Uri.base);
+    final supportCheckoutResult = _supportCheckoutResultFromUri(Uri.base);
+    if (supportCheckoutResult != null) {
+      _handleSupportCheckoutResult(supportCheckoutResult);
+    }
     return MaterialApp(
       navigatorKey: _navigatorKey,
       title: 'ReLoved',

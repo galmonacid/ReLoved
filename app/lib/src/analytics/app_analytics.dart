@@ -1,10 +1,13 @@
 import "package:firebase_analytics/firebase_analytics.dart";
 import "package:flutter/foundation.dart";
 
+import "../config/e2e_config.dart";
+
 class AppAnalytics {
   const AppAnalytics._();
 
-  static bool get _enabled => !(kIsWeb && kDebugMode);
+  static bool get _enabled =>
+      !E2EConfig.disableAnalytics && !(kIsWeb && kDebugMode);
 
   static Future<void> logEvent({
     required String name,

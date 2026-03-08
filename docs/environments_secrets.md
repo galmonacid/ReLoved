@@ -18,10 +18,20 @@
 ## Cloud Functions config (production)
 - SendGrid API key
 - SendGrid from email
+- Stripe secret key
+- Stripe webhook secret
+- Stripe price id (one-off GBP 3)
+- Stripe price id (monthly GBP 4.99)
 
 Example (do not commit secrets):
 ```
-firebase functions:config:set sendgrid.key="REDACTED" sendgrid.from="noreply@yourdomain.com"
+firebase functions:config:set \
+  sendgrid.key="REDACTED" \
+  sendgrid.from="noreply@yourdomain.com" \
+  stripe.secret_key="sk_live_REDACTED" \
+  stripe.webhook_secret="whsec_REDACTED" \
+  stripe.price_one_off_gbp_300="price_REDACTED_ONE_OFF" \
+  stripe.price_monthly_gbp_499="price_REDACTED_MONTHLY"
 firebase functions:config:get
 ```
 
@@ -41,9 +51,12 @@ firebase functions:config:get
 - SUPPORT_EMAIL (support inbox for deletion requests)
 - APP_CHECK_WEB_KEY (reCAPTCHA v3 site key for App Check on web)
 - SHARE_BASE_URL (base URL for share links, recommended: https://reloved-greenhilledge.web.app)
+- STRIPE_PUBLISHABLE_KEY (optional, for future client-side Stripe integrations)
 - IOS_TEAM_ID (Apple Developer Team ID for Universal Links): QUJ832A56F
 - IOS_APP_STORE_ID (App Store ID for app store fallback): 6759441963
 - ANDROID_PACKAGE_NAME (package name for Android deep link fallback)
+- PAYMENTS_ENABLED_IOS (true|false, default true)
+- PAYMENTS_ENABLED_WEB (true|false, default true)
  - APP_STORE_DISPLAY_NAME (App Store name): ReLoved - Give & Find
   - This is the public App Store listing name (separate from the internal app name).
 
@@ -51,6 +64,19 @@ firebase functions:config:get
 - No new external secret is required for chat core flows.
 - Optional operational requirement: admin custom claim for invoking `anonymizeUserChatData`.
 - Chat retention job (`purgeOldChatData`) runs on Cloud Scheduler / PubSub.
+
+## Monetization operations config
+- Cloud Functions callables:
+  - `getMonetizationStatus`
+  - `createSupportCheckoutSession`
+  - `createBillingPortalSession`
+- HTTP webhook:
+  - `stripeWebhook`
+- Required Stripe runtime config:
+  - `stripe.secret_key`
+  - `stripe.webhook_secret`
+  - `stripe.price_one_off_gbp_300`
+  - `stripe.price_monthly_gbp_499`
 
 ## Apple App ID setup (iOS)
 - Capabilities enabled on App ID: Associated Domains (for Universal Links), Push Notifications.

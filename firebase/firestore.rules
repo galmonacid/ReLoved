@@ -16,13 +16,44 @@ service cloud.firestore {
       return value in ["email", "chat", "both"];
     }
 
+    function isValidSupportTier(value) {
+      return value in ["free", "supporter_monthly"];
+    }
+
+    function isValidSupportStatus(value) {
+      return value in ["inactive", "active", "past_due", "canceled"];
+    }
+
+    function validSupportFieldsOnCreate() {
+      return (!request.resource.data.keys().hasAny(["supportTier"])
+        || isValidSupportTier(request.resource.data.supportTier))
+      && (!request.resource.data.keys().hasAny(["supportStatus"])
+        || isValidSupportStatus(request.resource.data.supportStatus))
+      && (!request.resource.data.keys().hasAny(["supportPeriodEnd"])
+        || request.resource.data.supportPeriodEnd == null
+        || request.resource.data.supportPeriodEnd is timestamp)
+      && (!request.resource.data.keys().hasAny(["updatedAt"])
+        || request.resource.data.updatedAt is timestamp);
+    }
+
+    function supportFieldsUnchangedOnUpdate() {
+      return request.resource.data.supportTier == resource.data.supportTier
+      && request.resource.data.supportStatus == resource.data.supportStatus
+      && request.resource.data.supportPeriodEnd == resource.data.supportPeriodEnd
+      && request.resource.data.updatedAt == resource.data.updatedAt;
+    }
+
     function isValidUserCreate() {
       return request.resource.data.keys().hasOnly([
         "displayName",
         "email",
         "createdAt",
         "ratingAvg",
-        "ratingCount"
+        "ratingCount",
+        "supportTier",
+        "supportStatus",
+        "supportPeriodEnd",
+        "updatedAt"
       ])
       && isNonEmptyString(request.resource.data.displayName, 1, 80)
       && request.resource.data.email == request.auth.token.email
@@ -30,7 +61,8 @@ service cloud.firestore {
       && request.resource.data.ratingAvg is number
       && request.resource.data.ratingAvg == 0
       && request.resource.data.ratingCount is int
-      && request.resource.data.ratingCount == 0;
+      && request.resource.data.ratingCount == 0
+      && validSupportFieldsOnCreate();
     }
 
     function isValidUserUpdate() {
@@ -39,13 +71,18 @@ service cloud.firestore {
         "email",
         "createdAt",
         "ratingAvg",
-        "ratingCount"
+        "ratingCount",
+        "supportTier",
+        "supportStatus",
+        "supportPeriodEnd",
+        "updatedAt"
       ])
       && isNonEmptyString(request.resource.data.displayName, 1, 80)
       && request.resource.data.email == request.auth.token.email
       && request.resource.data.createdAt == resource.data.createdAt
       && request.resource.data.ratingAvg == resource.data.ratingAvg
-      && request.resource.data.ratingCount == resource.data.ratingCount;
+      && request.resource.data.ratingCount == resource.data.ratingCount
+      && supportFieldsUnchangedOnUpdate();
     }
 
     function isValidLocation(location) {
@@ -152,7 +189,6 @@ service cloud.firestore {
 
     match /conversations/{conversationId} {
       allow read: if isSignedIn()
-        && resource.data.participants is list
         && request.auth.uid in resource.data.participants;
       allow write: if false; // only via Cloud Functions
 
@@ -168,6 +204,32 @@ service cloud.firestore {
 
     match /chatRateLimits/{userId} {
       allow read, write: if false; // only via Cloud Functions
+    }
+
+    match /monetizationProfiles/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow write: if false; // only via Cloud Functions
+    }
+
+    match /usageCounters/{userId} {
+      allow read: if isSignedIn() && request.auth.uid == userId;
+      allow write: if false; // only via Cloud Functions
+    }
+
+    match /usageContactEvents/{eventId} {
+      allow read, write: if false; // only via Cloud Functions
+    }
+
+    match /billingCustomers/{userId} {
+      allow read, write: if false; // only via Cloud Functions
+    }
+
+    match /stripeWebhookEvents/{eventId} {
+      allow read, write: if false; // only via Cloud Functions
+    }
+
+    match /runtimeConfig/{docId} {
+      allow read, write: if false; // only via Cloud Functions/Admin scripts
     }
   }
 }

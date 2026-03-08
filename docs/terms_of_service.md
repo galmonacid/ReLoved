@@ -1,6 +1,6 @@
 # Terminos de Servicio (MVP)
 
-Ultima actualizacion: 2026-03-01
+Ultima actualizacion: 2026-03-04
 
 ## Uso del servicio
 - ReLoved permite publicar items para intercambio/donacion.
@@ -15,6 +15,13 @@ Ultima actualizacion: 2026-03-01
 - El contacto puede ocurrir por email y/o chat interno segun la preferencia del donor en cada item.
 - El donor puede cerrar conversaciones de chat vinculadas a su item.
 - Si un item deja de estar disponible, sus chats vinculados pueden quedar en modo solo lectura.
+
+## Soporte y pagos opcionales
+- ReLoved puede ofrecer donaciones puntuales y suscripciones mensuales via Stripe.
+- El pago es opcional y no es requisito para usar funcionalidades basicas.
+- ReLoved puede aplicar limites soft de uso (publicaciones/contactos) para fomentar soporte, manteniendo opcion de continuar gratis.
+- Las suscripciones se gestionan mediante portal de Stripe y pueden cancelarse segun las condiciones del proveedor de pago.
+- En casos de abuso o uso anomalo, ReLoved puede aplicar controles tecnicos adicionales (fair use).
 
 ## Responsabilidad
 - ReLoved no garantiza la calidad de los items ni el cumplimiento entre usuarios.

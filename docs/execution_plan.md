@@ -22,6 +22,7 @@
 10. [IN PROGRESS] Post-release analytics funnel expansion.
 11. [COMPLETE] Social auth rollout (Google with account linking).
 12. [COMPLETE] iOS Google Sign-In config hardening (OAuth plist alignment).
+13. [COMPLETE] Monetization foundation with Stripe + soft paywall.
 
 ## Chat rollout (implemented)
 12. [COMPLETE] Internal chat by item with email coexistence
@@ -71,3 +72,4 @@
 ## Notes
 - Rules/integration tests depend on Firebase emulators and compatible Java runtime.
 - Chat push notifications are intentionally out of scope for this phase.
+- Monetization rollout uses optional support model; core flows remain usable without payment.

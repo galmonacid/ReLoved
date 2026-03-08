@@ -31,9 +31,10 @@ Una app donde las personas publican objetos y se ponen en contacto de forma simp
 - Contacto por email y/o chat segun preferencia del donor.
 - Inbox de conversaciones para usuarios autenticados.
 - Valoraciones simples.
+- Monetizacion opcional: donacion puntual y suscripcion mensual via Stripe.
 
 ## Restricciones
-- Sin pagos ni transacciones monetarias.
+- No se bloquea el uso core por pago: soporte siempre opcional con soft paywall.
 - Chat solo 1:1 y vinculado a item (no chat global entre usuarios).
 - Sin adjuntos multimedia en chat (solo texto).
 - Sin moderacion avanzada en esta fase (solo bloqueos/reportes basicos).
@@ -47,6 +48,19 @@ Una app donde las personas publican objetos y se ponen en contacto de forma simp
 ## Alcance geografico
 - UK: entrada por postcode.
 - Radio fijo: 3 mi y 10 mi.
+
+## Monetizacion (fase actual)
+- Modelo: soft paywall hibrido con opcion de continuar gratis siempre.
+- Stripe:
+  - Donacion puntual: GBP 3 (sin perks funcionales).
+  - Suscripcion mensual: GBP 4.99.
+- Limites free:
+  - Publicacion: max 3 items activos (`available|reserved`).
+  - Contacto: max 10 nuevos items contactados por semana (Europe/London).
+- Suscriptor mensual:
+  - "Ilimitado" comercial.
+  - Fair use tecnico: 200 items activos y 250 nuevos contactos/semana.
+- Canales de contacto siguen coexistiendo por item (`email`, `chat`, `both`).
 
 ## Plataforma objetivo
 - Mobile (iOS y Android).
@@ -92,3 +106,4 @@ Una app donde las personas publican objetos y se ponen en contacto de forma simp
 - Push notifications de nuevos mensajes.
 - Moderacion avanzada.
 - Adjuntos multimedia en chat.
+- Ajuste iterativo de pricing/limites segun conversion y retencion.

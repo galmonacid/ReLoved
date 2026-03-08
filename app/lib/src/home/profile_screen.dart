@@ -5,10 +5,12 @@ import "package:url_launcher/url_launcher.dart";
 import "../../theme/app_colors.dart";
 import "../config/app_config.dart";
 import "../models/item.dart";
+import "../monetization/monetization_service.dart";
 import "../utils/share_utils.dart";
 import "../widgets/item_image.dart";
 import "../widgets/motion/fade_in_item.dart";
 import "../widgets/motion/pressable_scale.dart";
+import "about_support_screen.dart";
 import "item_detail_screen.dart";
 
 class ProfileScreen extends StatelessWidget {
@@ -35,9 +37,9 @@ class ProfileScreen extends StatelessWidget {
     final uri = Uri.parse(url);
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Could not open the link.")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Could not open the link.")));
     }
   }
 
@@ -80,8 +82,7 @@ class ProfileScreen extends StatelessWidget {
     }
     final total = snapshot.docs.fold<int>(
       0,
-      (accumulator, doc) =>
-          accumulator + (doc.data()["stars"] as int? ?? 0),
+      (accumulator, doc) => accumulator + (doc.data()["stars"] as int? ?? 0),
     );
     return {"avg": total / snapshot.docs.length, "count": snapshot.docs.length};
   }
@@ -89,15 +90,16 @@ class ProfileScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+    final supportUiFuture = MonetizationService.getStatus()
+        .then((status) => status.supportUiEnabled)
+        .catchError((_) => false);
     if (user == null) {
       return const Scaffold(
         body: Center(child: Text("You are not signed in.")),
       );
     }
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Profile"),
-      ),
+      appBar: AppBar(title: const Text("Profile")),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
@@ -110,9 +112,7 @@ class ProfileScreen extends StatelessWidget {
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError) {
-              return const Center(
-                child: Text("Could not load profile."),
-              );
+              return const Center(child: Text("Could not load profile."));
             }
             final data = snapshot.data?.data() ?? {};
             final displayName = (data["displayName"] as String?) ?? "Usuario";
@@ -184,9 +184,7 @@ class ProfileScreen extends StatelessWidget {
                     builder: (context, itemsSnapshot) {
                       if (itemsSnapshot.connectionState ==
                           ConnectionState.waiting) {
-                        return const Center(
-                          child: CircularProgressIndicator(),
-                        );
+                        return const Center(child: CircularProgressIndicator());
                       }
                       if (itemsSnapshot.hasError) {
                         return const Center(
@@ -231,7 +229,8 @@ class ProfileScreen extends StatelessWidget {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       IconButton(
-                                        onPressed: () => shareItem(context, item),
+                                        onPressed: () =>
+                                            shareItem(context, item),
                                         icon: const Icon(Icons.share),
                                         tooltip: "Share",
                                       ),
@@ -266,22 +265,43 @@ class ProfileScreen extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        FutureBuilder<bool>(
+                          future: supportUiFuture,
+                          builder: (context, snapshot) {
+                            if (snapshot.data != true) {
+                              return const SizedBox.shrink();
+                            }
+                            return Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ListTile(
+                                  title: const Text("About & support"),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            const AboutSupportScreen(),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                const Divider(height: 1),
+                              ],
+                            );
+                          },
+                        ),
                         ListTile(
                           title: const Text("Privacy policy"),
                           trailing: const Icon(Icons.chevron_right),
-                          onTap: () => _openUrl(
-                            context,
-                            AppConfig.privacyPolicyUrl,
-                          ),
+                          onTap: () =>
+                              _openUrl(context, AppConfig.privacyPolicyUrl),
                         ),
                         const Divider(height: 1),
                         ListTile(
                           title: const Text("Terms of service"),
                           trailing: const Icon(Icons.chevron_right),
-                          onTap: () => _openUrl(
-                            context,
-                            AppConfig.termsUrl,
-                          ),
+                          onTap: () => _openUrl(context, AppConfig.termsUrl),
                         ),
                         const Divider(height: 1),
                         ListTile(

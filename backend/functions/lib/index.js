@@ -18,18 +18,141 @@ const paymentCallable = functions.region(PAYMENTS_REGION).runWith({
     timeoutSeconds: 60
 });
 const LONDON_TIME_ZONE = "Europe/London";
-const FREE_ACTIVE_ITEMS_LIMIT = 3;
-const FREE_WEEKLY_CONTACTS_LIMIT = 10;
-const SUPPORTER_ACTIVE_ITEMS_LIMIT = 200;
-const SUPPORTER_WEEKLY_CONTACTS_LIMIT = 250;
+const MONETIZATION_RUNTIME_CONFIG_PATH = "runtimeConfig/monetization";
+const MONETIZATION_CONFIG_CACHE_TTL_MS = 60 * 1000;
+const DEFAULT_FREE_ACTIVE_ITEMS_LIMIT = 3;
+const DEFAULT_FREE_WEEKLY_CONTACTS_LIMIT = 10;
+const DEFAULT_SUPPORTER_ACTIVE_ITEMS_LIMIT = 200;
+const DEFAULT_SUPPORTER_WEEKLY_CONTACTS_LIMIT = 250;
+const DEFAULT_WEEK_START_ISO_DAY = 1;
 const CHAT_STATUSES = {
     open: "open",
     closedByOwner: "closed_by_owner",
     archivedUnavailable: "archived_item_unavailable",
     blocked: "blocked"
 };
+let monetizationConfigCache = null;
 function isObject(value) {
     return typeof value === "object" && value !== null;
+}
+function defaultMonetizationRuntimeConfig() {
+    return {
+        flags: {
+            monetizationEnabled: false,
+            supportUiEnabled: false,
+            checkoutEnabled: false,
+            enforcePublishLimit: false,
+            enforceContactLimit: false
+        },
+        thresholds: {
+            free: {
+                publishLimit: DEFAULT_FREE_ACTIVE_ITEMS_LIMIT,
+                contactLimit: DEFAULT_FREE_WEEKLY_CONTACTS_LIMIT
+            },
+            supporter: {
+                publishLimit: DEFAULT_SUPPORTER_ACTIVE_ITEMS_LIMIT,
+                contactLimit: DEFAULT_SUPPORTER_WEEKLY_CONTACTS_LIMIT
+            }
+        },
+        window: {
+            timeZone: LONDON_TIME_ZONE,
+            weekStartIsoDay: DEFAULT_WEEK_START_ISO_DAY
+        }
+    };
+}
+function asBoolean(value, fallback) {
+    return typeof value === "boolean" ? value : fallback;
+}
+function asIntInRange(value, fallback, min, max) {
+    if (typeof value === "number" && Number.isInteger(value) && value >= min && value <= max) {
+        return value;
+    }
+    return fallback;
+}
+function isValidTimeZone(timeZone) {
+    try {
+        new Intl.DateTimeFormat("en-GB", { timeZone }).format(new Date());
+        return true;
+    }
+    catch (_) {
+        return false;
+    }
+}
+function parseMonetizationRuntimeConfig(data) {
+    const defaults = defaultMonetizationRuntimeConfig();
+    if (!isObject(data)) {
+        return defaults;
+    }
+    const flagsRaw = isObject(data.flags) ? data.flags : {};
+    const thresholdsRaw = isObject(data.thresholds) ? data.thresholds : {};
+    const freeRaw = isObject(thresholdsRaw.free) ? thresholdsRaw.free : {};
+    const supporterRaw = isObject(thresholdsRaw.supporter) ? thresholdsRaw.supporter : {};
+    const windowRaw = isObject(data.window) ? data.window : {};
+    const timeZoneCandidate = configValue(windowRaw.timeZone) ?? defaults.window.timeZone;
+    const timeZone = isValidTimeZone(timeZoneCandidate)
+        ? timeZoneCandidate
+        : defaults.window.timeZone;
+    return {
+        flags: {
+            monetizationEnabled: asBoolean(flagsRaw.monetizationEnabled, defaults.flags.monetizationEnabled),
+            supportUiEnabled: asBoolean(flagsRaw.supportUiEnabled, defaults.flags.supportUiEnabled),
+            checkoutEnabled: asBoolean(flagsRaw.checkoutEnabled, defaults.flags.checkoutEnabled),
+            enforcePublishLimit: asBoolean(flagsRaw.enforcePublishLimit, defaults.flags.enforcePublishLimit),
+            enforceContactLimit: asBoolean(flagsRaw.enforceContactLimit, defaults.flags.enforceContactLimit)
+        },
+        thresholds: {
+            free: {
+                publishLimit: asIntInRange(freeRaw.publishLimit, defaults.thresholds.free.publishLimit, 1, 5000),
+                contactLimit: asIntInRange(freeRaw.contactLimit, defaults.thresholds.free.contactLimit, 1, 5000)
+            },
+            supporter: {
+                publishLimit: asIntInRange(supporterRaw.publishLimit, defaults.thresholds.supporter.publishLimit, 1, 5000),
+                contactLimit: asIntInRange(supporterRaw.contactLimit, defaults.thresholds.supporter.contactLimit, 1, 5000)
+            }
+        },
+        window: {
+            timeZone,
+            weekStartIsoDay: asIntInRange(windowRaw.weekStartIsoDay, defaults.window.weekStartIsoDay, 1, 7)
+        }
+    };
+}
+async function getMonetizationRuntimeConfig() {
+    const nowMs = Date.now();
+    const disableCache = process.env.RELOVED_DISABLE_CONFIG_CACHE === "true";
+    if (!disableCache &&
+        monetizationConfigCache &&
+        nowMs - monetizationConfigCache.loadedAtMs < MONETIZATION_CONFIG_CACHE_TTL_MS) {
+        return monetizationConfigCache.value;
+    }
+    try {
+        const snapshot = await db.doc(MONETIZATION_RUNTIME_CONFIG_PATH).get();
+        const parsed = parseMonetizationRuntimeConfig(snapshot.exists ? snapshot.data() : {});
+        if (!disableCache) {
+            monetizationConfigCache = { value: parsed, loadedAtMs: nowMs };
+        }
+        return parsed;
+    }
+    catch (error) {
+        const fallback = defaultMonetizationRuntimeConfig();
+        functions.logger.error("monetization runtime config load failed", {
+            message: error instanceof Error ? error.message : String(error)
+        });
+        if (!disableCache) {
+            monetizationConfigCache = { value: fallback, loadedAtMs: nowMs };
+        }
+        return fallback;
+    }
+}
+function effectiveMonetizationFeaturesFromConfig(runtimeConfig) {
+    const flags = runtimeConfig.flags;
+    const monetizationEnabled = flags.monetizationEnabled;
+    return {
+        monetizationEnabled,
+        supportUiEnabled: monetizationEnabled && flags.supportUiEnabled,
+        checkoutEnabled: monetizationEnabled && flags.checkoutEnabled,
+        enforcePublishLimit: monetizationEnabled && flags.enforcePublishLimit,
+        enforceContactLimit: monetizationEnabled && flags.enforceContactLimit
+    };
 }
 function requireAuth(context) {
     const uid = context.auth?.uid;
@@ -319,9 +442,9 @@ function supportStatusValue(value) {
 function nowTimestamp() {
     return new Date();
 }
-function weekKeyForLondon(date = new Date()) {
+function weekKeyForWindow(date, windowConfig) {
     const parts = new Intl.DateTimeFormat("en-CA", {
-        timeZone: LONDON_TIME_ZONE,
+        timeZone: windowConfig.timeZone,
         year: "numeric",
         month: "2-digit",
         day: "2-digit"
@@ -334,23 +457,24 @@ function weekKeyForLondon(date = new Date()) {
     const month = Number(values.month);
     const day = Number(values.day);
     const asUtcDate = new Date(Date.UTC(year, month - 1, day));
-    const mondayBasedDay = (asUtcDate.getUTCDay() + 6) % 7;
-    const mondayUtc = new Date(asUtcDate.getTime() - mondayBasedDay * 24 * 60 * 60 * 1000);
-    return mondayUtc.toISOString().slice(0, 10);
+    const weekStartSundayBased = windowConfig.weekStartIsoDay % 7;
+    const daysSinceWeekStart = (asUtcDate.getUTCDay() - weekStartSundayBased + 7) % 7;
+    const weekStartUtc = new Date(asUtcDate.getTime() - daysSinceWeekStart * 24 * 60 * 60 * 1000);
+    return weekStartUtc.toISOString().slice(0, 10);
 }
 function contactEventId(uid, weekKey, itemId) {
     return `${uid}_${weekKey}_${itemId}`;
 }
-function contactLimitsForTier(tier) {
+function contactLimitsForTier(tier, runtimeConfig) {
     if (tier === "supporter_monthly") {
         return {
-            publishLimit: SUPPORTER_ACTIVE_ITEMS_LIMIT,
-            contactLimit: SUPPORTER_WEEKLY_CONTACTS_LIMIT
+            publishLimit: runtimeConfig.thresholds.supporter.publishLimit,
+            contactLimit: runtimeConfig.thresholds.supporter.contactLimit
         };
     }
     return {
-        publishLimit: FREE_ACTIVE_ITEMS_LIMIT,
-        contactLimit: FREE_WEEKLY_CONTACTS_LIMIT
+        publishLimit: runtimeConfig.thresholds.free.publishLimit,
+        contactLimit: runtimeConfig.thresholds.free.contactLimit
     };
 }
 function hasMonthlyEntitlement(supportStatus, supportPeriodEndMs, nowMs) {
@@ -378,8 +502,8 @@ async function findUidByStripeCustomerId(customerId) {
     }
     return snapshot.docs[0].id;
 }
-async function registerUniqueWeeklyContact(tx, uid, itemId, source, now) {
-    const weekKey = weekKeyForLondon(now);
+async function registerUniqueWeeklyContact(tx, uid, itemId, source, now, windowConfig) {
+    const weekKey = weekKeyForWindow(now, windowConfig);
     const eventRef = db.collection("usageContactEvents").doc(contactEventId(uid, weekKey, itemId));
     const eventSnap = await tx.get(eventRef);
     const counterRef = db.collection("usageCounters").doc(uid);
@@ -570,6 +694,8 @@ function toEpochMsFromStripe(value) {
 }
 exports.getMonetizationStatus = paymentCallable.https.onCall(async (_data, context) => {
     const uid = requireAuth(context);
+    const runtimeConfig = await getMonetizationRuntimeConfig();
+    const features = effectiveMonetizationFeaturesFromConfig(runtimeConfig);
     const [profileSnap, usageSnap, activeItems] = await Promise.all([
         db.collection("monetizationProfiles").doc(uid).get(),
         db.collection("usageCounters").doc(uid).get(),
@@ -583,13 +709,17 @@ exports.getMonetizationStatus = paymentCallable.https.onCall(async (_data, conte
         ? "supporter_monthly"
         : supportTierValue(profile.supportTier);
     const usage = (usageSnap.data() || {});
-    const currentWeekKey = weekKeyForLondon();
+    const currentWeekKey = weekKeyForWindow(new Date(), runtimeConfig.window);
     const weeklyUniqueContacts = usage.currentWeekKey === currentWeekKey && typeof usage.weeklyUniqueContacts === "number"
         ? usage.weeklyUniqueContacts
         : 0;
-    const { publishLimit, contactLimit } = contactLimitsForTier(supportTier);
-    const canPublish = activeItems < publishLimit;
-    const canContact = weeklyUniqueContacts < contactLimit;
+    const { publishLimit, contactLimit } = contactLimitsForTier(supportTier, runtimeConfig);
+    const canPublish = !features.enforcePublishLimit || activeItems < publishLimit;
+    const canContact = !features.enforceContactLimit || weeklyUniqueContacts < contactLimit;
+    const publishOverBy = features.enforcePublishLimit && !canPublish ? activeItems - publishLimit + 1 : 0;
+    const contactOverBy = features.enforceContactLimit && !canContact
+        ? weeklyUniqueContacts - contactLimit + 1
+        : 0;
     return {
         ok: true,
         supportTier,
@@ -601,13 +731,25 @@ exports.getMonetizationStatus = paymentCallable.https.onCall(async (_data, conte
         contactLimit,
         canPublish,
         canContact,
-        publishOverBy: canPublish ? 0 : activeItems - publishLimit + 1,
-        contactOverBy: canContact ? 0 : weeklyUniqueContacts - contactLimit + 1,
-        currentWeekKey
+        publishOverBy,
+        contactOverBy,
+        currentWeekKey,
+        features,
+        effectiveLimits: {
+            publishLimit,
+            contactLimit,
+            timeZone: runtimeConfig.window.timeZone,
+            weekStartIsoDay: runtimeConfig.window.weekStartIsoDay
+        }
     };
 });
 exports.createSupportCheckoutSession = paymentCallable.https.onCall(async (data, context) => {
     const uid = requireAuth(context);
+    const runtimeConfig = await getMonetizationRuntimeConfig();
+    const features = effectiveMonetizationFeaturesFromConfig(runtimeConfig);
+    if (!features.checkoutEnabled) {
+        throw new functions.https.HttpsError("failed-precondition", "Support checkout is currently disabled");
+    }
     const payload = isObject(data) ? data : {};
     const planType = requirePlanType(payload.planType);
     const source = requireNonEmptyString(payload.source, "source", 1, 80);
@@ -637,6 +779,11 @@ exports.createSupportCheckoutSession = paymentCallable.https.onCall(async (data,
 });
 exports.createBillingPortalSession = paymentCallable.https.onCall(async (data, context) => {
     const uid = requireAuth(context);
+    const runtimeConfig = await getMonetizationRuntimeConfig();
+    const features = effectiveMonetizationFeaturesFromConfig(runtimeConfig);
+    if (!features.checkoutEnabled) {
+        throw new functions.https.HttpsError("failed-precondition", "Support checkout is currently disabled");
+    }
     const payload = isObject(data) ? data : {};
     const returnUrl = requireUrl(payload.returnUrl, "returnUrl");
     const billingSnap = await db.collection("billingCustomers").doc(uid).get();
@@ -875,8 +1022,9 @@ exports.sendContactEmail = functions.https.onCall(async (data, context) => {
         if (sent) {
             try {
                 const now = nowTimestamp();
+                const runtimeConfig = await getMonetizationRuntimeConfig();
                 await db.runTransaction(async (tx) => {
-                    await registerUniqueWeeklyContact(tx, senderId, itemId, "email", now);
+                    await registerUniqueWeeklyContact(tx, senderId, itemId, "email", now, runtimeConfig.window);
                 });
             }
             catch (error) {
@@ -986,8 +1134,9 @@ exports.upsertItemConversation = chatCallable.https.onCall(async (data, context)
     });
     try {
         const now = nowTimestamp();
+        const runtimeConfig = await getMonetizationRuntimeConfig();
         await db.runTransaction(async (tx) => {
-            await registerUniqueWeeklyContact(tx, interestedUserId, itemId, "chat", now);
+            await registerUniqueWeeklyContact(tx, interestedUserId, itemId, "chat", now, runtimeConfig.window);
         });
     }
     catch (error) {

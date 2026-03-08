@@ -3,6 +3,8 @@ const assert = require("node:assert/strict");
 const admin = require("firebase-admin");
 const functionsTest = require("firebase-functions-test")();
 
+process.env.RELOVED_DISABLE_CONFIG_CACHE = "true";
+
 functionsTest.mockConfig({
   sendgrid: {
     key: "SG.fake",
@@ -19,7 +21,9 @@ const {
   blockConversationParticipant,
   reportConversation,
   markConversationRead,
-  getMonetizationStatus
+  getMonetizationStatus,
+  createSupportCheckoutSession,
+  createBillingPortalSession
 } = require("../lib/index");
 
 const projectId = "reloved-test";
@@ -54,10 +58,10 @@ const clearFirestore = async () => {
   }
 };
 
-const londonWeekKey = () => {
+const weekKeyFor = (timeZone = "Europe/London", weekStartIsoDay = 1) => {
   const now = new Date();
   const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/London",
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit"
@@ -67,10 +71,13 @@ const londonWeekKey = () => {
     values[part.type] = part.value;
   }
   const d = new Date(Date.UTC(Number(values.year), Number(values.month) - 1, Number(values.day)));
-  const mondayBasedDay = (d.getUTCDay() + 6) % 7;
-  const monday = new Date(d.getTime() - mondayBasedDay * 24 * 60 * 60 * 1000);
-  return monday.toISOString().slice(0, 10);
+  const weekStartSundayBased = weekStartIsoDay % 7;
+  const daysSinceWeekStart = (d.getUTCDay() - weekStartSundayBased + 7) % 7;
+  const weekStart = new Date(d.getTime() - daysSinceWeekStart * 24 * 60 * 60 * 1000);
+  return weekStart.toISOString().slice(0, 10);
 };
+
+const londonWeekKey = () => weekKeyFor("Europe/London", 1);
 
 const seedOwnerAndItem = async ({
   ownerId = "owner",
@@ -101,6 +108,51 @@ const seedOwnerAndItem = async ({
       approxAreaText: "Centro"
     }
   });
+};
+
+const setRuntimeMonetizationConfig = async (overrides = {}) => {
+  const base = {
+    flags: {
+      monetizationEnabled: false,
+      supportUiEnabled: false,
+      checkoutEnabled: false,
+      enforcePublishLimit: false,
+      enforceContactLimit: false
+    },
+    thresholds: {
+      free: {
+        publishLimit: 3,
+        contactLimit: 10
+      },
+      supporter: {
+        publishLimit: 200,
+        contactLimit: 250
+      }
+    },
+    window: {
+      timeZone: "Europe/London",
+      weekStartIsoDay: 1
+    }
+  };
+  const merged = {
+    ...base,
+    ...overrides,
+    flags: { ...base.flags, ...(overrides.flags || {}) },
+    thresholds: {
+      ...base.thresholds,
+      ...(overrides.thresholds || {}),
+      free: {
+        ...base.thresholds.free,
+        ...((overrides.thresholds && overrides.thresholds.free) || {})
+      },
+      supporter: {
+        ...base.thresholds.supporter,
+        ...((overrides.thresholds && overrides.thresholds.supporter) || {})
+      }
+    },
+    window: { ...base.window, ...(overrides.window || {}) }
+  };
+  await db.doc("runtimeConfig/monetization").set(merged);
 };
 
 test.after(async () => {
@@ -265,6 +317,15 @@ test("email contact blocked when item is chat-only", async () => {
 test("monetization status: free user over publish and contact limits", async () => {
   ensureAdmin();
   await clearFirestore();
+  await setRuntimeMonetizationConfig({
+    flags: {
+      monetizationEnabled: true,
+      supportUiEnabled: true,
+      checkoutEnabled: false,
+      enforcePublishLimit: true,
+      enforceContactLimit: true
+    }
+  });
 
   await db.collection("users").doc("u-free").set({
     displayName: "Free User",
@@ -322,4 +383,235 @@ test("monetization status: free user over publish and contact limits", async () 
   assert.equal(result.supportTier, "free");
   assert.equal(result.canPublish, false);
   assert.equal(result.canContact, false);
+  assert.equal(result.features.monetizationEnabled, true);
+  assert.equal(result.features.enforcePublishLimit, true);
+  assert.equal(result.features.enforceContactLimit, true);
+});
+
+test("monetization status: defaults fail-open when runtime config missing", async () => {
+  ensureAdmin();
+  await clearFirestore();
+
+  await db.collection("users").doc("u-default").set({
+    displayName: "Default User",
+    email: "u-default@example.com",
+    createdAt: new Date(),
+    ratingAvg: 0,
+    ratingCount: 0
+  });
+
+  await Promise.all([
+    db.collection("items").doc("d1").set({
+      ownerId: "u-default",
+      title: "D1",
+      description: "D1",
+      photoUrl: "https://example.com/d1.jpg",
+      photoPath: "itemPhotos/u-default/d1/photo.jpg",
+      createdAt: new Date(),
+      status: "available",
+      contactPreference: "both",
+      location: { lat: 0, lng: 0, geohash: "s00000010", approxAreaText: "D1" }
+    }),
+    db.collection("items").doc("d2").set({
+      ownerId: "u-default",
+      title: "D2",
+      description: "D2",
+      photoUrl: "https://example.com/d2.jpg",
+      photoPath: "itemPhotos/u-default/d2/photo.jpg",
+      createdAt: new Date(),
+      status: "available",
+      contactPreference: "both",
+      location: { lat: 0, lng: 0, geohash: "s00000011", approxAreaText: "D2" }
+    }),
+    db.collection("items").doc("d3").set({
+      ownerId: "u-default",
+      title: "D3",
+      description: "D3",
+      photoUrl: "https://example.com/d3.jpg",
+      photoPath: "itemPhotos/u-default/d3/photo.jpg",
+      createdAt: new Date(),
+      status: "reserved",
+      contactPreference: "both",
+      location: { lat: 0, lng: 0, geohash: "s00000012", approxAreaText: "D3" }
+    })
+  ]);
+
+  await db.collection("usageCounters").doc("u-default").set({
+    currentWeekKey: londonWeekKey(),
+    weeklyUniqueContacts: 25,
+    updatedAt: new Date()
+  });
+
+  const wrapped = functionsTest.wrap(getMonetizationStatus);
+  const result = await wrapped({}, authContext("u-default", "u-default@example.com"));
+  assert.equal(result.ok, true);
+  assert.equal(result.canPublish, true);
+  assert.equal(result.canContact, true);
+  assert.equal(result.publishOverBy, 0);
+  assert.equal(result.contactOverBy, 0);
+  assert.equal(result.features.monetizationEnabled, false);
+  assert.equal(result.features.enforcePublishLimit, false);
+  assert.equal(result.features.enforceContactLimit, false);
+});
+
+test("monetization status: invalid runtime config values fall back to defaults", async () => {
+  ensureAdmin();
+  await clearFirestore();
+  await db.doc("runtimeConfig/monetization").set({
+    flags: {
+      monetizationEnabled: "yes",
+      enforcePublishLimit: "yes"
+    },
+    thresholds: {
+      free: {
+        publishLimit: "x",
+        contactLimit: -1
+      }
+    },
+    window: {
+      timeZone: "Mars/Olympus",
+      weekStartIsoDay: 99
+    }
+  });
+
+  await db.collection("users").doc("u-invalid").set({
+    displayName: "Invalid Config User",
+    email: "u-invalid@example.com",
+    createdAt: new Date(),
+    ratingAvg: 0,
+    ratingCount: 0
+  });
+
+  const wrapped = functionsTest.wrap(getMonetizationStatus);
+  const result = await wrapped({}, authContext("u-invalid", "u-invalid@example.com"));
+  assert.equal(result.ok, true);
+  assert.equal(result.features.monetizationEnabled, false);
+  assert.equal(result.features.enforcePublishLimit, false);
+  assert.equal(result.canPublish, true);
+  assert.equal(result.canContact, true);
+  assert.equal(result.effectiveLimits.timeZone, "Europe/London");
+  assert.equal(result.effectiveLimits.weekStartIsoDay, 1);
+});
+
+test("monetization status: custom thresholds applied when enforcement enabled", async () => {
+  ensureAdmin();
+  await clearFirestore();
+  await setRuntimeMonetizationConfig({
+    flags: {
+      monetizationEnabled: true,
+      supportUiEnabled: true,
+      checkoutEnabled: false,
+      enforcePublishLimit: true,
+      enforceContactLimit: true
+    },
+    thresholds: {
+      free: {
+        publishLimit: 1,
+        contactLimit: 2
+      }
+    },
+    window: {
+      timeZone: "Europe/Madrid",
+      weekStartIsoDay: 7
+    }
+  });
+
+  await db.collection("users").doc("u-custom").set({
+    displayName: "Custom User",
+    email: "u-custom@example.com",
+    createdAt: new Date(),
+    ratingAvg: 0,
+    ratingCount: 0
+  });
+
+  await Promise.all([
+    db.collection("items").doc("c1").set({
+      ownerId: "u-custom",
+      title: "C1",
+      description: "C1",
+      photoUrl: "https://example.com/c1.jpg",
+      photoPath: "itemPhotos/u-custom/c1/photo.jpg",
+      createdAt: new Date(),
+      status: "available",
+      contactPreference: "both",
+      location: { lat: 0, lng: 0, geohash: "s00000020", approxAreaText: "C1" }
+    }),
+    db.collection("items").doc("c2").set({
+      ownerId: "u-custom",
+      title: "C2",
+      description: "C2",
+      photoUrl: "https://example.com/c2.jpg",
+      photoPath: "itemPhotos/u-custom/c2/photo.jpg",
+      createdAt: new Date(),
+      status: "available",
+      contactPreference: "both",
+      location: { lat: 0, lng: 0, geohash: "s00000021", approxAreaText: "C2" }
+    })
+  ]);
+
+  await db.collection("usageCounters").doc("u-custom").set({
+    currentWeekKey: weekKeyFor("Europe/Madrid", 7),
+    weeklyUniqueContacts: 3,
+    updatedAt: new Date()
+  });
+
+  const wrapped = functionsTest.wrap(getMonetizationStatus);
+  const result = await wrapped({}, authContext("u-custom", "u-custom@example.com"));
+  assert.equal(result.ok, true);
+  assert.equal(result.publishLimit, 1);
+  assert.equal(result.contactLimit, 2);
+  assert.equal(result.canPublish, false);
+  assert.equal(result.canContact, false);
+  assert.equal(result.effectiveLimits.timeZone, "Europe/Madrid");
+  assert.equal(result.effectiveLimits.weekStartIsoDay, 7);
+  assert.equal(result.currentWeekKey, weekKeyFor("Europe/Madrid", 7));
+});
+
+test("checkout callables rejected when checkout flag disabled", async () => {
+  ensureAdmin();
+  await clearFirestore();
+  await setRuntimeMonetizationConfig({
+    flags: {
+      monetizationEnabled: true,
+      supportUiEnabled: true,
+      checkoutEnabled: false,
+      enforcePublishLimit: true,
+      enforceContactLimit: true
+    }
+  });
+
+  const checkoutWrapped = functionsTest.wrap(createSupportCheckoutSession);
+  const portalWrapped = functionsTest.wrap(createBillingPortalSession);
+  const context = authContext("u-checkout", "u-checkout@example.com");
+
+  await assert.rejects(
+    () =>
+      checkoutWrapped(
+        {
+          planType: "one_off",
+          source: "test",
+          successUrl: "https://example.com/success",
+          cancelUrl: "https://example.com/cancel"
+        },
+        context
+      ),
+    (error) => {
+      assert.equal(error.code, "failed-precondition");
+      return true;
+    }
+  );
+
+  await assert.rejects(
+    () =>
+      portalWrapped(
+        {
+          returnUrl: "https://example.com/return"
+        },
+        context
+      ),
+    (error) => {
+      assert.equal(error.code, "failed-precondition");
+      return true;
+    }
+  );
 });

@@ -18,6 +18,16 @@
 - 2026-03-02: Account linking policy adopted to enforce one account per email across providers.
 - 2026-03-02: Android social login deferred until Android OAuth/Firebase config is added.
 - 2026-03-03: Apple sign-in removed before first public TestFlight release; auth scope is email/password + Google.
+- 2026-03-04: Monetizacion opcional activada con Stripe:
+  - donacion puntual GBP 3
+  - suscripcion mensual GBP 4.99
+  - soft paywall en publish/contact con opcion de continuar gratis
+- 2026-03-04: Limites base free definidos:
+  - max 3 items activos
+  - max 10 nuevos items contactados por semana (Europe/London)
+- 2026-03-04: Plan mensual tratado como "ilimitado" comercial con fair use tecnico:
+  - 200 items activos
+  - 250 nuevos contactos/semana
 
 ## Risks
 - Email deliverability depends on SendGrid domain verification.
@@ -33,6 +43,9 @@
   - missing provider enablement in Firebase causes runtime `operation-not-allowed`.
 - Account linking UX risk:
   - users with existing password accounts need an additional password step when linking social providers.
+- Riesgo App Review iOS por interpretacion de pagos digitales y enlaces externos.
+- Riesgo de desincronizacion de webhooks Stripe (estado de suscripcion desactualizado).
+- Riesgo de friccion en usuarios activos por limites soft mal calibrados.
 
 ## Open questions
 - Do we need a staging Firebase project?
