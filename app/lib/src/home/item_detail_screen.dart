@@ -9,6 +9,7 @@ import "../chat/chat_service.dart";
 import "../models/item.dart";
 import "../models/monetization.dart";
 import "../monetization/monetization_service.dart";
+import "../testing/chat_open_perf_probe.dart";
 import "../testing/test_keys.dart";
 import "../utils/share_utils.dart";
 import "../widgets/item_image.dart";
@@ -188,14 +189,22 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
   Future<void> _openChat(Item item) async {
     final tapStartedAtEpochMs = DateTime.now().millisecondsSinceEpoch;
+    ChatOpenPerfProbe.reset();
+    ChatOpenPerfProbe.record({
+      "tap_started_at_epoch_ms": tapStartedAtEpochMs,
+      "item_id": item.id,
+    });
     final user = await _ensureSignedIn();
     if (user == null || !mounted) {
+      ChatOpenPerfProbe.record({"open_chat_aborted": "user_missing"});
       return;
     }
+    ChatOpenPerfProbe.record({"user_id": user.uid});
     final canProceed = await _checkContactSoftLimit(
       skipNetworkOnCacheMiss: true,
     );
     if (!canProceed || !mounted) {
+      ChatOpenPerfProbe.record({"open_chat_aborted": "soft_limit_block"});
       return;
     }
 
@@ -332,6 +341,12 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           },
         ),
       );
+      ChatOpenPerfProbe.record({
+        "contact_soft_limit_source": statusSource,
+        "contact_soft_limit_duration_ms": stopwatch.elapsedMilliseconds,
+        "contact_soft_limit_enforcement_active": enforcementActive,
+        "contact_soft_limit_allowed": allowed,
+      });
     }
   }
 

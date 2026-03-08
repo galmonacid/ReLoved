@@ -1,6 +1,7 @@
 // ignore_for_file: avoid_print
 
 import "package:app/src/home/item_detail_screen.dart";
+import "package:app/src/testing/chat_open_perf_probe.dart";
 import "package:app/src/testing/test_keys.dart";
 import "package:flutter/material.dart";
 import "package:flutter_test/flutter_test.dart";
@@ -19,44 +20,82 @@ void main() {
       "E2E_CHAT_OPEN_BUDGET_MS",
       defaultValue: 2500,
     );
+    binding.reportData = <String, dynamic>{
+      "chat_open_perf_step": "reset_fixture",
+    };
+
     const control = E2EControlClient();
-    await control.reset();
-    final fixture = await control.seedChatBase();
+    final stopwatch = Stopwatch();
+    TestRobot? robot;
+    String? itemId;
+    try {
+      await control.reset();
+      final fixture = await control.seedChatBase();
+      itemId = fixture.item.id;
 
-    await ensureFirebaseTestInitialized();
-    final robot = TestRobot(tester);
-    await robot.signInProgrammatically(
-      email: fixture.interested.email,
-      password: fixture.interested.password,
-      waitForSignedInShell: false,
-    );
+      binding.reportData!["chat_open_perf_step"] = "bootstrap_app";
+      await ensureFirebaseTestInitialized();
+      robot = TestRobot(tester);
+      await robot.signInProgrammatically(
+        email: fixture.interested.email,
+        password: fixture.interested.password,
+        waitForSignedInShell: false,
+      );
 
-    await pumpTestApp(tester, ItemDetailScreen(itemId: fixture.item.id));
-    await robot.waitFor(
-      find.byKey(const ValueKey(TestKeys.itemOpenChatButton)).hitTestable(),
-    );
+      binding.reportData!["chat_open_perf_step"] = "open_item_detail";
+      await pumpTestApp(tester, ItemDetailScreen(itemId: fixture.item.id));
+      await robot.waitFor(
+        find.byKey(const ValueKey(TestKeys.itemOpenChatButton)).hitTestable(),
+      );
 
-    final stopwatch = Stopwatch()..start();
-    await robot.pressByKey(TestKeys.itemOpenChatButton);
-    await robot.waitFor(
-      find.byKey(const ValueKey(TestKeys.chatMessageField)).hitTestable(),
-      timeout: const Duration(seconds: 20),
-    );
-    stopwatch.stop();
+      binding.reportData!["chat_open_perf_step"] = "tap_open_chat";
+      stopwatch.start();
+      await robot.pressByKey(TestKeys.itemOpenChatButton);
+      await robot.waitFor(
+        find.byKey(const ValueKey(TestKeys.chatMessageField)).hitTestable(),
+        timeout: const Duration(seconds: 30),
+      );
+      stopwatch.stop();
 
-    final elapsedMs = stopwatch.elapsedMilliseconds;
-    print("CHAT_OPEN_PERF_E2E elapsed_ms=$elapsedMs budget_ms=$budgetMs");
-    final reportData = binding.reportData ??= <String, dynamic>{};
-    reportData["chat_open_perf_elapsed_ms"] = elapsedMs;
-    reportData["chat_open_perf_budget_ms"] = budgetMs;
-    reportData["chat_open_perf_item_id"] = fixture.item.id;
+      final elapsedMs = stopwatch.elapsedMilliseconds;
+      print("CHAT_OPEN_PERF_E2E elapsed_ms=$elapsedMs budget_ms=$budgetMs");
+      final reportData = binding.reportData ??= <String, dynamic>{};
+      reportData["chat_open_perf_elapsed_ms"] = elapsedMs;
+      reportData["chat_open_perf_budget_ms"] = budgetMs;
+      reportData["chat_open_perf_item_id"] = fixture.item.id;
+      reportData["chat_open_perf_step"] = "done";
+      final probe = ChatOpenPerfProbe.snapshot();
+      probe.forEach((key, value) {
+        reportData["chat_open_probe_$key"] = value;
+      });
 
-    expect(
-      elapsedMs,
-      lessThanOrEqualTo(budgetMs),
-      reason:
-          "Open chat exceeded budget: ${elapsedMs}ms > ${budgetMs}ms. "
-          "Check logs for CHAT_OPEN_PERF phase breakdown.",
-    );
+      expect(
+        elapsedMs,
+        lessThanOrEqualTo(budgetMs),
+        reason:
+            "Open chat exceeded budget: ${elapsedMs}ms > ${budgetMs}ms. "
+            "Check logs for CHAT_OPEN_PERF phase breakdown.",
+      );
+    } catch (error, stack) {
+      if (stopwatch.isRunning) {
+        stopwatch.stop();
+      }
+      final reportData = binding.reportData ??= <String, dynamic>{};
+      reportData["chat_open_perf_step"] = "failed";
+      reportData["chat_open_perf_elapsed_ms"] = stopwatch.elapsedMilliseconds;
+      reportData["chat_open_perf_budget_ms"] = budgetMs;
+      reportData["chat_open_perf_item_id"] = itemId ?? "unknown";
+      reportData["chat_open_perf_error"] = error.toString();
+      reportData["chat_open_perf_stack"] = stack.toString();
+      final probe = ChatOpenPerfProbe.snapshot();
+      probe.forEach((key, value) {
+        reportData["chat_open_probe_$key"] = value;
+      });
+      if (robot != null) {
+        reportData["chat_open_perf_visible_texts"] = robot.visibleTexts();
+        reportData["chat_open_perf_visible_keys"] = robot.visibleKeys();
+      }
+      rethrow;
+    }
   });
 }

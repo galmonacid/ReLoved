@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.purgeOldChatData = exports.archiveConversationsForUnavailableItems = exports.anonymizeUserChatData = exports.setItemContactPreference = exports.reportConversation = exports.blockConversationParticipant = exports.reopenConversationByDonor = exports.closeConversationByDonor = exports.markConversationRead = exports.sendChatMessage = exports.upsertItemConversation = exports.sendContactEmail = exports.stripeWebhook = exports.createBillingPortalSession = exports.createSupportCheckoutSession = exports.getMonetizationStatus = void 0;
+exports.purgeOldChatData = exports.archiveConversationsForUnavailableItems = exports.anonymizeUserChatData = exports.setItemContactPreference = exports.reportConversation = exports.blockConversationParticipant = exports.reopenConversationByDonor = exports.closeConversationByDonor = exports.markConversationRead = exports.sendChatMessage = exports.onConversationCreatedTrackChatUsage = exports.upsertItemConversation = exports.sendContactEmail = exports.stripeWebhook = exports.createBillingPortalSession = exports.createSupportCheckoutSession = exports.getMonetizationStatus = void 0;
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const sgMail = require("@sendgrid/mail");
@@ -539,6 +539,13 @@ async function registerUniqueWeeklyContact(tx, uid, itemId, source, now, windowC
         }, { merge: true });
     }
     return { incremented: false, weeklyUniqueContacts };
+}
+async function registerChatContactUsage(params) {
+    const now = nowTimestamp();
+    const runtimeConfig = await getMonetizationRuntimeConfig();
+    await db.runTransaction(async (tx) => {
+        await registerUniqueWeeklyContact(tx, params.interestedUserId, params.itemId, "chat", now, runtimeConfig.window);
+    });
 }
 async function applySupportStateForUser(params) {
     const nowMs = Date.now();
@@ -1132,11 +1139,29 @@ exports.upsertItemConversation = chatCallable.https.onCall(async (data, context)
         interestedUserId,
         created
     });
+    return { ok: true, conversationId, created };
+});
+exports.onConversationCreatedTrackChatUsage = functions
+    .region(CHAT_FUNCTION_REGION)
+    .firestore.document("conversations/{conversationId}")
+    .onCreate(async (snapshot, _context) => {
+    const conversation = (snapshot.data() || {});
+    const interestedUserId = typeof conversation.interestedUserId === "string" ? conversation.interestedUserId : "";
+    const itemId = typeof conversation.itemId === "string" ? conversation.itemId : "";
+    const conversationId = snapshot.id;
+    if (!interestedUserId || !itemId) {
+        functions.logger.warn("chat usage counter skipped for invalid conversation payload", {
+            conversationId,
+            interestedUserId,
+            itemId
+        });
+        return;
+    }
     try {
-        const now = nowTimestamp();
-        const runtimeConfig = await getMonetizationRuntimeConfig();
-        await db.runTransaction(async (tx) => {
-            await registerUniqueWeeklyContact(tx, interestedUserId, itemId, "chat", now, runtimeConfig.window);
+        await registerChatContactUsage({
+            interestedUserId,
+            itemId,
+            conversationId
         });
     }
     catch (error) {
@@ -1147,7 +1172,6 @@ exports.upsertItemConversation = chatCallable.https.onCall(async (data, context)
             message: error instanceof Error ? error.message : "unknown"
         });
     }
-    return { ok: true, conversationId, created };
 });
 exports.sendChatMessage = chatCallable.https.onCall(async (data, context) => {
     const senderId = requireAuth(context);

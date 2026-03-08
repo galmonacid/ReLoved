@@ -15,6 +15,7 @@ const projectId =
   "demo-reloved-e2e";
 process.env.GCLOUD_PROJECT = projectId;
 
+const useEmulators = process.env.E2E_CONTROL_USE_EMULATORS !== "0";
 const firestoreHost =
   process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080";
 const authHost = process.env.FIREBASE_AUTH_EMULATOR_HOST || "127.0.0.1:9099";
@@ -128,6 +129,94 @@ async function resetEmulatorState() {
 
   await ensureResponseOk(await fetch(firestoreUrl, { method: "DELETE" }));
   await ensureResponseOk(await fetch(authUrl, { method: "DELETE" }));
+}
+
+function startsWithAny(value, prefixes) {
+  return prefixes.some((prefix) => value.startsWith(prefix));
+}
+
+async function deleteCollectionDocsByIdPrefixes(collectionName, prefixes) {
+  const snapshot = await db.collection(collectionName).get();
+  const refs = snapshot.docs
+    .filter((doc) => startsWithAny(doc.id, prefixes))
+    .map((doc) => doc.ref);
+  if (refs.length === 0) {
+    return 0;
+  }
+
+  for (let index = 0; index < refs.length; index += 400) {
+    const batch = db.batch();
+    for (const ref of refs.slice(index, index + 400)) {
+      batch.delete(ref);
+    }
+    await batch.commit();
+  }
+  return refs.length;
+}
+
+async function deleteConversationMessages(conversationRef) {
+  const messageRefs = await conversationRef.collection("messages").listDocuments();
+  if (messageRefs.length === 0) {
+    return 0;
+  }
+  for (let index = 0; index < messageRefs.length; index += 400) {
+    const batch = db.batch();
+    for (const ref of messageRefs.slice(index, index + 400)) {
+      batch.delete(ref);
+    }
+    await batch.commit();
+  }
+  return messageRefs.length;
+}
+
+async function resetRemoteFixtureState() {
+  const userIds = ["owner-e2e", "interested-e2e"];
+  const itemPrefixes = ["item-chat-e2e", "item-search-e2e"];
+  const conversationPrefixes = itemPrefixes;
+
+  const conversationSnapshot = await db.collection("conversations").get();
+  const conversationDocs = conversationSnapshot.docs.filter((doc) =>
+    startsWithAny(doc.id, conversationPrefixes),
+  );
+
+  for (const conversationDoc of conversationDocs) {
+    await deleteConversationMessages(conversationDoc.ref);
+  }
+
+  for (let index = 0; index < conversationDocs.length; index += 400) {
+    const batch = db.batch();
+    for (const doc of conversationDocs.slice(index, index + 400)) {
+      batch.delete(doc.ref);
+    }
+    await batch.commit();
+  }
+
+  await deleteCollectionDocsByIdPrefixes("items", itemPrefixes);
+  await deleteCollectionDocsByIdPrefixes("contactRequests", itemPrefixes);
+
+  const usageEventSnapshot = await db
+    .collection("usageContactEvents")
+    .where("uid", "in", userIds)
+    .get();
+  for (let index = 0; index < usageEventSnapshot.docs.length; index += 400) {
+    const batch = db.batch();
+    for (const doc of usageEventSnapshot.docs.slice(index, index + 400)) {
+      batch.delete(doc.ref);
+    }
+    await batch.commit();
+  }
+
+  const directUserCollections = [
+    "usageCounters",
+    "monetizationProfiles",
+    "chatRateLimits",
+    "billingCustomers",
+  ];
+  for (const collectionName of directUserCollections) {
+    for (const uid of userIds) {
+      await db.collection(collectionName).doc(uid).delete().catch(() => {});
+    }
+  }
 }
 
 async function ensureAuthUser(user) {
@@ -335,12 +424,16 @@ async function handleRoute(req, res) {
   }
 
   if (req.method === "GET" && url.pathname === "/health") {
-    jsonResponse(res, 200, { ok: true, projectId });
+    jsonResponse(res, 200, { ok: true, projectId, useEmulators });
     return;
   }
 
   if (req.method === "POST" && url.pathname === "/reset") {
-    await resetEmulatorState();
+    if (useEmulators) {
+      await resetEmulatorState();
+    } else {
+      await resetRemoteFixtureState();
+    }
     jsonResponse(res, 200, { ok: true });
     return;
   }

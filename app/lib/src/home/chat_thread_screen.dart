@@ -7,6 +7,7 @@ import "../analytics/app_analytics.dart";
 import "../chat/chat_service.dart";
 import "../models/chat_message.dart";
 import "../models/conversation.dart";
+import "../testing/chat_open_perf_probe.dart";
 import "../testing/test_keys.dart";
 import "../widgets/motion/pressable_scale.dart";
 
@@ -139,6 +140,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         resolution: resolution,
         tapToReadyMs: tapToReadyMs,
       );
+      ChatOpenPerfProbe.record(openPerfParams);
       _logOpenPerfToConsole(openPerfParams);
       if (!mounted) {
         return;
@@ -152,6 +154,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
         openPerfParams: openPerfParams,
       );
     } catch (error) {
+      ChatOpenPerfProbe.record({"resolve_error": error.toString()});
       if (!mounted) {
         return;
       }

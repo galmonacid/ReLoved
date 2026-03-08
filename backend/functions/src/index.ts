@@ -798,6 +798,25 @@ async function registerUniqueWeeklyContact(
   return { incremented: false, weeklyUniqueContacts };
 }
 
+async function registerChatContactUsage(params: {
+  interestedUserId: string;
+  itemId: string;
+  conversationId: string;
+}): Promise<void> {
+  const now = nowTimestamp();
+  const runtimeConfig = await getMonetizationRuntimeConfig();
+  await db.runTransaction(async (tx) => {
+    await registerUniqueWeeklyContact(
+      tx,
+      params.interestedUserId,
+      params.itemId,
+      "chat",
+      now,
+      runtimeConfig.window
+    );
+  });
+}
+
 async function applySupportStateForUser(params: {
   uid: string;
   supportStatus: SupportStatus;
@@ -1522,30 +1541,43 @@ export const upsertItemConversation = chatCallable.https.onCall(async (data, con
     created
   });
 
-  try {
-    const now = nowTimestamp();
-    const runtimeConfig = await getMonetizationRuntimeConfig();
-    await db.runTransaction(async (tx) => {
-      await registerUniqueWeeklyContact(
-        tx,
-        interestedUserId,
-        itemId,
-        "chat",
-        now,
-        runtimeConfig.window
-      );
-    });
-  } catch (error) {
-    functions.logger.error("chat usage counter update failed", {
-      interestedUserId,
-      itemId,
-      conversationId,
-      message: error instanceof Error ? error.message : "unknown"
-    });
-  }
-
   return { ok: true, conversationId, created };
 });
+
+export const onConversationCreatedTrackChatUsage = functions
+  .region(CHAT_FUNCTION_REGION)
+  .firestore.document("conversations/{conversationId}")
+  .onCreate(async (snapshot, _context) => {
+    const conversation = (snapshot.data() || {}) as ConversationRecord;
+    const interestedUserId =
+      typeof conversation.interestedUserId === "string" ? conversation.interestedUserId : "";
+    const itemId = typeof conversation.itemId === "string" ? conversation.itemId : "";
+    const conversationId = snapshot.id;
+
+    if (!interestedUserId || !itemId) {
+      functions.logger.warn("chat usage counter skipped for invalid conversation payload", {
+        conversationId,
+        interestedUserId,
+        itemId
+      });
+      return;
+    }
+
+    try {
+      await registerChatContactUsage({
+        interestedUserId,
+        itemId,
+        conversationId
+      });
+    } catch (error) {
+      functions.logger.error("chat usage counter update failed", {
+        interestedUserId,
+        itemId,
+        conversationId,
+        message: error instanceof Error ? error.message : "unknown"
+      });
+    }
+  });
 
 export const sendChatMessage = chatCallable.https.onCall(async (data, context) => {
   const senderId = requireAuth(context);

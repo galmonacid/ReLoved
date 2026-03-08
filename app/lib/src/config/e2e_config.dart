@@ -59,10 +59,17 @@ class E2EConfig {
     "E2E_FIXED_POSTCODE",
     defaultValue: "MK9 3QA",
   );
+  static const bool disableAnalyticsByDefine = bool.fromEnvironment(
+    "E2E_DISABLE_ANALYTICS",
+  );
+  static const bool disableFirebaseSideEffectsByDefine = bool.fromEnvironment(
+    "E2E_DISABLE_FIREBASE_SIDE_EFFECTS",
+  );
 
   static bool get hasControlServer => controlBaseUrl.trim().isNotEmpty;
-  static bool get disableAnalytics => enabled;
-  static bool get disableFirebaseSideEffects => enabled;
+  static bool get disableAnalytics => enabled || disableAnalyticsByDefine;
+  static bool get disableFirebaseSideEffects =>
+      enabled || disableFirebaseSideEffectsByDefine;
 
   static FirebaseOptions get firebaseOptions {
     if (!enabled || !kIsWeb) {
