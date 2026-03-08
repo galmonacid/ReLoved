@@ -60,6 +60,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       name: "view_item",
       parameters: {"itemId": widget.itemId},
     );
+    unawaited(MonetizationService.prefetchStatus());
   }
 
   Future<void> _updateStatus(String status) async {
@@ -186,11 +187,14 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   }
 
   Future<void> _openChat(Item item) async {
+    final tapStartedAtEpochMs = DateTime.now().millisecondsSinceEpoch;
     final user = await _ensureSignedIn();
     if (user == null || !mounted) {
       return;
     }
-    final canProceed = await _checkContactSoftLimit();
+    final canProceed = await _checkContactSoftLimit(
+      skipNetworkOnCacheMiss: true,
+    );
     if (!canProceed || !mounted) {
       return;
     }
@@ -203,7 +207,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     );
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ChatThreadScreen.fromItem(itemId: item.id),
+        builder: (_) => ChatThreadScreen.fromItem(
+          itemId: item.id,
+          interestedUserId: user.uid,
+          openRequestedAtEpochMs: tapStartedAtEpochMs,
+        ),
       ),
     );
   }
@@ -213,7 +221,9 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     if (user == null || !mounted) {
       return;
     }
-    final canProceed = await _checkContactSoftLimit();
+    final canProceed = await _checkContactSoftLimit(
+      skipNetworkOnCacheMiss: false,
+    );
     if (!canProceed || !mounted) {
       return;
     }
@@ -241,16 +251,35 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     }
   }
 
-  Future<bool> _checkContactSoftLimit() async {
+  Future<bool> _checkContactSoftLimit({
+    required bool skipNetworkOnCacheMiss,
+  }) async {
+    final stopwatch = Stopwatch()..start();
+    var statusSource = "cache";
+    var enforcementActive = 0;
+    var allowed = 1;
     try {
-      final status = await MonetizationService.getStatus();
-      final features = status.features;
+      var status = MonetizationService.getCachedStatus();
+      if (status == null) {
+        if (skipNetworkOnCacheMiss) {
+          statusSource = "cache_miss_fail_open";
+          unawaited(MonetizationService.prefetchStatus(forceRefresh: true));
+          return true;
+        }
+        statusSource = "network";
+        status = await MonetizationService.getStatus(forceRefresh: true);
+      }
+      final resolvedStatus = status;
+      final features = resolvedStatus.features;
+      enforcementActive =
+          features.monetizationEnabled && features.enforceContactLimit ? 1 : 0;
       if (!features.monetizationEnabled || !features.enforceContactLimit) {
         return true;
       }
-      if (status.canContact) {
+      if (resolvedStatus.canContact) {
         return true;
       }
+      allowed = 0;
       await AppAnalytics.logEvent(
         name: "monetization_flag_state",
         parameters: features.analyticsParams(
@@ -261,8 +290,10 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         name: "paywall_shown",
         parameters: {
           "context": paywallContextToWire(PaywallContext.contact),
-          "over_by": status.contactOverBy,
-          "tier": status.isMonthlySupporter ? "supporter_monthly" : "free",
+          "over_by": resolvedStatus.contactOverBy,
+          "tier": resolvedStatus.isMonthlySupporter
+              ? "supporter_monthly"
+              : "free",
           ...features.analyticsParams(
             source: paywallContextToWire(PaywallContext.contact),
           ),
@@ -274,19 +305,33 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
       final decision = await showSoftPaywallSheet(
         context: context,
         paywallContext: PaywallContext.contact,
-        status: status,
+        status: resolvedStatus,
       );
       if (decision == SoftPaywallDecision.continueFree) {
         await AppAnalytics.logEvent(
           name: "paywall_continue_free",
           parameters: {"context": paywallContextToWire(PaywallContext.contact)},
         );
+        allowed = 1;
         return true;
       }
       return false;
     } catch (_) {
       // Soft paywall must never block core behavior on errors.
       return true;
+    } finally {
+      unawaited(
+        AppAnalytics.logEvent(
+          name: "chat_open_perf",
+          parameters: {
+            "phase": "contact_soft_limit",
+            "status_source": statusSource,
+            "duration_ms": stopwatch.elapsedMilliseconds,
+            "enforcement_active": enforcementActive,
+            "allowed": allowed,
+          },
+        ),
+      );
     }
   }
 

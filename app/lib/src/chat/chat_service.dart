@@ -11,6 +11,81 @@ class ChatService {
     region: "us-central1",
   );
 
+  static const Duration _emptyDuration = Duration.zero;
+
+  static int _durationMs(Duration duration) => duration.inMilliseconds;
+
+  static Future<String?> _existingConversationId({
+    required String itemId,
+    required String interestedUserId,
+    required Source source,
+  }) async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection("conversations")
+        .where("itemId", isEqualTo: itemId)
+        .where("interestedUserId", isEqualTo: interestedUserId)
+        .limit(1)
+        .get(GetOptions(source: source));
+    if (snapshot.docs.isEmpty) {
+      return null;
+    }
+    return snapshot.docs.first.id;
+  }
+
+  static Future<ConversationResolution> resolveConversationForItem({
+    required String itemId,
+    required String interestedUserId,
+  }) async {
+    final totalWatch = Stopwatch()..start();
+    var cacheLookupDuration = _emptyDuration;
+    var callableDuration = _emptyDuration;
+    var cacheLookupAttempted = false;
+    var callableAttempted = false;
+
+    try {
+      cacheLookupAttempted = true;
+      final cacheWatch = Stopwatch()..start();
+      final cachedConversationId = await _existingConversationId(
+        itemId: itemId,
+        interestedUserId: interestedUserId,
+        source: Source.cache,
+      );
+      cacheLookupDuration = cacheWatch.elapsed;
+      if (cachedConversationId != null) {
+        return ConversationResolution(
+          conversationId: cachedConversationId,
+          source: ConversationResolutionSource.cache,
+          totalMs: _durationMs(totalWatch.elapsed),
+          cacheLookupMs: _durationMs(cacheLookupDuration),
+          serverLookupMs: 0,
+          callableMs: 0,
+          cacheLookupAttempted: cacheLookupAttempted,
+          serverLookupAttempted: false,
+          callableAttempted: callableAttempted,
+        );
+      }
+    } catch (_) {
+      cacheLookupDuration = _emptyDuration;
+    }
+
+    callableAttempted = true;
+    final callableWatch = Stopwatch()..start();
+    final conversationId = await upsertItemConversation(itemId);
+    callableDuration = callableWatch.elapsed;
+
+    return ConversationResolution(
+      conversationId: conversationId,
+      source: ConversationResolutionSource.callable,
+      totalMs: _durationMs(totalWatch.elapsed),
+      cacheLookupMs: _durationMs(cacheLookupDuration),
+      serverLookupMs: 0,
+      callableMs: _durationMs(callableDuration),
+      cacheLookupAttempted: cacheLookupAttempted,
+      serverLookupAttempted: false,
+      callableAttempted: callableAttempted,
+    );
+  }
+
   static Stream<List<Conversation>> streamUserConversations(String uid) {
     return FirebaseFirestore.instance
         .collection("conversations")
@@ -137,5 +212,40 @@ class ChatService {
       "itemId": itemId,
       "contactPreference": contactPreferenceToString(contactPreference),
     });
+  }
+}
+
+enum ConversationResolutionSource { cache, callable }
+
+class ConversationResolution {
+  const ConversationResolution({
+    required this.conversationId,
+    required this.source,
+    required this.totalMs,
+    required this.cacheLookupMs,
+    required this.serverLookupMs,
+    required this.callableMs,
+    required this.cacheLookupAttempted,
+    required this.serverLookupAttempted,
+    required this.callableAttempted,
+  });
+
+  final String conversationId;
+  final ConversationResolutionSource source;
+  final int totalMs;
+  final int cacheLookupMs;
+  final int serverLookupMs;
+  final int callableMs;
+  final bool cacheLookupAttempted;
+  final bool serverLookupAttempted;
+  final bool callableAttempted;
+
+  String get sourceWire {
+    switch (source) {
+      case ConversationResolutionSource.cache:
+        return "cache";
+      case ConversationResolutionSource.callable:
+        return "callable";
+    }
   }
 }

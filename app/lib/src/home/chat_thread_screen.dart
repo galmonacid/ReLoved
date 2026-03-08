@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:firebase_auth/firebase_auth.dart";
 import "package:flutter/material.dart";
 import "../../theme/app_colors.dart";
@@ -9,13 +11,23 @@ import "../testing/test_keys.dart";
 import "../widgets/motion/pressable_scale.dart";
 
 class ChatThreadScreen extends StatefulWidget {
-  const ChatThreadScreen({super.key, required this.conversationId})
-    : itemId = null;
-  const ChatThreadScreen.fromItem({super.key, required this.itemId})
-    : conversationId = null;
+  const ChatThreadScreen({
+    super.key,
+    required this.conversationId,
+    this.openRequestedAtEpochMs,
+  }) : itemId = null,
+       interestedUserId = null;
+  const ChatThreadScreen.fromItem({
+    super.key,
+    required this.itemId,
+    this.interestedUserId,
+    this.openRequestedAtEpochMs,
+  }) : conversationId = null;
 
   final String? conversationId;
   final String? itemId;
+  final String? interestedUserId;
+  final int? openRequestedAtEpochMs;
 
   @override
   State<ChatThreadScreen> createState() => _ChatThreadScreenState();
@@ -48,14 +60,49 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     super.dispose();
   }
 
-  void _onConversationReady(String conversationId) {
-    AppAnalytics.logEvent(
-      name: "chat_open",
-      parameters: {"conversationId": conversationId},
+  void _onConversationReady(
+    String conversationId, {
+    Map<String, Object>? openPerfParams,
+  }) {
+    unawaited(
+      AppAnalytics.logEvent(
+        name: "chat_open",
+        parameters: {"conversationId": conversationId},
+      ),
     );
+    if (openPerfParams != null) {
+      unawaited(
+        AppAnalytics.logEvent(
+          name: "chat_open_perf",
+          parameters: openPerfParams,
+        ),
+      );
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _markRead();
     });
+  }
+
+  Map<String, Object> _openPerfParams({
+    required ConversationResolution resolution,
+    required int tapToReadyMs,
+  }) {
+    return {
+      "phase": "resolve_conversation",
+      "source": resolution.sourceWire,
+      "resolve_total_ms": resolution.totalMs,
+      "cache_lookup_ms": resolution.cacheLookupMs,
+      "server_lookup_ms": resolution.serverLookupMs,
+      "callable_ms": resolution.callableMs,
+      "cache_lookup_attempted": resolution.cacheLookupAttempted ? 1 : 0,
+      "server_lookup_attempted": resolution.serverLookupAttempted ? 1 : 0,
+      "callable_attempted": resolution.callableAttempted ? 1 : 0,
+      "tap_to_ready_ms": tapToReadyMs,
+    };
+  }
+
+  void _logOpenPerfToConsole(Map<String, Object> params) {
+    debugPrint("CHAT_OPEN_PERF $params");
   }
 
   Future<void> _resolveConversation() async {
@@ -63,22 +110,47 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     if (itemId == null || _isResolvingConversation) {
       return;
     }
+    final interestedUserId =
+        widget.interestedUserId ?? FirebaseAuth.instance.currentUser?.uid;
+    if (interestedUserId == null || interestedUserId.isEmpty) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _isResolvingConversation = false;
+        _resolveError = "Sign in required.";
+      });
+      return;
+    }
     setState(() {
       _isResolvingConversation = true;
       _resolveError = null;
     });
     try {
-      final resolvedConversationId = await ChatService.upsertItemConversation(
-        itemId,
+      final resolution = await ChatService.resolveConversationForItem(
+        itemId: itemId,
+        interestedUserId: interestedUserId,
       );
+      final tapToReadyMs = widget.openRequestedAtEpochMs == null
+          ? resolution.totalMs
+          : DateTime.now().millisecondsSinceEpoch -
+                widget.openRequestedAtEpochMs!;
+      final openPerfParams = _openPerfParams(
+        resolution: resolution,
+        tapToReadyMs: tapToReadyMs,
+      );
+      _logOpenPerfToConsole(openPerfParams);
       if (!mounted) {
         return;
       }
       setState(() {
-        _conversationId = resolvedConversationId;
+        _conversationId = resolution.conversationId;
         _isResolvingConversation = false;
       });
-      _onConversationReady(resolvedConversationId);
+      _onConversationReady(
+        resolution.conversationId,
+        openPerfParams: openPerfParams,
+      );
     } catch (error) {
       if (!mounted) {
         return;

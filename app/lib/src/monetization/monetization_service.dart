@@ -1,5 +1,6 @@
 import "dart:async";
 
+import "package:firebase_auth/firebase_auth.dart";
 import "package:cloud_functions/cloud_functions.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
@@ -14,8 +15,94 @@ class MonetizationService {
   static final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(
     region: "us-central1",
   );
+  static const Duration _defaultStatusCacheMaxAge = Duration(minutes: 2);
+  static MonetizationStatus? _cachedStatus;
+  static DateTime? _cachedStatusAt;
+  static String? _cachedStatusUid;
+  static Future<MonetizationStatus>? _inflightStatusRequest;
 
-  static Future<MonetizationStatus> getStatus() async {
+  static void _invalidateCacheIfUserChanged() {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+    if (_cachedStatusUid != currentUid) {
+      _cachedStatus = null;
+      _cachedStatusAt = null;
+      _cachedStatusUid = currentUid;
+    }
+  }
+
+  static MonetizationStatus? getCachedStatus({
+    Duration maxAge = _defaultStatusCacheMaxAge,
+  }) {
+    _invalidateCacheIfUserChanged();
+    final cached = _cachedStatus;
+    final cachedAt = _cachedStatusAt;
+    if (cached == null || cachedAt == null) {
+      return null;
+    }
+    if (DateTime.now().difference(cachedAt) > maxAge) {
+      return null;
+    }
+    return cached;
+  }
+
+  static Future<MonetizationStatus?> prefetchStatus({
+    bool forceRefresh = false,
+  }) async {
+    if (FirebaseAuth.instance.currentUser == null) {
+      _invalidateCacheIfUserChanged();
+      return null;
+    }
+    try {
+      return await getStatus(forceRefresh: forceRefresh);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<MonetizationStatus> getStatus({
+    bool forceRefresh = false,
+  }) async {
+    _invalidateCacheIfUserChanged();
+    if (!forceRefresh) {
+      final cached = getCachedStatus();
+      if (cached != null) {
+        return cached;
+      }
+      final inFlight = _inflightStatusRequest;
+      if (inFlight != null) {
+        return inFlight;
+      }
+    }
+
+    final request = (() async {
+      final parsed = await _fetchStatusFromNetwork();
+      _cachedStatus = parsed;
+      _cachedStatusAt = DateTime.now();
+      _cachedStatusUid = FirebaseAuth.instance.currentUser?.uid;
+      return parsed;
+    })();
+    _inflightStatusRequest = request;
+    try {
+      return await request;
+    } finally {
+      if (identical(_inflightStatusRequest, request)) {
+        _inflightStatusRequest = null;
+      }
+    }
+  }
+
+  static void clearStatusCache() {
+    _cachedStatus = null;
+    _cachedStatusAt = null;
+    _cachedStatusUid = FirebaseAuth.instance.currentUser?.uid;
+    _inflightStatusRequest = null;
+  }
+
+  static Future<MonetizationStatus> refreshStatus() async {
+    return getStatus(forceRefresh: true);
+  }
+
+  static Future<MonetizationStatus> _fetchStatusFromNetwork() async {
     final callable = _functions.httpsCallable("getMonetizationStatus");
     final result = await callable.call(<String, dynamic>{});
     final data = result.data;
