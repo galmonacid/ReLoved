@@ -2,8 +2,9 @@ import "package:cloud_firestore/cloud_firestore.dart";
 import "package:firebase_auth/firebase_auth.dart";
 import "package:flutter/foundation.dart";
 import "package:google_sign_in/google_sign_in.dart";
+import "../config/app_config.dart";
 
-enum AuthLinkStrategy { password, google, unsupported }
+enum AuthLinkStrategy { password, google, apple, unsupported }
 
 AuthLinkStrategy resolveLinkStrategy(List<String> methods) {
   if (methods.contains(EmailAuthProvider.EMAIL_PASSWORD_SIGN_IN_METHOD)) {
@@ -12,14 +13,26 @@ AuthLinkStrategy resolveLinkStrategy(List<String> methods) {
   if (methods.contains(GoogleAuthProvider.GOOGLE_SIGN_IN_METHOD)) {
     return AuthLinkStrategy.google;
   }
+  if (methods.contains(AppleAuthProvider.APPLE_SIGN_IN_METHOD)) {
+    return AuthLinkStrategy.apple;
+  }
   return AuthLinkStrategy.unsupported;
 }
 
 bool isGoogleSignInSupported({
   required bool isWeb,
   required TargetPlatform platform,
+  bool? iosEnabled,
 }) {
-  return isWeb || platform == TargetPlatform.iOS;
+  final allowIos = iosEnabled ?? AppConfig.googleSignInEnabledOnIos;
+  return isWeb || (allowIos && platform == TargetPlatform.iOS);
+}
+
+bool isAppleSignInSupported({
+  required bool isWeb,
+  required TargetPlatform platform,
+}) {
+  return !isWeb && platform == TargetPlatform.iOS;
 }
 
 typedef LinkPasswordPrompt =
@@ -64,6 +77,8 @@ class AuthService {
 
   bool get _googleSupported =>
       isGoogleSignInSupported(isWeb: kIsWeb, platform: defaultTargetPlatform);
+  bool get _appleSupported =>
+      isAppleSignInSupported(isWeb: kIsWeb, platform: defaultTargetPlatform);
 
   Future<SocialSignInResult> signInWithGoogle({
     LinkPasswordPrompt? requestPasswordForLinking,
@@ -71,7 +86,8 @@ class AuthService {
     if (!_googleSupported) {
       throw const AuthServiceException(
         code: "unsupported-platform",
-        message: "Google sign-in is currently available on iOS and Web only.",
+        message:
+            "Google sign-in is currently available on web and iPhone only.",
       );
     }
 
@@ -88,6 +104,24 @@ class AuthService {
     return _signInWithCredential(
       credential: credential,
       loginMethod: "google",
+      requestPasswordForLinking: requestPasswordForLinking,
+    );
+  }
+
+  Future<SocialSignInResult> signInWithApple({
+    LinkPasswordPrompt? requestPasswordForLinking,
+  }) async {
+    if (!_appleSupported) {
+      throw const AuthServiceException(
+        code: "unsupported-platform",
+        message: "Sign in with Apple is currently available on iPhone only.",
+      );
+    }
+
+    final provider = _buildAppleProvider();
+    return _signInWithNativeProvider(
+      provider: provider,
+      loginMethod: "apple",
       requestPasswordForLinking: requestPasswordForLinking,
     );
   }
@@ -193,6 +227,39 @@ class AuthService {
     }
   }
 
+  Future<SocialSignInResult> _signInWithNativeProvider({
+    required AuthProvider provider,
+    required String loginMethod,
+    LinkPasswordPrompt? requestPasswordForLinking,
+  }) async {
+    try {
+      final userCredential = await _auth.signInWithProvider(provider);
+      final user = userCredential.user;
+      if (user == null) {
+        throw const AuthServiceException(
+          code: "user-missing",
+          message: "Authentication succeeded but no user was returned.",
+        );
+      }
+      await upsertUserProfileFromAuthUser(user);
+      return SocialSignInResult(
+        userCredential: userCredential,
+        loginMethod: loginMethod,
+        isNewUser: userCredential.additionalUserInfo?.isNewUser ?? false,
+      );
+    } on FirebaseAuthException catch (error) {
+      if (error.code == "account-exists-with-different-credential") {
+        return _resolveAccountExistsWithDifferentCredential(
+          loginMethod: loginMethod,
+          email: error.email,
+          pendingCredential: error.credential,
+          requestPasswordForLinking: requestPasswordForLinking,
+        );
+      }
+      throw _toAuthServiceException(error);
+    }
+  }
+
   Future<SocialSignInResult> _resolveAccountExistsWithDifferentCredential({
     required String loginMethod,
     required String? email,
@@ -279,6 +346,14 @@ class AuthService {
       }
     }
 
+    if (_appleSupported && attemptedLoginMethod != "apple") {
+      try {
+        return await _auth.signInWithProvider(_buildAppleProvider());
+      } on FirebaseAuthException catch (error) {
+        lastKnownError = _toAuthServiceException(error);
+      }
+    }
+
     throw lastKnownError ??
         const AuthServiceException(
           code: "linking-required",
@@ -341,6 +416,12 @@ class AuthService {
     }
   }
 
+  AppleAuthProvider _buildAppleProvider() {
+    final provider = AppleAuthProvider();
+    provider.addScope("email");
+    return provider;
+  }
+
   AuthServiceException _toAuthServiceException(FirebaseAuthException error) {
     switch (error.code) {
       case "popup-closed-by-user":
@@ -364,6 +445,13 @@ class AuthService {
         return const AuthServiceException(
           code: "operation-not-allowed",
           message: "This sign-in provider is not enabled in Firebase Auth.",
+        );
+      case "sign_in_canceled":
+      case "user-cancelled":
+      case "canceled":
+        return const AuthServiceException(
+          code: "cancelled",
+          message: "Authentication was cancelled.",
         );
       case "invalid-credential":
         return const AuthServiceException(

@@ -61,6 +61,8 @@ jobs:
         run: |
           unset CFLAGS CXXFLAGS CPPFLAGS LDFLAGS OTHER_CFLAGS OTHER_CPLUSPLUSFLAGS
           flutter build ipa --release --export-options-plist=ios/ExportOptions.plist -v \
+            --dart-define=GOOGLE_SIGN_IN_IOS=true \
+            --dart-define=PAYMENTS_ENABLED_IOS=false \
             --dart-define=SHARE_BASE_URL=https://reloved-greenhilledge.web.app
         working-directory: app
 

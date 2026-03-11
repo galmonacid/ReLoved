@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.purgeOldChatData = exports.archiveConversationsForUnavailableItems = exports.anonymizeUserChatData = exports.setItemContactPreference = exports.reportConversation = exports.blockConversationParticipant = exports.reopenConversationByDonor = exports.closeConversationByDonor = exports.markConversationRead = exports.sendChatMessage = exports.onConversationCreatedTrackChatUsageUk = exports.upsertItemConversation = exports.sendContactEmail = exports.stripeWebhook = exports.createBillingPortalSession = exports.createSupportCheckoutSession = exports.getMonetizationStatus = void 0;
-const functions = require("firebase-functions");
+exports.purgeOldChatData = exports.archiveConversationsForUnavailableItems = exports.deleteMyAccount = exports.reportUser = exports.reportListing = exports.anonymizeUserChatData = exports.setItemContactPreference = exports.reportConversation = exports.blockConversationParticipant = exports.reopenConversationByDonor = exports.closeConversationByDonor = exports.markConversationRead = exports.sendChatMessage = exports.onConversationCreatedTrackChatUsageUk = exports.upsertItemConversation = exports.sendContactEmail = exports.stripeWebhook = exports.createBillingPortalSession = exports.createSupportCheckoutSession = exports.getMonetizationStatus = void 0;
+const functions = require("firebase-functions/v1");
 const admin = require("firebase-admin");
 const sgMail = require("@sendgrid/mail");
 const crypto_1 = require("crypto");
@@ -17,6 +17,10 @@ const PAYMENTS_REGION = "us-central1";
 const paymentCallable = functions.region(PAYMENTS_REGION).runWith({
     memory: "256MB",
     timeoutSeconds: 60
+});
+const ukCallable = functions.region(CHAT_PRIMARY_REGION).runWith({
+    memory: "512MB",
+    timeoutSeconds: 120
 });
 const LONDON_TIME_ZONE = "Europe/London";
 const MONETIZATION_RUNTIME_CONFIG_PATH = "runtimeConfig/monetization";
@@ -162,6 +166,17 @@ function requireAuth(context) {
     }
     return uid;
 }
+function requireAppCheck(context) {
+    if (process.env.RELOVED_SKIP_APPCHECK === "true" ||
+        Boolean(process.env.FIREBASE_EMULATOR_HUB) ||
+        process.env.FUNCTIONS_EMULATOR === "true" ||
+        process.env.FUNCTIONS_EMULATOR === "1") {
+        return;
+    }
+    if (!context.app) {
+        throw new functions.https.HttpsError("failed-precondition", "App integrity check required");
+    }
+}
 function requireNonEmptyString(value, fieldName, minLength = 1, maxLength = 1000) {
     if (typeof value !== "string") {
         throw new functions.https.HttpsError("invalid-argument", `${fieldName} is required`);
@@ -177,6 +192,20 @@ function requirePlanType(value) {
         return value;
     }
     throw new functions.https.HttpsError("invalid-argument", "planType is invalid");
+}
+function optionalTrimmedString(value, maxLength = 1000) {
+    if (typeof value !== "string") {
+        return "";
+    }
+    return value.trim().slice(0, maxLength);
+}
+function requireModerationReason(value) {
+    const reason = requireNonEmptyString(value, "reason", 1, 40);
+    const allowedReasons = ["spam", "inappropriate", "unsafe", "fraud", "other"];
+    if (!allowedReasons.includes(reason)) {
+        throw new functions.https.HttpsError("invalid-argument", "reason is invalid");
+    }
+    return reason;
 }
 function requireUrl(value, fieldName) {
     const url = requireNonEmptyString(value, fieldName, 8, 2048);
@@ -271,8 +300,12 @@ function configValue(value) {
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : undefined;
 }
+function legacyRuntimeConfig() {
+    const configAccessor = functions.config;
+    return typeof configAccessor === "function" ? configAccessor() : {};
+}
 function getStripeSecretKey() {
-    const fromConfig = configValue(functions.config().stripe?.secret_key);
+    const fromConfig = configValue(legacyRuntimeConfig().stripe?.secret_key);
     const fromEnv = configValue(process.env.STRIPE_SECRET_KEY);
     const key = fromConfig ?? fromEnv;
     if (!key) {
@@ -281,7 +314,7 @@ function getStripeSecretKey() {
     return key;
 }
 function getStripeWebhookSecret() {
-    const fromConfig = configValue(functions.config().stripe?.webhook_secret);
+    const fromConfig = configValue(legacyRuntimeConfig().stripe?.webhook_secret);
     const fromEnv = configValue(process.env.STRIPE_WEBHOOK_SECRET);
     const secret = fromConfig ?? fromEnv;
     if (!secret) {
@@ -290,7 +323,7 @@ function getStripeWebhookSecret() {
     return secret;
 }
 function getStripePriceOneOff() {
-    const fromConfig = configValue(functions.config().stripe?.price_one_off_gbp_300);
+    const fromConfig = configValue(legacyRuntimeConfig().stripe?.price_one_off_gbp_300);
     const fromEnv = configValue(process.env.STRIPE_PRICE_ONE_OFF_GBP_300);
     const value = fromConfig ?? fromEnv;
     if (!value) {
@@ -299,7 +332,7 @@ function getStripePriceOneOff() {
     return value;
 }
 function getStripePriceMonthly() {
-    const fromConfig = configValue(functions.config().stripe?.price_monthly_gbp_499);
+    const fromConfig = configValue(legacyRuntimeConfig().stripe?.price_monthly_gbp_499);
     const fromEnv = configValue(process.env.STRIPE_PRICE_MONTHLY_GBP_499);
     const value = fromConfig ?? fromEnv;
     if (!value) {
@@ -407,6 +440,20 @@ async function stripeRetrieveSubscription(subscriptionId) {
         throw new functions.https.HttpsError("internal", stripeError?.message ?? "Stripe subscription fetch failed");
     }
     return payload;
+}
+async function stripeCancelSubscription(subscriptionId) {
+    const response = await fetch(`https://api.stripe.com/v1/subscriptions/${subscriptionId}`, {
+        method: "DELETE",
+        headers: {
+            Authorization: `Bearer ${getStripeSecretKey()}`,
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+    });
+    const payload = (await response.json());
+    if (!response.ok) {
+        const stripeError = payload.error;
+        throw new functions.https.HttpsError("internal", stripeError?.message ?? "Stripe subscription cancellation failed");
+    }
 }
 function verifyStripeWebhookSignature(rawBody, signatureHeader) {
     const secret = getStripeWebhookSecret();
@@ -642,6 +689,9 @@ function getItemArea(item) {
 function getItemPhotoUrl(item) {
     return typeof item.photoUrl === "string" ? item.photoUrl : "";
 }
+function getItemPhotoPath(item) {
+    return typeof item.photoPath === "string" ? item.photoPath.trim() : "";
+}
 function requireChatStatusOpen(status) {
     if (status !== CHAT_STATUSES.open) {
         throw new functions.https.HttpsError("failed-precondition", "Conversation is not open");
@@ -685,6 +735,151 @@ async function archiveConversationsForItem(itemId) {
     }
     return archived;
 }
+async function anonymizeUserChatDataInternal(targetUserId) {
+    let redactedMessages = 0;
+    while (true) {
+        const messagesSnap = await db
+            .collectionGroup("messages")
+            .where("senderId", "==", targetUserId)
+            .limit(200)
+            .get();
+        if (messagesSnap.empty) {
+            break;
+        }
+        const batch = db.batch();
+        for (const doc of messagesSnap.docs) {
+            batch.update(doc.ref, {
+                senderId: "anonymized",
+                text: "[message removed]",
+                isRedacted: true,
+                redactionReason: "account_deleted",
+                redactedAt: admin.firestore.FieldValue.serverTimestamp()
+            });
+            redactedMessages++;
+        }
+        await batch.commit();
+    }
+    let anonymizedConversations = 0;
+    const convoSnap = await db
+        .collection("conversations")
+        .where("participants", "array-contains", targetUserId)
+        .get();
+    if (!convoSnap.empty) {
+        const batch = db.batch();
+        for (const doc of convoSnap.docs) {
+            const conversation = (doc.data() || {});
+            const participants = ensureArrayOfStrings(conversation.participants, "participants").map((entry) => (entry === targetUserId ? "anonymized" : entry));
+            const updates = {
+                participants,
+                status: CHAT_STATUSES.archivedUnavailable,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                anonymizedAt: admin.firestore.FieldValue.serverTimestamp(),
+                anonymizedUserId: targetUserId
+            };
+            if (conversation.ownerId === targetUserId) {
+                updates.ownerId = "anonymized";
+            }
+            if (conversation.interestedUserId === targetUserId) {
+                updates.interestedUserId = "anonymized";
+            }
+            batch.update(doc.ref, updates);
+            anonymizedConversations++;
+        }
+        await batch.commit();
+    }
+    return {
+        redactedMessages,
+        anonymizedConversations
+    };
+}
+async function deleteQueryDocuments(query) {
+    let deleted = 0;
+    while (true) {
+        const snapshot = await query.limit(200).get();
+        if (snapshot.empty) {
+            break;
+        }
+        const batch = db.batch();
+        for (const doc of snapshot.docs) {
+            batch.delete(doc.ref);
+            deleted++;
+        }
+        await batch.commit();
+    }
+    return deleted;
+}
+async function deleteStoragePathIfExists(path) {
+    if (!path) {
+        return;
+    }
+    try {
+        await admin.storage().bucket().file(path).delete({ ignoreNotFound: true });
+    }
+    catch (error) {
+        functions.logger.warn("deleteStoragePathIfExists failed", {
+            path,
+            message: error instanceof Error ? error.message : String(error)
+        });
+    }
+}
+async function deleteUserOwnedItems(uid) {
+    let deletedItems = 0;
+    while (true) {
+        const itemsSnap = await db
+            .collection("items")
+            .where("ownerId", "==", uid)
+            .limit(100)
+            .get();
+        if (itemsSnap.empty) {
+            break;
+        }
+        const batch = db.batch();
+        for (const doc of itemsSnap.docs) {
+            const item = (doc.data() || {});
+            await deleteStoragePathIfExists(getItemPhotoPath(item));
+            batch.delete(doc.ref);
+            deletedItems++;
+        }
+        await batch.commit();
+    }
+    try {
+        await admin.storage().bucket().deleteFiles({ prefix: `itemPhotos/${uid}/` });
+    }
+    catch (error) {
+        functions.logger.warn("deleteUserOwnedItems storage prefix cleanup failed", {
+            uid,
+            message: error instanceof Error ? error.message : String(error)
+        });
+    }
+    return deletedItems;
+}
+async function cancelActiveSupportPlanIfNeeded(uid) {
+    const profileSnap = await db.collection("monetizationProfiles").doc(uid).get();
+    if (!profileSnap.exists) {
+        return;
+    }
+    const profile = (profileSnap.data() || {});
+    const stripeSubscriptionId = configValue(profile.stripeSubscriptionId);
+    if (!stripeSubscriptionId) {
+        return;
+    }
+    const supportStatus = supportStatusValue(profile.supportStatus);
+    const supportPeriodEndMs = getTimestampMs(profile.supportPeriodEnd);
+    if (!hasMonthlyEntitlement(supportStatus, supportPeriodEndMs, Date.now())) {
+        return;
+    }
+    try {
+        await stripeCancelSubscription(stripeSubscriptionId);
+    }
+    catch (error) {
+        functions.logger.error("cancelActiveSupportPlanIfNeeded failed", {
+            uid,
+            stripeSubscriptionId,
+            message: error instanceof Error ? error.message : String(error)
+        });
+        throw new functions.https.HttpsError("failed-precondition", "Could not cancel your active support plan automatically. Contact support before deleting your account.");
+    }
+}
 function supportStatusFromStripeStatus(status) {
     if (status === "active" || status === "trialing") {
         return "active";
@@ -701,6 +896,7 @@ function toEpochMsFromStripe(value) {
     return value * 1000;
 }
 exports.getMonetizationStatus = paymentCallable.https.onCall(async (_data, context) => {
+    requireAppCheck(context);
     const uid = requireAuth(context);
     const runtimeConfig = await getMonetizationRuntimeConfig();
     const features = effectiveMonetizationFeaturesFromConfig(runtimeConfig);
@@ -752,6 +948,7 @@ exports.getMonetizationStatus = paymentCallable.https.onCall(async (_data, conte
     };
 });
 exports.createSupportCheckoutSession = paymentCallable.https.onCall(async (data, context) => {
+    requireAppCheck(context);
     const uid = requireAuth(context);
     const runtimeConfig = await getMonetizationRuntimeConfig();
     const features = effectiveMonetizationFeaturesFromConfig(runtimeConfig);
@@ -786,6 +983,7 @@ exports.createSupportCheckoutSession = paymentCallable.https.onCall(async (data,
     };
 });
 exports.createBillingPortalSession = paymentCallable.https.onCall(async (data, context) => {
+    requireAppCheck(context);
     const uid = requireAuth(context);
     const runtimeConfig = await getMonetizationRuntimeConfig();
     const features = effectiveMonetizationFeaturesFromConfig(runtimeConfig);
@@ -926,6 +1124,7 @@ exports.stripeWebhook = functions.region(PAYMENTS_REGION).https.onRequest(async 
 });
 exports.sendContactEmail = functions.https.onCall(async (data, context) => {
     try {
+        requireAppCheck(context);
         functions.logger.info("sendContactEmail request", {
             hasAuth: Boolean(context.auth),
             hasAppCheck: Boolean(context.app),
@@ -962,8 +1161,11 @@ exports.sendContactEmail = functions.https.onCall(async (data, context) => {
         }
         const ownerEmail = await getOwnerEmail(ownerId);
         const isEmulator = Boolean(process.env.FIREBASE_EMULATOR_HUB);
-        const sendgridKey = functions.config().sendgrid?.key ?? (isEmulator ? process.env.SENDGRID_KEY : undefined);
-        let sendgridFrom = functions.config().sendgrid?.from ?? (isEmulator ? process.env.SENDGRID_FROM : undefined);
+        const runtimeConfig = legacyRuntimeConfig();
+        const sendgridKey = configValue(runtimeConfig.sendgrid?.key) ??
+            (isEmulator ? process.env.SENDGRID_KEY : undefined);
+        let sendgridFrom = configValue(runtimeConfig.sendgrid?.from) ??
+            (isEmulator ? process.env.SENDGRID_FROM : undefined);
         if (!sendgridFrom && isEmulator) {
             sendgridFrom = "noreply@localhost";
         }
@@ -1068,6 +1270,7 @@ exports.sendContactEmail = functions.https.onCall(async (data, context) => {
     }
 });
 exports.upsertItemConversation = chatCallable.https.onCall(async (data, context) => {
+    requireAppCheck(context);
     const interestedUserId = requireAuth(context);
     const payload = isObject(data) ? data : {};
     const itemId = requireNonEmptyString(payload.itemId, "itemId", 1, 128);
@@ -1175,6 +1378,7 @@ exports.onConversationCreatedTrackChatUsageUk = functions
     }
 });
 exports.sendChatMessage = chatCallable.https.onCall(async (data, context) => {
+    requireAppCheck(context);
     const senderId = requireAuth(context);
     const payload = isObject(data) ? data : {};
     const conversationId = requireNonEmptyString(payload.conversationId, "conversationId", 1, 256);
@@ -1264,6 +1468,7 @@ exports.sendChatMessage = chatCallable.https.onCall(async (data, context) => {
     return { ok: true, messageId };
 });
 exports.markConversationRead = chatCallable.https.onCall(async (data, context) => {
+    requireAppCheck(context);
     const uid = requireAuth(context);
     const payload = isObject(data) ? data : {};
     const conversationId = requireNonEmptyString(payload.conversationId, "conversationId", 1, 256);
@@ -1307,6 +1512,7 @@ exports.markConversationRead = chatCallable.https.onCall(async (data, context) =
     return { ok: true };
 });
 exports.closeConversationByDonor = chatCallable.https.onCall(async (data, context) => {
+    requireAppCheck(context);
     const uid = requireAuth(context);
     const payload = isObject(data) ? data : {};
     const conversationId = requireNonEmptyString(payload.conversationId, "conversationId", 1, 256);
@@ -1335,6 +1541,7 @@ exports.closeConversationByDonor = chatCallable.https.onCall(async (data, contex
     return { ok: true };
 });
 exports.reopenConversationByDonor = chatCallable.https.onCall(async (data, context) => {
+    requireAppCheck(context);
     const uid = requireAuth(context);
     const payload = isObject(data) ? data : {};
     const conversationId = requireNonEmptyString(payload.conversationId, "conversationId", 1, 256);
@@ -1371,6 +1578,7 @@ exports.reopenConversationByDonor = chatCallable.https.onCall(async (data, conte
     return { ok: true };
 });
 exports.blockConversationParticipant = chatCallable.https.onCall(async (data, context) => {
+    requireAppCheck(context);
     const uid = requireAuth(context);
     const payload = isObject(data) ? data : {};
     const conversationId = requireNonEmptyString(payload.conversationId, "conversationId", 1, 256);
@@ -1396,6 +1604,7 @@ exports.blockConversationParticipant = chatCallable.https.onCall(async (data, co
     return { ok: true };
 });
 exports.reportConversation = chatCallable.https.onCall(async (data, context) => {
+    requireAppCheck(context);
     const uid = requireAuth(context);
     const payload = isObject(data) ? data : {};
     const conversationId = requireNonEmptyString(payload.conversationId, "conversationId", 1, 256);
@@ -1425,6 +1634,7 @@ exports.reportConversation = chatCallable.https.onCall(async (data, context) => 
     return { ok: true };
 });
 exports.setItemContactPreference = chatCallable.https.onCall(async (data, context) => {
+    requireAppCheck(context);
     const uid = requireAuth(context);
     const payload = isObject(data) ? data : {};
     const itemId = requireNonEmptyString(payload.itemId, "itemId", 1, 128);
@@ -1454,61 +1664,112 @@ exports.anonymizeUserChatData = functions.https.onCall(async (data, context) => 
     }
     const payload = isObject(data) ? data : {};
     const targetUserId = requireNonEmptyString(payload.targetUserId, "targetUserId", 1, 128);
-    let redactedMessages = 0;
-    while (true) {
-        const messagesSnap = await db
-            .collectionGroup("messages")
-            .where("senderId", "==", targetUserId)
-            .limit(200)
-            .get();
-        if (messagesSnap.empty) {
-            break;
-        }
-        const batch = db.batch();
-        for (const doc of messagesSnap.docs) {
-            batch.update(doc.ref, {
-                senderId: "anonymized",
-                text: "[message removed]",
-                isRedacted: true,
-                redactionReason: "account_deleted",
-                redactedAt: admin.firestore.FieldValue.serverTimestamp()
-            });
-            redactedMessages++;
-        }
-        await batch.commit();
-    }
-    let anonymizedConversations = 0;
-    const convoSnap = await db
-        .collection("conversations")
-        .where("participants", "array-contains", targetUserId)
-        .get();
-    if (!convoSnap.empty) {
-        const batch = db.batch();
-        for (const doc of convoSnap.docs) {
-            const conversation = (doc.data() || {});
-            const participants = ensureArrayOfStrings(conversation.participants, "participants").map((entry) => (entry === targetUserId ? "anonymized" : entry));
-            const updates = {
-                participants,
-                status: CHAT_STATUSES.archivedUnavailable,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                anonymizedAt: admin.firestore.FieldValue.serverTimestamp(),
-                anonymizedUserId: targetUserId
-            };
-            if (conversation.ownerId === targetUserId) {
-                updates.ownerId = "anonymized";
-            }
-            if (conversation.interestedUserId === targetUserId) {
-                updates.interestedUserId = "anonymized";
-            }
-            batch.update(doc.ref, updates);
-            anonymizedConversations++;
-        }
-        await batch.commit();
-    }
+    const { redactedMessages, anonymizedConversations } = await anonymizeUserChatDataInternal(targetUserId);
     return {
         ok: true,
         redactedMessages,
         anonymizedConversations
+    };
+});
+exports.reportListing = ukCallable.https.onCall(async (data, context) => {
+    requireAppCheck(context);
+    const uid = requireAuth(context);
+    const payload = isObject(data) ? data : {};
+    const itemId = requireNonEmptyString(payload.itemId, "itemId", 1, 128);
+    const reason = requireModerationReason(payload.reason);
+    const details = optionalTrimmedString(payload.details, 1000);
+    const itemSnap = await db.collection("items").doc(itemId).get();
+    const item = getItemRecord(itemSnap);
+    const ownerId = ensureItemOwner(item);
+    if (ownerId === uid) {
+        throw new functions.https.HttpsError("invalid-argument", "Cannot report your own item");
+    }
+    await db.collection("listingReports").doc(`${uid}_${itemId}`).set({
+        itemId,
+        ownerId,
+        reporterUserId: uid,
+        reason,
+        details,
+        itemStatus: getItemStatus(item),
+        status: "open",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    return { ok: true };
+});
+exports.reportUser = ukCallable.https.onCall(async (data, context) => {
+    requireAppCheck(context);
+    const uid = requireAuth(context);
+    const payload = isObject(data) ? data : {};
+    const reportedUserId = requireNonEmptyString(payload.reportedUserId, "reportedUserId", 1, 128);
+    const reason = requireModerationReason(payload.reason);
+    const details = optionalTrimmedString(payload.details, 1000);
+    if (reportedUserId === uid) {
+        throw new functions.https.HttpsError("invalid-argument", "Cannot report yourself");
+    }
+    const userSnap = await db.collection("users").doc(reportedUserId).get();
+    if (!userSnap.exists) {
+        throw new functions.https.HttpsError("not-found", "User not found");
+    }
+    await db.collection("userReports").doc(`${uid}_${reportedUserId}`).set({
+        reporterUserId: uid,
+        reportedUserId,
+        reason,
+        details,
+        status: "open",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    return { ok: true };
+});
+exports.deleteMyAccount = ukCallable.https.onCall(async (_data, context) => {
+    requireAppCheck(context);
+    const uid = requireAuth(context);
+    await cancelActiveSupportPlanIfNeeded(uid);
+    const [chatAnonymization, deletedItems, deletedSentContactRequests, deletedReceivedContactRequests, deletedRatingsAuthored, deletedRatingsReceived, deletedUsageEvents, deletedChatReportsFiled, deletedChatReportsAgainst, deletedListingReportsFiled, deletedListingReportsAgainst, deletedUserReportsFiled, deletedUserReportsAgainst] = await Promise.all([
+        anonymizeUserChatDataInternal(uid),
+        deleteUserOwnedItems(uid),
+        deleteQueryDocuments(db.collection("contactRequests").where("fromUserId", "==", uid)),
+        deleteQueryDocuments(db.collection("contactRequests").where("toUserId", "==", uid)),
+        deleteQueryDocuments(db.collection("ratings").where("fromUserId", "==", uid)),
+        deleteQueryDocuments(db.collection("ratings").where("toUserId", "==", uid)),
+        deleteQueryDocuments(db.collection("usageContactEvents").where("uid", "==", uid)),
+        deleteQueryDocuments(db.collection("chatReports").where("reporterUserId", "==", uid)),
+        deleteQueryDocuments(db.collection("chatReports").where("reportedUserId", "==", uid)),
+        deleteQueryDocuments(db.collection("listingReports").where("reporterUserId", "==", uid)),
+        deleteQueryDocuments(db.collection("listingReports").where("ownerId", "==", uid)),
+        deleteQueryDocuments(db.collection("userReports").where("reporterUserId", "==", uid)),
+        deleteQueryDocuments(db.collection("userReports").where("reportedUserId", "==", uid))
+    ]);
+    await Promise.all([
+        db.collection("billingCustomers").doc(uid).delete().catch(() => undefined),
+        db.collection("monetizationProfiles").doc(uid).delete().catch(() => undefined),
+        db.collection("usageCounters").doc(uid).delete().catch(() => undefined),
+        db.collection("users").doc(uid).delete().catch(() => undefined)
+    ]);
+    try {
+        await admin.auth().deleteUser(uid);
+    }
+    catch (error) {
+        const code = error.code;
+        if (code !== "auth/user-not-found") {
+            throw error;
+        }
+    }
+    return {
+        ok: true,
+        deletedItems,
+        deletedContactRequests: deletedSentContactRequests + deletedReceivedContactRequests,
+        deletedRatings: deletedRatingsAuthored + deletedRatingsReceived,
+        deletedReports: deletedChatReportsFiled +
+            deletedChatReportsAgainst +
+            deletedListingReportsFiled +
+            deletedListingReportsAgainst +
+            deletedUserReportsFiled +
+            deletedUserReportsAgainst,
+        deletedUsageEvents,
+        redactedMessages: chatAnonymization.redactedMessages,
+        anonymizedConversations: chatAnonymization.anonymizedConversations
     };
 });
 exports.archiveConversationsForUnavailableItems = functions.firestore

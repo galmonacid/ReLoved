@@ -4,6 +4,7 @@ const admin = require("firebase-admin");
 const functionsTest = require("firebase-functions-test")();
 
 process.env.RELOVED_DISABLE_CONFIG_CACHE = "true";
+process.env.RELOVED_SKIP_APPCHECK = "true";
 
 functionsTest.mockConfig({
   sendgrid: {
@@ -20,6 +21,9 @@ const {
   reopenConversationByDonor,
   blockConversationParticipant,
   reportConversation,
+  reportListing,
+  reportUser,
+  deleteMyAccount,
   markConversationRead,
   getMonetizationStatus,
   createSupportCheckoutSession,
@@ -38,6 +42,15 @@ const authContext = (uid, email = `${uid}@example.com`, extraToken = {}) => ({
     }
   }
 });
+
+const ensureAuthUser = async (uid, email = `${uid}@example.com`) => {
+  const auth = admin.auth();
+  try {
+    await auth.getUser(uid);
+  } catch (_) {
+    await auth.createUser({ uid, email });
+  }
+};
 
 const ensureAdmin = () => {
   if (admin.apps.length === 0) {
@@ -296,6 +309,134 @@ test("chat flow: block and report", async () => {
   const reportsSnap = await db.collection("chatReports").get();
   assert.equal(reportsSnap.size, 1);
   assert.equal(reportsSnap.docs[0].get("reason"), "spam");
+});
+
+test("moderation flow: report listing and user", async () => {
+  ensureAdmin();
+  await clearFirestore();
+  await seedOwnerAndItem();
+
+  const reportListingWrapped = functionsTest.wrap(reportListing);
+  const reportUserWrapped = functionsTest.wrap(reportUser);
+
+  const listingResult = await reportListingWrapped(
+    {
+      itemId: "item-1",
+      reason: "unsafe",
+      details: "Suspicious exchange request."
+    },
+    authContext("reporter")
+  );
+  assert.equal(listingResult.ok, true);
+
+  const userResult = await reportUserWrapped(
+    {
+      reportedUserId: "owner",
+      reason: "fraud",
+      details: "Asked for payment off-platform."
+    },
+    authContext("reporter")
+  );
+  assert.equal(userResult.ok, true);
+
+  const listingReportsSnap = await db.collection("listingReports").get();
+  const userReportsSnap = await db.collection("userReports").get();
+  assert.equal(listingReportsSnap.size, 1);
+  assert.equal(userReportsSnap.size, 1);
+});
+
+test("account deletion removes direct data and anonymizes chat", async () => {
+  ensureAdmin();
+  await clearFirestore();
+  await ensureAuthUser("owner", "owner@example.com");
+  await ensureAuthUser("sender", "sender@example.com");
+  await seedOwnerAndItem({ ownerId: "sender", itemId: "item-owned-by-sender" });
+  await db.collection("users").doc("sender").set({
+    displayName: "Sender",
+    email: "sender@example.com",
+    createdAt: new Date(),
+    ratingAvg: 0,
+    ratingCount: 0
+  });
+  await db.collection("users").doc("owner").set({
+    displayName: "Owner",
+    email: "owner@example.com",
+    createdAt: new Date(),
+    ratingAvg: 0,
+    ratingCount: 0
+  });
+  await db.collection("items").doc("item-target").set({
+    ownerId: "owner",
+    title: "Lampara",
+    description: "Lampara de pie.",
+    photoUrl: "https://example.com/lamp.jpg",
+    photoPath: "itemPhotos/owner/item-target/photo.jpg",
+    createdAt: new Date(),
+    status: "available",
+    contactPreference: "both",
+    location: {
+      lat: 51.5074,
+      lng: -0.1278,
+      geohash: "gcpvj0d",
+      approxAreaText: "London"
+    }
+  });
+  await db.collection("ratings").add({
+    fromUserId: "sender",
+    toUserId: "owner",
+    itemId: "item-target",
+    stars: 4,
+    createdAt: new Date()
+  });
+  await db.collection("contactRequests").add({
+    fromUserId: "sender",
+    toUserId: "owner",
+    itemId: "item-target",
+    createdAt: new Date()
+  });
+
+  const upsertWrapped = functionsTest.wrap(upsertItemConversation);
+  const sendWrapped = functionsTest.wrap(sendChatMessage);
+  const deleteWrapped = functionsTest.wrap(deleteMyAccount);
+
+  const { conversationId } = await upsertWrapped(
+    { itemId: "item-target" },
+    authContext("sender")
+  );
+  await sendWrapped(
+    { conversationId, text: "Please reserve this." },
+    authContext("sender")
+  );
+
+  const deleteResult = await deleteWrapped({}, authContext("sender"));
+  assert.equal(deleteResult.ok, true);
+
+  const userSnap = await db.collection("users").doc("sender").get();
+  assert.equal(userSnap.exists, false);
+
+  const ownedItemSnap = await db.collection("items").doc("item-owned-by-sender").get();
+  assert.equal(ownedItemSnap.exists, false);
+
+  const ratingsSnap = await db.collection("ratings").where("fromUserId", "==", "sender").get();
+  assert.equal(ratingsSnap.empty, true);
+
+  const contactRequestsSnap = await db
+    .collection("contactRequests")
+    .where("fromUserId", "==", "sender")
+    .get();
+  assert.equal(contactRequestsSnap.empty, true);
+
+  const conversationSnap = await db.collection("conversations").doc(conversationId).get();
+  assert.equal(conversationSnap.get("status"), "archived_item_unavailable");
+  assert.equal(conversationSnap.get("interestedUserId"), "anonymized");
+
+  const messagesSnap = await db
+    .collection("conversations")
+    .doc(conversationId)
+    .collection("messages")
+    .get();
+  assert.equal(messagesSnap.docs[0].get("senderId"), "anonymized");
+  assert.equal(messagesSnap.docs[0].get("isRedacted"), true);
 });
 
 test("email contact blocked when item is chat-only", async () => {

@@ -26,6 +26,9 @@ class AppConfig {
   static const String _paymentsEnabledWeb = String.fromEnvironment(
     "PAYMENTS_ENABLED_WEB",
   );
+  static const String _googleSignInEnabledIos = String.fromEnvironment(
+    "GOOGLE_SIGN_IN_IOS",
+  );
 
   static const String _defaultPrivacyPolicyUrl =
       "https://reloved-greenhilledge.web.app/privacy.html";
@@ -60,9 +63,11 @@ class AppConfig {
   }
 
   static bool get paymentsEnabledOnIos =>
-      _asBool(_paymentsEnabledIos, defaultValue: true);
+      _asBool(_paymentsEnabledIos, defaultValue: false);
   static bool get paymentsEnabledOnWeb =>
       _asBool(_paymentsEnabledWeb, defaultValue: true);
+  static bool get googleSignInEnabledOnIos =>
+      _asBool(_googleSignInEnabledIos, defaultValue: true);
 
   static bool get paymentsEnabledForCurrentPlatform {
     if (kIsWeb) {

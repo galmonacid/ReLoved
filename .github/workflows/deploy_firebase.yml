@@ -51,14 +51,16 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install Firebase CLI
         run: npm i -g firebase-tools@latest
 
       - name: Configure functions artifacts cleanup policy
         run: |
-          firebase functions:artifacts:setpolicy --location=us-central1 --force
+          for location in us-central1 europe-west2; do
+            firebase functions:artifacts:setpolicy --location="$location" --force
+          done
 
       - name: Build Functions
         working-directory: backend/functions
@@ -68,7 +70,7 @@ jobs:
 
       - name: Deploy UK chat usage trigger migration target
         run: |
-          firebase deploy --only functions:onConversationCreatedTrackChatUsageUk
+          firebase deploy --only functions:onConversationCreatedTrackChatUsageUk --force
 
       - name: Remove legacy chat usage trigger in us-central1
         run: |

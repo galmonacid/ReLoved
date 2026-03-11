@@ -154,7 +154,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && request.auth.uid == userId;
       allow create: if isSignedIn()
         && request.auth.uid == userId
         && isValidUserCreate();
@@ -199,6 +199,14 @@ service cloud.firestore {
     }
 
     match /chatReports/{reportId} {
+      allow read, write: if false; // only via Cloud Functions
+    }
+
+    match /listingReports/{reportId} {
+      allow read, write: if false; // only via Cloud Functions
+    }
+
+    match /userReports/{reportId} {
       allow read, write: if false; // only via Cloud Functions
     }
 

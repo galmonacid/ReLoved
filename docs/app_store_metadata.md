@@ -1,28 +1,31 @@
-# App Store Metadata (Drafted)
+# App Store Metadata
 
 ## App Name
 ReLoved - Give & Find
 
-## Subtitle (30 chars max)
-Give & find items locally
+## Subtitle
+Give things away locally
 
-## Promotional Text (170 chars max)
-Give pre-loved items a new home and find what you need locally. Post in minutes, browse by distance, and connect with neighbours to reuse more and waste less.
+## Promotional Text
+Give useful items a second life nearby. Post in minutes, search by distance, and chat safely with local people who want what you no longer need.
 
 ## Description
-ReLoved helps people give away items they no longer need and find pre‑loved items nearby. It’s a simple, community‑driven way to reduce waste and help others.
+ReLoved helps people in the UK give away items they no longer need and find useful things nearby without landfill, clutter, or endless marketplace noise.
 
-Post items in minutes with a photo, title, and description. Browse by distance (3 mi or 10 mi) and see the most recent items first. When you’re interested, send a message to the owner and arrange the exchange directly.
+Create a listing with a photo, title, description, and approximate location. Search within a local radius, filter by keyword, and see what is available close to you. When you find something useful, contact the donor by in-app chat or email, then arrange collection directly.
 
-Key features:
-- Post items with photo, title and description
-- Browse locally with a 3 mi / 10 mi radius
-- Search by keywords
-- Contact item owners via a simple message form
-- Community ratings after exchanges
+What you can do in ReLoved:
+- Post free listings in minutes
+- Search nearby with location-aware results
+- Contact donors by chat or email
+- Rate completed exchanges
+- Report abusive listings or users
+- Delete your account directly in the app
 
-## Keywords (100 chars max)
-giveaway,freebies,donate,donation,preloved,secondhand,local,swap,community,reuse
+ReLoved is designed for local reuse, community trust, and lower waste.
+
+## Keywords
+giveaway,freebies,preloved,secondhand,reuse,donate,community,local,free stuff,uk
 
 ## Primary Category
 Lifestyle
@@ -31,13 +34,19 @@ Lifestyle
 Social Networking
 
 ## Age Rating
-4+
+9+
 
 ## Support URL
-https://greenhilledge.co.uk/support.html
+https://reloved-greenhilledge.web.app/support.html
 
 ## Privacy Policy URL
-https://greenhilledge.co.uk/privacy.html
+https://reloved-greenhilledge.web.app/privacy.html
 
 ## Marketing URL
-https://greenhilledge.co.uk
+https://reloved-greenhilledge.web.app
+
+## Notes
+- iOS release should ship with `GOOGLE_SIGN_IN_IOS=true`.
+- iOS release should ship with `PAYMENTS_ENABLED_IOS=false`.
+- Review notes are in `docs/app_store_review_notes.md`.
+- Screenshot shot list is in `docs/app_store_screenshot_shotlist.md`.

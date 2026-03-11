@@ -2,6 +2,8 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const functionsTest = require("firebase-functions-test")();
 
+process.env.RELOVED_SKIP_APPCHECK = "true";
+
 functionsTest.mockConfig({
   sendgrid: {
     key: "SG.fake",

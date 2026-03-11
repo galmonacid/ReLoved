@@ -20,6 +20,13 @@ void main() {
       expect(strategy, AuthLinkStrategy.google);
     });
 
+    test("returns apple when only apple method exists", () {
+      final strategy = resolveLinkStrategy([
+        AppleAuthProvider.APPLE_SIGN_IN_METHOD,
+      ]);
+      expect(strategy, AuthLinkStrategy.apple);
+    });
+
     test("returns unsupported when no known methods exist", () {
       final strategy = resolveLinkStrategy(["phone"]);
       expect(strategy, AuthLinkStrategy.unsupported);
@@ -34,16 +41,48 @@ void main() {
       );
     });
 
-    test("google is supported on iOS native", () {
+    test("google is supported on iOS native by default", () {
       expect(
         isGoogleSignInSupported(isWeb: false, platform: TargetPlatform.iOS),
         isTrue,
       );
     });
 
+    test("google can be disabled on iOS explicitly", () {
+      expect(
+        isGoogleSignInSupported(
+          isWeb: false,
+          platform: TargetPlatform.iOS,
+          iosEnabled: false,
+        ),
+        isFalse,
+      );
+    });
+
+    test("apple is supported on iOS native", () {
+      expect(
+        isAppleSignInSupported(isWeb: false, platform: TargetPlatform.iOS),
+        isTrue,
+      );
+    });
+
+    test("apple is not supported on web", () {
+      expect(
+        isAppleSignInSupported(isWeb: true, platform: TargetPlatform.iOS),
+        isFalse,
+      );
+    });
+
     test("google is not supported on Android native in this release", () {
       expect(
         isGoogleSignInSupported(isWeb: false, platform: TargetPlatform.android),
+        isFalse,
+      );
+    });
+
+    test("apple is not supported on Android native", () {
+      expect(
+        isAppleSignInSupported(isWeb: false, platform: TargetPlatform.android),
         isFalse,
       );
     });

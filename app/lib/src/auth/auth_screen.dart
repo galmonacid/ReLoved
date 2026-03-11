@@ -21,9 +21,10 @@ class _AuthScreenState extends State<AuthScreen> {
 
   bool _isLogin = true;
   bool _isEmailLoading = false;
+  bool _isAppleLoading = false;
   bool _isGoogleLoading = false;
 
-  bool get _isLoading => _isEmailLoading || _isGoogleLoading;
+  bool get _isLoading => _isEmailLoading || _isAppleLoading || _isGoogleLoading;
 
   @override
   void dispose() {
@@ -144,6 +145,36 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  Future<void> _signInWithApple() async {
+    setState(() {
+      _isAppleLoading = true;
+    });
+    try {
+      final result = await _authService.signInWithApple(
+        requestPasswordForLinking: _promptPasswordForLinking,
+      );
+      await _logSocialAuth(result);
+      if (!mounted) {
+        return;
+      }
+      if (result.didLinkProvider) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Account linked successfully.")),
+        );
+      }
+    } on AuthServiceException catch (error) {
+      _showError(error.message);
+    } catch (_) {
+      _showError("Could not complete Apple sign-in.");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAppleLoading = false;
+        });
+      }
+    }
+  }
+
   Future<void> _logSocialAuth(SocialSignInResult result) async {
     if (result.isNewUser) {
       await AppAnalytics.logSignUp(signUpMethod: result.loginMethod);
@@ -209,10 +240,15 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final showApple = isAppleSignInSupported(
+      isWeb: kIsWeb,
+      platform: defaultTargetPlatform,
+    );
     final showGoogle = isGoogleSignInSupported(
       isWeb: kIsWeb,
       platform: defaultTargetPlatform,
     );
+    final showSocialSignIn = showApple || showGoogle;
 
     return Scaffold(
       appBar: AppBar(title: const Text("ReLoved")),
@@ -287,7 +323,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             : "Already have an account? Sign in",
                       ),
                     ),
-                    if (showGoogle) ...[
+                    if (showSocialSignIn) ...[
                       const SizedBox(height: 16),
                       Row(
                         children: [
@@ -303,6 +339,24 @@ class _AuthScreenState extends State<AuthScreen> {
                         ],
                       ),
                       const SizedBox(height: 16),
+                      if (showApple)
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.tonalIcon(
+                            onPressed: _isLoading ? null : _signInWithApple,
+                            icon: const Icon(Icons.apple),
+                            label: _isAppleLoading
+                                ? const SizedBox(
+                                    height: 18,
+                                    width: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Text("Continue with Apple"),
+                          ),
+                        ),
+                      if (showApple && showGoogle) const SizedBox(height: 12),
                       if (showGoogle)
                         SizedBox(
                           width: double.infinity,

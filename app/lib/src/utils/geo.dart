@@ -1,3 +1,5 @@
+import "dart:math" as math;
+
 import "package:latlong2/latlong.dart";
 
 const LatLng defaultCenter = LatLng(52.0406, -0.7594);
@@ -48,4 +50,97 @@ String encodeGeohash(double lat, double lng, {int precision = 9}) {
   }
 
   return geohash.toString();
+}
+
+int geohashPrecisionForRadiusKm(double radiusKm) {
+  if (radiusKm <= 1.2) {
+    return 6;
+  }
+  if (radiusKm <= 4.9) {
+    return 5;
+  }
+  if (radiusKm <= 39.1) {
+    return 4;
+  }
+  if (radiusKm <= 156) {
+    return 3;
+  }
+  return 2;
+}
+
+LatLng offsetByDistance(
+  LatLng origin, {
+  required double distanceKm,
+  required double bearingDegrees,
+}) {
+  const earthRadiusKm = 6371.0;
+  final angularDistance = distanceKm / earthRadiusKm;
+  final bearing = bearingDegrees * math.pi / 180.0;
+  final lat1 = origin.latitudeInRad;
+  final lng1 = origin.longitudeInRad;
+
+  final lat2 = math.asin(
+    (math.sin(lat1) * math.cos(angularDistance)) +
+        (math.cos(lat1) * math.sin(angularDistance) * math.cos(bearing)),
+  );
+  final lng2 =
+      lng1 +
+      math.atan2(
+        math.sin(bearing) * math.sin(angularDistance) * math.cos(lat1),
+        math.cos(angularDistance) - (math.sin(lat1) * math.sin(lat2)),
+      );
+
+  return LatLng(lat2 * 180.0 / math.pi, lng2 * 180.0 / math.pi);
+}
+
+List<String> geohashPrefixesForRadius(LatLng center, double radiusKm) {
+  final effectiveRadiusKm = radiusKm <= 0 ? 1.0 : radiusKm;
+  final precision = geohashPrecisionForRadiusKm(effectiveRadiusKm);
+  final samplePoints = <LatLng>[
+    center,
+    offsetByDistance(center, distanceKm: effectiveRadiusKm, bearingDegrees: 0),
+    offsetByDistance(center, distanceKm: effectiveRadiusKm, bearingDegrees: 45),
+    offsetByDistance(center, distanceKm: effectiveRadiusKm, bearingDegrees: 90),
+    offsetByDistance(
+      center,
+      distanceKm: effectiveRadiusKm,
+      bearingDegrees: 135,
+    ),
+    offsetByDistance(
+      center,
+      distanceKm: effectiveRadiusKm,
+      bearingDegrees: 180,
+    ),
+    offsetByDistance(
+      center,
+      distanceKm: effectiveRadiusKm,
+      bearingDegrees: 225,
+    ),
+    offsetByDistance(
+      center,
+      distanceKm: effectiveRadiusKm,
+      bearingDegrees: 270,
+    ),
+    offsetByDistance(
+      center,
+      distanceKm: effectiveRadiusKm,
+      bearingDegrees: 315,
+    ),
+  ];
+
+  final prefixes =
+      samplePoints
+          .map(
+            (point) => encodeGeohash(
+              point.latitude,
+              point.longitude,
+              precision: precision,
+            ),
+          )
+          .map((hash) => hash.substring(0, precision))
+          .toSet()
+          .toList()
+        ..sort();
+
+  return prefixes;
 }

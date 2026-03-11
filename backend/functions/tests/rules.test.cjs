@@ -102,6 +102,20 @@ test("users cannot create another user's profile", async () => {
   );
 });
 
+test("users can read their own profile but not other users", async () => {
+  const testEnv = await resetEnv();
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().collection("users").doc("alice").set(userData("alice@example.com"));
+    await context.firestore().collection("users").doc("bob").set(userData("bob@example.com"));
+  });
+
+  const aliceDb = testEnv
+    .authenticatedContext("alice", { email: "alice@example.com" })
+    .firestore();
+  await assertSucceeds(aliceDb.collection("users").doc("alice").get());
+  await assertFails(aliceDb.collection("users").doc("bob").get());
+});
+
 test("items can be created by owner only", async () => {
   const testEnv = await resetEnv();
   const db = testEnv.authenticatedContext("owner").firestore();
@@ -171,6 +185,27 @@ test("contactRequests are not writable from client", async () => {
       toUserId: "owner",
       itemId: "item-1",
       message: "Hola",
+      createdAt: new Date()
+    })
+  );
+});
+
+test("listing and user reports are not writable from client", async () => {
+  const testEnv = await resetEnv();
+  const db = testEnv.authenticatedContext("alice").firestore();
+  await assertFails(
+    db.collection("listingReports").doc("report-1").set({
+      reporterUserId: "alice",
+      itemId: "item-1",
+      reason: "spam",
+      createdAt: new Date()
+    })
+  );
+  await assertFails(
+    db.collection("userReports").doc("report-1").set({
+      reporterUserId: "alice",
+      reportedUserId: "bob",
+      reason: "fraud",
       createdAt: new Date()
     })
   );

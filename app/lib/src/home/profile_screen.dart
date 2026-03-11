@@ -3,6 +3,7 @@ import "package:firebase_auth/firebase_auth.dart";
 import "package:flutter/material.dart";
 import "package:url_launcher/url_launcher.dart";
 import "../../theme/app_colors.dart";
+import "../auth/account_deletion_service.dart";
 import "../config/app_config.dart";
 import "../models/item.dart";
 import "../monetization/monetization_service.dart";
@@ -44,22 +45,72 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Future<void> _requestDeletion(BuildContext context, User user) async {
-    if (!AppConfig.hasSupportEmail) {
-      _showConfigMissing(context);
-      return;
-    }
-    final uri = Uri(
-      scheme: "mailto",
-      path: AppConfig.supportEmail,
-      queryParameters: {
-        "subject": "Account deletion request",
-        "body": "UID: ${user.uid}\nEmail: ${user.email ?? ""}",
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text("Delete account"),
+          content: Text(
+            "This permanently removes your profile, listings, contact requests, and chat history for ${user.email ?? "this account"}. Apple-linked accounts will ask you to confirm with Apple before deletion.",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text("Delete"),
+            ),
+          ],
+        );
       },
     );
-    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!ok && context.mounted) {
+    if (confirmed != true || !context.mounted) {
+      return;
+    }
+
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 16),
+            Expanded(child: Text("Deleting your account...")),
+          ],
+        ),
+      ),
+    );
+    try {
+      await AccountDeletionService().deleteCurrentAccount();
+      if (!context.mounted) {
+        return;
+      }
+      Navigator.of(context, rootNavigator: true).pop();
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Could not open the email app.")),
+        const SnackBar(content: Text("Your account has been deleted.")),
+      );
+    } on FirebaseException catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            error.message ?? "Could not delete your account right now.",
+          ),
+        ),
       );
     }
   }
@@ -305,7 +356,7 @@ class ProfileScreen extends StatelessWidget {
                         ),
                         const Divider(height: 1),
                         ListTile(
-                          title: const Text("Request account deletion"),
+                          title: const Text("Delete account"),
                           trailing: const Icon(Icons.chevron_right),
                           textColor: AppColors.error,
                           iconColor: AppColors.error,

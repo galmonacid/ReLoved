@@ -8,6 +8,7 @@ import "../auth/auth_screen.dart";
 import "../chat/chat_service.dart";
 import "../models/item.dart";
 import "../models/monetization.dart";
+import "../moderation/moderation_service.dart";
 import "../monetization/monetization_service.dart";
 import "../testing/chat_open_perf_probe.dart";
 import "../testing/test_keys.dart";
@@ -29,6 +30,7 @@ class ItemDetailScreen extends StatefulWidget {
 class _ItemDetailScreenState extends State<ItemDetailScreen> {
   bool _isUpdatingStatus = false;
   bool _isUpdatingContactPreference = false;
+  bool _isReporting = false;
   String? _prefetchedMonetizationUid;
   String? _prefetchedConversationKey;
 
@@ -361,6 +363,122 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> _showReportDialog({
+    required Item item,
+    required bool reportUser,
+  }) async {
+    if (_isReporting) {
+      return;
+    }
+    final user = await _ensureSignedIn();
+    if (user == null || !mounted) {
+      return;
+    }
+    var selectedReason = ModerationReason.spam;
+    final detailsController = TextEditingController();
+    try {
+      final shouldSubmit = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              return AlertDialog(
+                title: Text(reportUser ? "Report user" : "Report listing"),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    DropdownButtonFormField<ModerationReason>(
+                      initialValue: selectedReason,
+                      items: ModerationReason.values
+                          .map(
+                            (reason) => DropdownMenuItem(
+                              value: reason,
+                              child: Text(moderationReasonLabel(reason)),
+                            ),
+                          )
+                          .toList(),
+                      decoration: const InputDecoration(labelText: "Reason"),
+                      onChanged: (value) {
+                        if (value == null) {
+                          return;
+                        }
+                        setDialogState(() {
+                          selectedReason = value;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: detailsController,
+                      minLines: 3,
+                      maxLines: 5,
+                      maxLength: 500,
+                      decoration: const InputDecoration(
+                        labelText: "Details (optional)",
+                        alignLabelWithHint: true,
+                      ),
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                    child: const Text("Cancel"),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(true),
+                    child: const Text("Submit"),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+
+      if (shouldSubmit != true || !mounted) {
+        return;
+      }
+
+      setState(() {
+        _isReporting = true;
+      });
+      if (reportUser) {
+        await ModerationService.reportUser(
+          reportedUserId: item.ownerId,
+          reason: moderationReasonToWire(selectedReason),
+          details: detailsController.text.trim(),
+        );
+      } else {
+        await ModerationService.reportListing(
+          itemId: item.id,
+          reason: moderationReasonToWire(selectedReason),
+          details: detailsController.text.trim(),
+        );
+      }
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            reportUser ? "User report submitted." : "Listing report submitted.",
+          ),
+        ),
+      );
+    } catch (error) {
+      _showError("Could not submit the report.");
+    } finally {
+      detailsController.dispose();
+      if (mounted) {
+        setState(() {
+          _isReporting = false;
+        });
+      }
+    }
+  }
+
   Widget _contactSection(Item item) {
     final user = FirebaseAuth.instance.currentUser;
     _maybePrefetchMonetizationStatus(user);
@@ -446,6 +564,29 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           appBar: AppBar(
             title: Text(item.title),
             actions: [
+              if (!isOwner)
+                PopupMenuButton<String>(
+                  enabled: !_isReporting,
+                  onSelected: (value) {
+                    if (value == "report_item") {
+                      _showReportDialog(item: item, reportUser: false);
+                      return;
+                    }
+                    if (value == "report_user") {
+                      _showReportDialog(item: item, reportUser: true);
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem<String>(
+                      value: "report_item",
+                      child: Text("Report listing"),
+                    ),
+                    PopupMenuItem<String>(
+                      value: "report_user",
+                      child: Text("Report user"),
+                    ),
+                  ],
+                ),
               IconButton(
                 onPressed: () => shareItem(context, item),
                 icon: const Icon(Icons.share),
