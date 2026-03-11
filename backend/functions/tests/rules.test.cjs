@@ -104,10 +104,9 @@ test("users cannot create another user's profile", async () => {
 
 test("users can read their own profile but not other users", async () => {
   const testEnv = await resetEnv();
-  await testEnv.withSecurityRulesDisabled(async (context) => {
-    await context.firestore().collection("users").doc("alice").set(userData("alice@example.com"));
-    await context.firestore().collection("users").doc("bob").set(userData("bob@example.com"));
-  });
+  const adminDb = getAdminDb();
+  await adminDb.collection("users").doc("alice").set(userData("alice@example.com"));
+  await adminDb.collection("users").doc("bob").set(userData("bob@example.com"));
 
   const aliceDb = testEnv
     .authenticatedContext("alice", { email: "alice@example.com" })

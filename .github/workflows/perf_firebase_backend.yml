@@ -1,0 +1,91 @@
+name: Perf (Firebase backend)
+
+on:
+  workflow_run:
+    workflows: ["Deploy (Firebase backend)"]
+    types: [completed]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_branch || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  chat-open-perf:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+      actions: read
+    env:
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      GCP_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      GCP_SERVICE_ACCOUNT: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      GCLOUD_PROJECT: reloved-greenhilledge
+      E2E_FIREBASE_PROJECT_ID: reloved-greenhilledge
+      E2E_CHAT_FUNCTIONS_REGION: europe-west2
+      E2E_ALLOW_PROD_PROJECT: "1"
+      E2E_HEADLESS: "1"
+      E2E_BUILD_MODE: profile
+      E2E_CHAT_OPEN_BUDGET_MS: "2500"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Auth to Google Cloud (service account)
+        uses: google-github-actions/auth@v2
+        if: ${{ env.FIREBASE_SERVICE_ACCOUNT != '' }}
+        with:
+          credentials_json: ${{ env.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Auth to Google Cloud (workload identity)
+        uses: google-github-actions/auth@v2
+        if: ${{ env.FIREBASE_SERVICE_ACCOUNT == '' }}
+        with:
+          workload_identity_provider: ${{ env.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.GCP_SERVICE_ACCOUNT }}
+
+      - name: Validate auth configuration
+        if: ${{ env.FIREBASE_SERVICE_ACCOUNT == '' && (env.GCP_WORKLOAD_IDENTITY_PROVIDER == '' || env.GCP_SERVICE_ACCOUNT == '') }}
+        run: |
+          echo "Missing auth configuration. Set FIREBASE_SERVICE_ACCOUNT or both GCP_WORKLOAD_IDENTITY_PROVIDER and GCP_SERVICE_ACCOUNT."
+          exit 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - uses: browser-actions/setup-chrome@v1
+        id: setup-chrome
+        with:
+          chrome-version: stable
+          install-dependencies: true
+          install-chromedriver: true
+
+      - name: Add ChromeDriver to PATH
+        run: echo "${{ steps.setup-chrome.outputs.chromedriver-path }}" >> "$GITHUB_PATH"
+
+      - name: Flutter pub get
+        run: flutter pub get
+        working-directory: app
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend/functions
+
+      - name: Run remote chat-open performance test
+        run: |
+          CHROME_BINARY="${{ steps.setup-chrome.outputs.chrome-path }}" \
+          scripts/e2e/run_chat_perf_firebase.sh
