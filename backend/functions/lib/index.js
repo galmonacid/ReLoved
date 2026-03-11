@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.purgeOldChatData = exports.archiveConversationsForUnavailableItems = exports.anonymizeUserChatData = exports.setItemContactPreference = exports.reportConversation = exports.blockConversationParticipant = exports.reopenConversationByDonor = exports.closeConversationByDonor = exports.markConversationRead = exports.sendChatMessage = exports.onConversationCreatedTrackChatUsage = exports.upsertItemConversation = exports.sendContactEmail = exports.stripeWebhook = exports.createBillingPortalSession = exports.createSupportCheckoutSession = exports.getMonetizationStatus = void 0;
+exports.purgeOldChatData = exports.archiveConversationsForUnavailableItems = exports.anonymizeUserChatData = exports.setItemContactPreference = exports.reportConversation = exports.blockConversationParticipant = exports.reopenConversationByDonor = exports.closeConversationByDonor = exports.markConversationRead = exports.sendChatMessage = exports.onConversationCreatedTrackChatUsageUk = exports.upsertItemConversation = exports.sendContactEmail = exports.stripeWebhook = exports.createBillingPortalSession = exports.createSupportCheckoutSession = exports.getMonetizationStatus = void 0;
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const sgMail = require("@sendgrid/mail");
@@ -1142,7 +1142,7 @@ exports.upsertItemConversation = chatCallable.https.onCall(async (data, context)
     });
     return { ok: true, conversationId, created };
 });
-exports.onConversationCreatedTrackChatUsage = functions
+exports.onConversationCreatedTrackChatUsageUk = functions
     .region(CHAT_PRIMARY_REGION)
     .firestore.document("conversations/{conversationId}")
     .onCreate(async (snapshot, _context) => {

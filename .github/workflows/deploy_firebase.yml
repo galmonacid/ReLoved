@@ -66,6 +66,18 @@ jobs:
           npm ci
           npm run build
 
+      - name: Deploy UK chat usage trigger migration target
+        run: |
+          firebase deploy --only functions:onConversationCreatedTrackChatUsageUk
+
+      - name: Remove legacy chat usage trigger in us-central1
+        run: |
+          set -euo pipefail
+          FUNCTIONS_LIST="$(firebase functions:list)"
+          if echo "$FUNCTIONS_LIST" | awk '/onConversationCreatedTrackChatUsage/ && /us-central1/ { found=1 } END { exit found ? 0 : 1 }'; then
+            firebase functions:delete onConversationCreatedTrackChatUsage --region us-central1 --force
+          fi
+
       - name: Deploy Firestore rules/indexes + Storage rules + Functions
         run: |
           firebase --version

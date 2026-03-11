@@ -1545,7 +1545,7 @@ export const upsertItemConversation = chatCallable.https.onCall(async (data, con
   return { ok: true, conversationId, created };
 });
 
-export const onConversationCreatedTrackChatUsage = functions
+export const onConversationCreatedTrackChatUsageUk = functions
   .region(CHAT_PRIMARY_REGION)
   .firestore.document("conversations/{conversationId}")
   .onCreate(async (snapshot, _context) => {
