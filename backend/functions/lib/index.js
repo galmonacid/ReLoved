@@ -302,7 +302,15 @@ function configValue(value) {
 }
 function legacyRuntimeConfig() {
     const configAccessor = functions.config;
-    return typeof configAccessor === "function" ? configAccessor() : {};
+    if (typeof configAccessor !== "function") {
+        return {};
+    }
+    try {
+        return configAccessor();
+    }
+    catch {
+        return {};
+    }
 }
 function getStripeSecretKey() {
     const fromConfig = configValue(legacyRuntimeConfig().stripe?.secret_key);

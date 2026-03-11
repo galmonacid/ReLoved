@@ -7,6 +7,7 @@ CONTROL_BASE_URL="http://127.0.0.1:${E2E_CONTROL_PORT:-8787}"
 PROJECT_ID="${E2E_FIREBASE_PROJECT_ID:-${GCLOUD_PROJECT:-reloved-greenhilledge}}"
 TARGETS="${E2E_TARGETS:-integration_test/chat_open_performance_test.dart}"
 CHROMEDRIVER_PORT="${CHROMEDRIVER_PORT:-4444}"
+GCLOUD_BIN="${GCLOUD_BIN:-$(command -v gcloud || true)}"
 CHROME_PROFILE_DIR="$(mktemp -d -t reloved-remote-e2e-chrome.XXXXXX)"
 CONTROL_LOG="$(mktemp -t reloved-remote-e2e-control.XXXXXX.log)"
 CHROMEDRIVER_LOG="$(mktemp -t reloved-remote-e2e-chromedriver.XXXXXX.log)"
@@ -38,7 +39,7 @@ fi
 if [ -z "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]; then
   ADC_DEFAULT="$HOME/.config/gcloud/application_default_credentials.json"
   ACTIVE_ACCOUNT="$(
-    /usr/local/share/google-cloud-sdk/bin/gcloud config get-value account 2>/dev/null | tr -d '\r'
+    "$GCLOUD_BIN" config get-value account 2>/dev/null | tr -d '\r'
   )"
   ADC_LEGACY="$HOME/.config/gcloud/legacy_credentials/${ACTIVE_ACCOUNT}/adc.json"
   if [ -n "$ACTIVE_ACCOUNT" ] && [ "$ACTIVE_ACCOUNT" != "(unset)" ] && [ -f "$ADC_LEGACY" ]; then
@@ -48,7 +49,11 @@ if [ -z "${GOOGLE_APPLICATION_CREDENTIALS:-}" ]; then
   fi
 fi
 
-if ! /usr/local/share/google-cloud-sdk/bin/gcloud auth application-default print-access-token >/dev/null 2>&1; then
+if [ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ] && [ -f "${GOOGLE_APPLICATION_CREDENTIALS}" ]; then
+  :
+elif [ -n "$GCLOUD_BIN" ] && "$GCLOUD_BIN" auth application-default print-access-token >/dev/null 2>&1; then
+  :
+else
   echo "Application default credentials are invalid." >&2
   echo "Run: gcloud auth application-default login" >&2
   exit 1
