@@ -326,6 +326,19 @@ function requireAppCheck(context: functions.https.CallableContext): void {
   }
 }
 
+function warnIfMissingAppCheck(
+  context: functions.https.CallableContext,
+  functionName: string
+): void {
+  if (context.app) {
+    return;
+  }
+  functions.logger.warn("callable request missing App Check", {
+    functionName,
+    uid: context.auth?.uid ?? null
+  });
+}
+
 function requireNonEmptyString(
   value: unknown,
   fieldName: string,
@@ -1702,7 +1715,7 @@ export const sendContactEmail = functions.https.onCall(async (data, context) => 
 });
 
 export const upsertItemConversation = chatCallable.https.onCall(async (data, context) => {
-  requireAppCheck(context);
+  warnIfMissingAppCheck(context, "upsertItemConversation");
   const interestedUserId = requireAuth(context);
   const payload = isObject(data) ? data : {};
   const itemId = requireNonEmptyString(payload.itemId, "itemId", 1, 128);
@@ -1830,7 +1843,7 @@ export const onConversationCreatedTrackChatUsageUk = functions
   });
 
 export const sendChatMessage = chatCallable.https.onCall(async (data, context) => {
-  requireAppCheck(context);
+  warnIfMissingAppCheck(context, "sendChatMessage");
   const senderId = requireAuth(context);
   const payload = isObject(data) ? data : {};
   const conversationId = requireNonEmptyString(payload.conversationId, "conversationId", 1, 256);
@@ -1946,7 +1959,7 @@ export const sendChatMessage = chatCallable.https.onCall(async (data, context) =
 });
 
 export const markConversationRead = chatCallable.https.onCall(async (data, context) => {
-  requireAppCheck(context);
+  warnIfMissingAppCheck(context, "markConversationRead");
   const uid = requireAuth(context);
   const payload = isObject(data) ? data : {};
   const conversationId = requireNonEmptyString(payload.conversationId, "conversationId", 1, 256);

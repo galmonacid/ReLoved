@@ -177,6 +177,15 @@ function requireAppCheck(context) {
         throw new functions.https.HttpsError("failed-precondition", "App integrity check required");
     }
 }
+function warnIfMissingAppCheck(context, functionName) {
+    if (context.app) {
+        return;
+    }
+    functions.logger.warn("callable request missing App Check", {
+        functionName,
+        uid: context.auth?.uid ?? null
+    });
+}
 function requireNonEmptyString(value, fieldName, minLength = 1, maxLength = 1000) {
     if (typeof value !== "string") {
         throw new functions.https.HttpsError("invalid-argument", `${fieldName} is required`);
@@ -1278,7 +1287,7 @@ exports.sendContactEmail = functions.https.onCall(async (data, context) => {
     }
 });
 exports.upsertItemConversation = chatCallable.https.onCall(async (data, context) => {
-    requireAppCheck(context);
+    warnIfMissingAppCheck(context, "upsertItemConversation");
     const interestedUserId = requireAuth(context);
     const payload = isObject(data) ? data : {};
     const itemId = requireNonEmptyString(payload.itemId, "itemId", 1, 128);
@@ -1386,7 +1395,7 @@ exports.onConversationCreatedTrackChatUsageUk = functions
     }
 });
 exports.sendChatMessage = chatCallable.https.onCall(async (data, context) => {
-    requireAppCheck(context);
+    warnIfMissingAppCheck(context, "sendChatMessage");
     const senderId = requireAuth(context);
     const payload = isObject(data) ? data : {};
     const conversationId = requireNonEmptyString(payload.conversationId, "conversationId", 1, 256);
@@ -1476,7 +1485,7 @@ exports.sendChatMessage = chatCallable.https.onCall(async (data, context) => {
     return { ok: true, messageId };
 });
 exports.markConversationRead = chatCallable.https.onCall(async (data, context) => {
-    requireAppCheck(context);
+    warnIfMissingAppCheck(context, "markConversationRead");
     const uid = requireAuth(context);
     const payload = isObject(data) ? data : {};
     const conversationId = requireNonEmptyString(payload.conversationId, "conversationId", 1, 256);
