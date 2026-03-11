@@ -87,5 +87,6 @@ jobs:
 
       - name: Run remote chat-open performance test
         run: |
-          CHROME_BINARY="${{ steps.setup-chrome.outputs.chrome-path }}" \
-          scripts/e2e/run_chat_perf_firebase.sh
+          xvfb-run -a env \
+            CHROME_BINARY="${{ steps.setup-chrome.outputs.chrome-path }}" \
+            scripts/e2e/run_chat_perf_firebase.sh
