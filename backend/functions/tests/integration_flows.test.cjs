@@ -2,6 +2,11 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const admin = require("firebase-admin");
 const functionsTest = require("firebase-functions-test")();
+
+process.env.RELOVED_SKIP_APPCHECK = "true";
+process.env.SENDGRID_KEY = "SG.fake";
+process.env.SENDGRID_FROM = "noreply@example.com";
+
 const { sendContactEmail } = require("../lib/index");
 
 const projectId = "reloved-test";
@@ -63,13 +68,6 @@ test("flow: publish item then query results", async () => {
 });
 
 test("flow: contact request creates record via function", async () => {
-  functionsTest.mockConfig({
-    sendgrid: {
-      key: "SG.fake",
-      from: "noreply@example.com"
-    }
-  });
-
   const wrapped = functionsTest.wrap(sendContactEmail);
 
   await clearFirestore();

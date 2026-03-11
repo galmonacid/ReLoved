@@ -3,13 +3,8 @@ const assert = require("node:assert/strict");
 const functionsTest = require("firebase-functions-test")();
 
 process.env.RELOVED_SKIP_APPCHECK = "true";
-
-functionsTest.mockConfig({
-  sendgrid: {
-    key: "SG.fake",
-    from: "noreply@example.com"
-  }
-});
+process.env.SENDGRID_KEY = "SG.fake";
+process.env.SENDGRID_FROM = "noreply@example.com";
 
 const { sendContactEmail } = require("../lib/index");
 

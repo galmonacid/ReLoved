@@ -481,7 +481,14 @@ function legacyRuntimeConfig(): Record<string, Record<string, unknown>> {
   const configAccessor = (
     functions as unknown as { config?: () => Record<string, Record<string, unknown>> }
   ).config;
-  return typeof configAccessor === "function" ? configAccessor() : {};
+  if (typeof configAccessor !== "function") {
+    return {};
+  }
+  try {
+    return configAccessor();
+  } catch {
+    return {};
+  }
 }
 
 function getStripeSecretKey(): string {
