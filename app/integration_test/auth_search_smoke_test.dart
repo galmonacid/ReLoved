@@ -36,7 +36,9 @@ void main() {
 
       binding.reportData!["auth_search_step"] = "mount_search";
       await pumpTestApp(tester, const SearchScreen());
-      await robot.waitFor(find.text("Find around"));
+      await robot.waitFor(
+        find.byKey(const ValueKey(TestKeys.searchKeywordField)),
+      );
       final searchField = find.byType(EditableText).first;
       await robot.waitFor(searchField);
 
