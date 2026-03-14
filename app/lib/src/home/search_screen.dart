@@ -507,8 +507,8 @@ class _SearchScreenState extends State<SearchScreen> {
             final item = items[index];
             return PressableScale(
               child: Card(
-                key: ValueKey(TestKeys.searchItemCard(item.id)),
                 child: InkWell(
+                  key: ValueKey(TestKeys.searchItemCard(item.id)),
                   borderRadius: BorderRadius.circular(16),
                   onTap: () {
                     AppAnalytics.logEvent(
