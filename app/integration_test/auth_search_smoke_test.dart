@@ -34,7 +34,7 @@ void main() {
     await tester.enterText(searchField, fixture.searchTerm);
     await tester.pump(const Duration(milliseconds: 500));
 
-    await robot.tapByKey(TestKeys.searchItemCard(fixture.item.id));
+    await robot.pressByKey(TestKeys.searchItemCard(fixture.item.id));
 
     await robot.waitFor(find.text("Open chat").hitTestable());
   });
