@@ -53,4 +53,4 @@ flutter test \
   --dart-define=STORAGE_EMULATOR_HOST=127.0.0.1 \
   --dart-define=STORAGE_EMULATOR_PORT=9199 \
   --dart-define=E2E_CONTROL_BASE_URL="$CONTROL_BASE_URL" \
-  --dart-define=E2E_FIXED_POSTCODE="MK9 3QA"
+  --dart-define=E2E_FIXED_POSTCODE="MK8 1AH"

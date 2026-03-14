@@ -4,6 +4,7 @@ import "package:firebase_auth/firebase_auth.dart";
 import "package:firebase_core/firebase_core.dart";
 import "package:firebase_storage/firebase_storage.dart";
 import "package:flutter/foundation.dart";
+import "package:latlong2/latlong.dart";
 
 import "../../firebase_options.dart";
 
@@ -61,7 +62,15 @@ class E2EConfig {
   );
   static const String fixedPostcode = String.fromEnvironment(
     "E2E_FIXED_POSTCODE",
-    defaultValue: "MK9 3QA",
+    defaultValue: "MK8 1AH",
+  );
+  static const String _fixedLocationLatWire = String.fromEnvironment(
+    "E2E_FIXED_LOCATION_LAT",
+    defaultValue: "52.02765",
+  );
+  static const String _fixedLocationLngWire = String.fromEnvironment(
+    "E2E_FIXED_LOCATION_LNG",
+    defaultValue: "-0.81479",
   );
   static const bool disableAnalyticsByDefine = bool.fromEnvironment(
     "E2E_DISABLE_ANALYTICS",
@@ -74,6 +83,11 @@ class E2EConfig {
   static bool get disableAnalytics => enabled || disableAnalyticsByDefine;
   static bool get disableFirebaseSideEffects =>
       enabled || disableFirebaseSideEffectsByDefine;
+  static double get fixedLocationLat =>
+      double.tryParse(_fixedLocationLatWire) ?? 52.02765;
+  static double get fixedLocationLng =>
+      double.tryParse(_fixedLocationLngWire) ?? -0.81479;
+  static LatLng get fixedLocation => LatLng(fixedLocationLat, fixedLocationLng);
 
   static FirebaseOptions get firebaseOptions {
     if (!enabled || !kIsWeb) {

@@ -1,7 +1,6 @@
 import "package:geolocator/geolocator.dart";
 import "package:latlong2/latlong.dart";
 import "../config/e2e_config.dart";
-import "geo.dart";
 
 enum LocationBootstrapStatus { loading, resolved, unavailable }
 
@@ -114,7 +113,7 @@ Future<LocationBootstrapResult> bootstrapCurrentLocation({
   LocationAccessClient client = const GeolocatorLocationAccessClient(),
 }) async {
   if (E2EConfig.enabled) {
-    return const LocationBootstrapResult.resolved(defaultCenter);
+    return LocationBootstrapResult.resolved(E2EConfig.fixedLocation);
   }
 
   final serviceEnabled = await client.isLocationServiceEnabled();
