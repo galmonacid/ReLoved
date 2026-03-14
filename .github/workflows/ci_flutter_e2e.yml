@@ -63,7 +63,8 @@ jobs:
 
       - name: Run smoke E2E test against emulators
         run: |
-          E2E_HEADLESS=1 \
-          CHROME_BINARY="${{ steps.setup-chrome.outputs.chrome-path }}" \
-          E2E_TARGETS=integration_test/auth_search_smoke_test.dart \
-          scripts/e2e/run_chat_e2e.sh
+          xvfb-run -a env \
+            E2E_HEADLESS=1 \
+            CHROME_BINARY="${{ steps.setup-chrome.outputs.chrome-path }}" \
+            E2E_TARGETS=integration_test/auth_search_smoke_test.dart \
+            scripts/e2e/run_chat_e2e.sh
