@@ -7,7 +7,7 @@ on:
       - "app/**"
       - "firebase.json"
       - "public/**"
-      - ".github/workflows/deploy_hosting.yml"
+      - ".github/workflows/**"
   workflow_dispatch:
 
 concurrency:

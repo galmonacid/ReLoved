@@ -4,12 +4,12 @@ on:
   pull_request:
     paths:
       - "app/**"
-      - ".github/workflows/ci_ios_release.yml"
+      - ".github/workflows/**"
   push:
     branches: [ main ]
     paths:
       - "app/**"
-      - ".github/workflows/ci_ios_release.yml"
+      - ".github/workflows/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
