@@ -1,3 +1,4 @@
+import "dart:async";
 import "dart:math" as math;
 
 import "package:cloud_firestore/cloud_firestore.dart";
@@ -15,8 +16,29 @@ import "../widgets/motion/pressable_scale.dart";
 import "../testing/test_keys.dart";
 import "item_detail_screen.dart";
 
+typedef SearchLocationBootstrapLoader =
+    Future<LocationBootstrapResult> Function();
+typedef SearchReversePostcodeLookup = Future<String?> Function(LatLng location);
+typedef SearchItemsLoader =
+    Future<List<Item>> Function({
+      required LatLng center,
+      required double radiusKm,
+      required int resultCap,
+    });
+
 class SearchScreen extends StatefulWidget {
-  const SearchScreen({super.key});
+  const SearchScreen({
+    super.key,
+    this.locationBootstrapLoader,
+    this.reversePostcodeLookup,
+    this.searchItemsLoader,
+    this.enableBootstrapAnalytics = true,
+  });
+
+  final SearchLocationBootstrapLoader? locationBootstrapLoader;
+  final SearchReversePostcodeLookup? reversePostcodeLookup;
+  final SearchItemsLoader? searchItemsLoader;
+  final bool enableBootstrapAnalytics;
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -30,9 +52,12 @@ class _SearchScreenState extends State<SearchScreen> {
   double _radiusMiles = 3;
   String _query = "";
   String? _centerLabel;
+  LocationBootstrapResult _locationBootstrap =
+      const LocationBootstrapResult.loading();
   final TextEditingController _searchController = TextEditingController();
 
   List<Item> _nearbyItems = const <Item>[];
+  bool _hasSelectedCenter = false;
   bool _isLoading = true;
   bool _isLoadingMore = false;
   bool _hasMoreResults = false;
@@ -45,34 +70,77 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
-    _refreshSearch(resetPagination: true);
-    _loadInitialLocation();
+    _bootstrapLocation();
   }
 
-  Future<void> _loadInitialLocation() async {
-    final current = await getCurrentLocationOrDefault();
+  bool get _isLocationResolving =>
+      !_hasSelectedCenter &&
+      _locationBootstrap.status == LocationBootstrapStatus.loading;
+
+  bool get _isLocationUnavailable =>
+      !_hasSelectedCenter && _locationBootstrap.isUnavailable;
+
+  Future<void> _bootstrapLocation() async {
+    if (mounted) {
+      setState(() {
+        _locationBootstrap = const LocationBootstrapResult.loading();
+        _isLoading = true;
+        _loadError = null;
+      });
+    }
+
+    final loader = widget.locationBootstrapLoader ?? bootstrapCurrentLocation;
+    final result = await loader();
+    unawaited(_logLocationBootstrap(result));
+    if (!mounted) {
+      return;
+    }
+
+    if (!result.isResolved) {
+      setState(() {
+        _locationBootstrap = result;
+        _hasSelectedCenter = false;
+        _centerLabel = null;
+        _nearbyItems = const <Item>[];
+        _hasMoreResults = false;
+        _isLoading = false;
+        _isLoadingMore = false;
+        _hasAnimatedResultsIn = false;
+        _resultsVisible = false;
+        _loadError = null;
+      });
+      return;
+    }
+
+    final current = result.location!;
+    final reverseLookup = widget.reversePostcodeLookup ?? reverseUkPostcode;
+    var centerLabel = "Current area";
+    try {
+      final postcode = await reverseLookup(current);
+      if (postcode != null && postcode.isNotEmpty) {
+        centerLabel = postcode;
+      }
+    } catch (_) {}
+
     if (!mounted) {
       return;
     }
     setState(() {
       _center = current;
+      _centerLabel = centerLabel;
+      _hasSelectedCenter = true;
+      _locationBootstrap = result;
     });
     await _refreshSearch(resetPagination: true);
-
-    final postcode = await reverseUkPostcode(current);
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _centerLabel = postcode;
-    });
   }
 
   Future<void> _pickCenter() async {
     final selected = await Navigator.of(context).push<MapPickerResult>(
       MaterialPageRoute(
-        builder: (_) =>
-            MapPicker(initialCenter: _center, initialPostcode: _centerLabel),
+        builder: (_) => MapPicker(
+          initialCenter: _hasSelectedCenter ? _center : defaultCenter,
+          initialPostcode: _centerLabel,
+        ),
       ),
     );
     if (selected == null || !mounted) {
@@ -80,7 +148,9 @@ class _SearchScreenState extends State<SearchScreen> {
     }
     setState(() {
       _center = selected.location;
-      _centerLabel = selected.postcode;
+      _centerLabel = _resolvedManualCenterLabel(selected.postcode);
+      _hasSelectedCenter = true;
+      _locationBootstrap = LocationBootstrapResult.resolved(selected.location);
     });
     await _refreshSearch(resetPagination: true);
   }
@@ -92,6 +162,15 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _refreshSearch({required bool resetPagination}) async {
+    if (!_hasSelectedCenter) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _isLoadingMore = false;
+        });
+      }
+      return;
+    }
     if (resetPagination) {
       _resultCap = _pageSize;
     }
@@ -165,6 +244,16 @@ class _SearchScreenState extends State<SearchScreen> {
     required double radiusKm,
     required int resultCap,
   }) async {
+    final overrideLoader = widget.searchItemsLoader;
+    if (overrideLoader != null) {
+      final items = await overrideLoader(
+        center: center,
+        radiusKm: radiusKm,
+        resultCap: resultCap,
+      );
+      return _SearchBatch(items: items, hasMore: false);
+    }
+
     final prefixes = geohashPrefixesForRadius(center, radiusKm);
     if (prefixes.isEmpty) {
       return const _SearchBatch(items: <Item>[], hasMore: false);
@@ -231,6 +320,146 @@ class _SearchScreenState extends State<SearchScreen> {
       },
     );
     _refreshSearch(resetPagination: true);
+  }
+
+  Future<void> _handleRefresh() async {
+    if (_hasSelectedCenter) {
+      await _refreshSearch(resetPagination: true);
+      return;
+    }
+    await _bootstrapLocation();
+  }
+
+  String _resolvedManualCenterLabel(String? postcode) {
+    final trimmed = postcode?.trim();
+    if (trimmed != null && trimmed.isNotEmpty) {
+      return trimmed;
+    }
+    return "Selected area";
+  }
+
+  Future<void> _logLocationBootstrap(LocationBootstrapResult result) async {
+    if (!widget.enableBootstrapAnalytics) {
+      return;
+    }
+    await AppAnalytics.logEvent(
+      name: "location_bootstrap",
+      parameters: {
+        "screen": "search",
+        "status": result.analyticsStatus,
+        if (result.analyticsReason != null) "reason": result.analyticsReason!,
+      },
+    );
+  }
+
+  Future<void> _logLocationAction({
+    required String action,
+    LocationBootstrapFailureReason? reason,
+  }) async {
+    if (!widget.enableBootstrapAnalytics) {
+      return;
+    }
+    await AppAnalytics.logEvent(
+      name: "location_bootstrap_action",
+      parameters: {
+        "screen": "search",
+        "action": action,
+        if (reason != null)
+          "reason": locationBootstrapFailureReasonWire(reason),
+      },
+    );
+  }
+
+  Future<void> _handleLocationUnavailableAction() async {
+    final reason = _locationBootstrap.reason;
+    if (reason == null) {
+      return;
+    }
+    if (locationBootstrapFailureNeedsSettings(reason)) {
+      unawaited(_logLocationAction(action: "open_settings", reason: reason));
+      await openLocationBootstrapSettings(reason: reason);
+      return;
+    }
+    unawaited(_logLocationAction(action: "retry", reason: reason));
+    await _bootstrapLocation();
+  }
+
+  String _locationChipLabel() {
+    if (_hasSelectedCenter) {
+      return _centerLabel ?? "Current area";
+    }
+    if (_isLocationResolving) {
+      return "Finding location...";
+    }
+    final reason = _locationBootstrap.reason;
+    if (reason == null) {
+      return "Use current location";
+    }
+    return locationBootstrapFailureActionLabel(reason);
+  }
+
+  Widget _locationChipAvatar() {
+    if (_isLocationResolving) {
+      return const SizedBox(
+        width: 18,
+        height: 18,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      );
+    }
+    return const Icon(
+      Icons.location_on_outlined,
+      size: 18,
+      color: AppColors.primary,
+    );
+  }
+
+  Widget _buildLocationUnavailableSliver(BuildContext context) {
+    final reason = _locationBootstrap.reason;
+    final message = reason == null
+        ? "Location is unavailable."
+        : locationBootstrapFailureMessage(reason);
+    return SliverFillRemaining(
+      hasScrollBody: false,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.location_off_outlined, size: 32),
+              const SizedBox(height: 12),
+              Text(
+                message,
+                key: const ValueKey(TestKeys.searchLocationState),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  ElevatedButton(
+                    key: const ValueKey(TestKeys.searchLocationAction),
+                    onPressed: _handleLocationUnavailableAction,
+                    child: Text(
+                      reason == null
+                          ? "Use current location"
+                          : locationBootstrapFailureActionLabel(reason),
+                    ),
+                  ),
+                  TextButton(
+                    key: const ValueKey(TestKeys.searchLocationManualAction),
+                    onPressed: _pickCenter,
+                    child: const Text("Choose on map"),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   List<Item> _visibleItems() {
@@ -380,7 +609,7 @@ class _SearchScreenState extends State<SearchScreen> {
       key: const ValueKey(TestKeys.searchScreen),
       backgroundColor: Colors.white,
       body: RefreshIndicator(
-        onRefresh: () => _refreshSearch(resetPagination: true),
+        onRefresh: _handleRefresh,
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
@@ -391,7 +620,7 @@ class _SearchScreenState extends State<SearchScreen> {
               backgroundColor: AppColors.sageSoft,
               surfaceTintColor: AppColors.sageSoft,
               bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(124),
+                preferredSize: const Size.fromHeight(132),
                 child: Container(
                   color: AppColors.sageSoft,
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
@@ -434,20 +663,19 @@ class _SearchScreenState extends State<SearchScreen> {
                         children: [
                           Expanded(
                             child: ActionChip(
-                              avatar: const Icon(
-                                Icons.location_on_outlined,
-                                size: 18,
-                                color: AppColors.primary,
-                              ),
+                              key: const ValueKey(TestKeys.searchLocationChip),
+                              avatar: _locationChipAvatar(),
                               side: BorderSide.none,
                               backgroundColor: Colors.white,
                               label: Text(
-                                _centerLabel == null
-                                    ? "Select location"
-                                    : _centerLabel!,
+                                _locationChipLabel(),
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              onPressed: _pickCenter,
+                              onPressed: _isLocationResolving
+                                  ? null
+                                  : (_hasSelectedCenter
+                                        ? _pickCenter
+                                        : _handleLocationUnavailableAction),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -493,7 +721,14 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
               ),
             ),
-            if (_isLoading && _nearbyItems.isEmpty)
+            if (_isLocationResolving && _nearbyItems.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_isLocationUnavailable && _nearbyItems.isEmpty)
+              _buildLocationUnavailableSliver(context)
+            else if (_isLoading && _nearbyItems.isEmpty)
               const SliverFillRemaining(
                 hasScrollBody: false,
                 child: Center(child: CircularProgressIndicator()),

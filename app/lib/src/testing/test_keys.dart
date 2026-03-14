@@ -15,15 +15,27 @@ class TestKeys {
 
   static const navSearch = "nav-search";
   static const navInbox = "nav-inbox";
+  static const navInboxUnreadBadge = "nav-inbox-unread-badge";
   static const navPublish = "nav-publish";
   static const navProfile = "nav-profile";
 
   static const searchKeywordField = "search-keyword-field";
+  static const searchLocationChip = "search-location-chip";
+  static const searchLocationState = "search-location-state";
+  static const searchLocationAction = "search-location-action";
+  static const searchLocationManualAction = "search-location-manual-action";
   static const searchKeywordEditable = "search-keyword-editable";
+  static const publishLocationStatus = "publish-location-status";
+  static const publishLocationAction = "publish-location-action";
+  static const publishLocationTile = "publish-location-tile";
   static const itemOpenChatButton = "item-open-chat-button";
+  static const itemOpenChatLoading = "item-open-chat-loading";
   static const chatMessageField = "chat-message-field";
   static const chatSendButton = "chat-send-button";
   static const chatMenuButton = "chat-menu-button";
+  static const authAppleButton = "auth-apple-button";
+  static const authGoogleButton = "auth-google-button";
+  static const authGoogleIcon = "auth-google-icon";
 
   static String searchItemCard(String itemId) => "search-item-$itemId";
   static String inboxConversationTile(String conversationId) =>

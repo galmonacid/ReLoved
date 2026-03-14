@@ -49,14 +49,15 @@
 ## Social auth rollout (implemented)
 - [COMPLETE] Add auth service abstraction for social providers:
   - `signInWithGoogle()` (iOS native + Web popup)
+  - `signInWithApple()` (iOS native)
   - account linking resolver for `account-exists-with-different-credential`
 - [COMPLETE] Keep email/password auth as existing baseline option.
-- [COMPLETE] Extend auth UI with Google social entry point and provider-specific loading/error states.
+- [COMPLETE] Extend auth UI with Apple + Google social entry points and provider-specific loading/error states.
 - [COMPLETE] Ensure post-login user profile upsert preserves existing rating fields.
 - [COMPLETE] Extend analytics login/signup method tagging (`password`, `google`).
 - [COMPLETE] Add unit tests for social auth strategy helpers.
 - [COMPLETE] Replaced iOS Google URL scheme placeholder and refreshed OAuth plist keys.
-- [COMPLETE] Removed Apple sign-in codepath and iOS entitlement before first public TestFlight release.
+- [COMPLETE] Keep Apple sign-in enabled on iOS and aligned with release documentation.
 
 ## Validation checklist
 - Flutter:

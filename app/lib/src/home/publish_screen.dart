@@ -1,3 +1,4 @@
+import "dart:async";
 import "dart:io";
 import "package:cloud_firestore/cloud_firestore.dart";
 import "package:firebase_auth/firebase_auth.dart";
@@ -17,10 +18,25 @@ import "../models/monetization.dart";
 import "../monetization/monetization_service.dart";
 import "../widgets/map_picker.dart";
 import "../widgets/motion/pressable_scale.dart";
+import "../testing/test_keys.dart";
 import "item_detail_screen.dart";
 
+typedef PublishLocationBootstrapLoader =
+    Future<LocationBootstrapResult> Function();
+typedef PublishReversePostcodeLookup =
+    Future<String?> Function(LatLng location);
+
 class PublishScreen extends StatefulWidget {
-  const PublishScreen({super.key});
+  const PublishScreen({
+    super.key,
+    this.locationBootstrapLoader,
+    this.reversePostcodeLookup,
+    this.enableBootstrapAnalytics = true,
+  });
+
+  final PublishLocationBootstrapLoader? locationBootstrapLoader;
+  final PublishReversePostcodeLookup? reversePostcodeLookup;
+  final bool enableBootstrapAnalytics;
 
   @override
   State<PublishScreen> createState() => _PublishScreenState();
@@ -36,28 +52,63 @@ class _PublishScreenState extends State<PublishScreen> {
   XFile? _imageFile;
   Uint8List? _imageBytes;
   LatLng? _location;
+  LocationBootstrapResult _locationBootstrap =
+      const LocationBootstrapResult.loading();
   ContactPreference _contactPreference = ContactPreference.both;
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _loadInitialLocation();
+    _bootstrapLocation();
   }
 
-  Future<void> _loadInitialLocation() async {
-    final current = await getCurrentLocationOrDefault();
-    if (!mounted) return;
-    setState(() {
-      _location = current;
-    });
-    final postcode = await reverseUkPostcode(current);
-    if (!mounted) return;
-    if (postcode != null && postcode.isNotEmpty) {
+  bool get _isLocationResolving =>
+      _location == null &&
+      _locationBootstrap.status == LocationBootstrapStatus.loading;
+
+  bool get _isLocationUnavailable =>
+      _location == null && _locationBootstrap.isUnavailable;
+
+  Future<void> _bootstrapLocation() async {
+    if (mounted) {
       setState(() {
-        _postcodeController.text = postcode;
+        _locationBootstrap = const LocationBootstrapResult.loading();
+        _postcodeController.clear();
       });
     }
+
+    final loader = widget.locationBootstrapLoader ?? bootstrapCurrentLocation;
+    final result = await loader();
+    unawaited(_logLocationBootstrap(result));
+    if (!mounted) {
+      return;
+    }
+
+    if (!result.isResolved) {
+      setState(() {
+        _location = null;
+        _locationBootstrap = result;
+        _postcodeController.clear();
+      });
+      return;
+    }
+
+    final current = result.location!;
+    final reverseLookup = widget.reversePostcodeLookup ?? reverseUkPostcode;
+    var postcode = "";
+    try {
+      postcode = (await reverseLookup(current)) ?? "";
+    } catch (_) {}
+
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _location = current;
+      _locationBootstrap = result;
+      _postcodeController.text = postcode;
+    });
   }
 
   @override
@@ -108,11 +159,122 @@ class _PublishScreenState extends State<PublishScreen> {
     if (selected != null && mounted) {
       setState(() {
         _location = selected.location;
+        _locationBootstrap = LocationBootstrapResult.resolved(
+          selected.location,
+        );
         if (selected.postcode != null && selected.postcode!.isNotEmpty) {
           _postcodeController.text = selected.postcode!;
+        } else {
+          _postcodeController.clear();
         }
       });
     }
+  }
+
+  Future<void> _logLocationBootstrap(LocationBootstrapResult result) async {
+    if (!widget.enableBootstrapAnalytics) {
+      return;
+    }
+    await AppAnalytics.logEvent(
+      name: "location_bootstrap",
+      parameters: {
+        "screen": "publish",
+        "status": result.analyticsStatus,
+        if (result.analyticsReason != null) "reason": result.analyticsReason!,
+      },
+    );
+  }
+
+  Future<void> _logLocationAction({
+    required String action,
+    LocationBootstrapFailureReason? reason,
+  }) async {
+    if (!widget.enableBootstrapAnalytics) {
+      return;
+    }
+    await AppAnalytics.logEvent(
+      name: "location_bootstrap_action",
+      parameters: {
+        "screen": "publish",
+        "action": action,
+        if (reason != null)
+          "reason": locationBootstrapFailureReasonWire(reason),
+      },
+    );
+  }
+
+  Future<void> _handleLocationUnavailableAction() async {
+    final reason = _locationBootstrap.reason;
+    if (reason == null) {
+      return;
+    }
+    if (locationBootstrapFailureNeedsSettings(reason)) {
+      unawaited(_logLocationAction(action: "open_settings", reason: reason));
+      await openLocationBootstrapSettings(reason: reason);
+      return;
+    }
+    unawaited(_logLocationAction(action: "retry", reason: reason));
+    await _bootstrapLocation();
+  }
+
+  Widget _buildLocationStatus(BuildContext context) {
+    if (_isLocationResolving) {
+      return Container(
+        key: const ValueKey(TestKeys.publishLocationStatus),
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.sageSoft,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                "Finding your current area...",
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (!_isLocationUnavailable) {
+      return const SizedBox.shrink();
+    }
+
+    final reason = _locationBootstrap.reason!;
+    return Container(
+      key: const ValueKey(TestKeys.publishLocationStatus),
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.sageSoft,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            locationBootstrapFailureMessage(reason),
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            key: const ValueKey(TestKeys.publishLocationAction),
+            onPressed: _handleLocationUnavailableAction,
+            child: Text(locationBootstrapFailureActionLabel(reason)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _publish() async {
@@ -353,14 +515,19 @@ class _PublishScreenState extends State<PublishScreen> {
               ],
             ),
             const SizedBox(height: 24),
+            _buildLocationStatus(context),
             Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _postcodeController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: "Location (postcode)",
-                      helperText: "Derived from device location.",
+                      helperText: _isLocationResolving
+                          ? "Finding your current area."
+                          : (_isLocationUnavailable
+                                ? "Current location unavailable. Choose a location manually."
+                                : "Derived from device location."),
                     ),
                     readOnly: true,
                   ),
@@ -371,11 +538,22 @@ class _PublishScreenState extends State<PublishScreen> {
             PressableScale(
               child: Card(
                 child: ListTile(
-                  onTap: _pickLocation,
+                  key: const ValueKey(TestKeys.publishLocationTile),
+                  onTap: _isLocationResolving ? null : _pickLocation,
                   leading: const Icon(Icons.map_outlined),
-                  trailing: const Icon(Icons.chevron_right),
+                  trailing: _isLocationResolving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.chevron_right),
                   title: Text(
-                    _location == null ? "Select location" : "Change location",
+                    _location == null
+                        ? (_isLocationResolving
+                              ? "Finding location..."
+                              : "Select location")
+                        : "Change location",
                   ),
                 ),
               ),

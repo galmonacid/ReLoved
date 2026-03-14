@@ -51,6 +51,12 @@ void main() {
       binding.reportData!["chat_open_perf_step"] = "tap_open_chat";
       stopwatch.start();
       await robot.pressByKey(TestKeys.itemOpenChatButton);
+      binding.reportData!["chat_open_perf_step"] = "wait_opening_state";
+      await robot.waitFor(
+        find.byKey(const ValueKey(TestKeys.itemOpenChatLoading)).hitTestable(),
+        timeout: const Duration(seconds: 5),
+      );
+      binding.reportData!["chat_open_perf_step"] = "wait_thread_shell";
       await robot.waitFor(
         find.byKey(const ValueKey(TestKeys.chatThreadScreen)).hitTestable(),
         timeout: const Duration(seconds: 30),

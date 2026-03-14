@@ -31,6 +31,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   bool _isUpdatingStatus = false;
   bool _isUpdatingContactPreference = false;
   bool _isReporting = false;
+  bool _isOpeningChat = false;
   String? _prefetchedMonetizationUid;
   String? _prefetchedConversationKey;
 
@@ -192,41 +193,88 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
   }
 
   Future<void> _openChat(Item item) async {
+    if (_isOpeningChat) {
+      return;
+    }
     final tapStartedAtEpochMs = DateTime.now().millisecondsSinceEpoch;
+    final preNavigationStopwatch = Stopwatch()..start();
+    setState(() {
+      _isOpeningChat = true;
+    });
     ChatOpenPerfProbe.reset();
     ChatOpenPerfProbe.record({
       "tap_started_at_epoch_ms": tapStartedAtEpochMs,
       "item_id": item.id,
     });
-    final user = await _ensureSignedIn();
-    if (user == null || !mounted) {
-      ChatOpenPerfProbe.record({"open_chat_aborted": "user_missing"});
-      return;
-    }
-    ChatOpenPerfProbe.record({"user_id": user.uid});
-    final canProceed = await _checkContactSoftLimit(
-      skipNetworkOnCacheMiss: true,
-    );
-    if (!canProceed || !mounted) {
-      ChatOpenPerfProbe.record({"open_chat_aborted": "soft_limit_block"});
-      return;
-    }
+    var preNavigationStatus = "started";
+    int? preNavigationDurationMs;
+    try {
+      final user = await _ensureSignedIn();
+      if (user == null || !mounted) {
+        preNavigationStatus = "user_missing";
+        ChatOpenPerfProbe.record({"open_chat_aborted": preNavigationStatus});
+        return;
+      }
+      ChatOpenPerfProbe.record({"user_id": user.uid});
+      final canProceed = await _checkContactSoftLimit(
+        skipNetworkOnCacheMiss: true,
+      );
+      if (!canProceed || !mounted) {
+        preNavigationStatus = "soft_limit_block";
+        ChatOpenPerfProbe.record({"open_chat_aborted": preNavigationStatus});
+        return;
+      }
 
-    unawaited(
-      AppAnalytics.logEvent(
-        name: "contact_channel_selected",
-        parameters: {"itemId": item.id, "channel": "chat"},
-      ),
-    );
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ChatThreadScreen.fromItem(
-          itemId: item.id,
-          interestedUserId: user.uid,
-          openRequestedAtEpochMs: tapStartedAtEpochMs,
+      preNavigationStatus = "route_push";
+      preNavigationDurationMs = preNavigationStopwatch.elapsedMilliseconds;
+      ChatOpenPerfProbe.record({
+        "pre_navigation_status": preNavigationStatus,
+        "pre_navigation_duration_ms": preNavigationDurationMs,
+      });
+      unawaited(
+        AppAnalytics.logEvent(
+          name: "contact_channel_selected",
+          parameters: {"itemId": item.id, "channel": "chat"},
         ),
-      ),
-    );
+      );
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ChatThreadScreen.fromItem(
+            itemId: item.id,
+            interestedUserId: user.uid,
+            openRequestedAtEpochMs: tapStartedAtEpochMs,
+          ),
+        ),
+      );
+    } catch (error) {
+      preNavigationStatus = "error";
+      ChatOpenPerfProbe.record({
+        "open_chat_aborted": preNavigationStatus,
+        "pre_navigation_error": error.toString(),
+      });
+      _showError("Could not open chat.");
+    } finally {
+      preNavigationDurationMs ??= preNavigationStopwatch.elapsedMilliseconds;
+      unawaited(
+        AppAnalytics.logEvent(
+          name: "chat_open_perf",
+          parameters: {
+            "phase": "pre_navigation",
+            "status": preNavigationStatus,
+            "duration_ms": preNavigationDurationMs,
+          },
+        ),
+      );
+      ChatOpenPerfProbe.record({
+        "pre_navigation_status": preNavigationStatus,
+        "pre_navigation_duration_ms": preNavigationDurationMs,
+      });
+      if (mounted) {
+        setState(() {
+          _isOpeningChat = false;
+        });
+      }
+    }
   }
 
   Future<void> _openEmailContact(Item item) async {
@@ -504,8 +552,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           child: PressableScale(
             child: ElevatedButton(
               key: const ValueKey(TestKeys.itemOpenChatButton),
-              onPressed: () => _openChat(item),
-              child: const Text("Open chat"),
+              onPressed: _isOpeningChat ? null : () => _openChat(item),
+              child: _buildOpenChatButtonChild(),
             ),
           ),
         );
@@ -516,8 +564,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
             PressableScale(
               child: ElevatedButton(
                 key: const ValueKey(TestKeys.itemOpenChatButton),
-                onPressed: () => _openChat(item),
-                child: const Text("Open chat"),
+                onPressed: _isOpeningChat ? null : () => _openChat(item),
+                child: _buildOpenChatButtonChild(),
               ),
             ),
             const SizedBox(height: 8),
@@ -533,6 +581,25 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           ],
         );
     }
+  }
+
+  Widget _buildOpenChatButtonChild() {
+    if (!_isOpeningChat) {
+      return const Text("Open chat");
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: const [
+        SizedBox(
+          key: ValueKey(TestKeys.itemOpenChatLoading),
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        SizedBox(width: 10),
+        Text("Opening chat..."),
+      ],
+    );
   }
 
   @override

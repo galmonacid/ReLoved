@@ -25,7 +25,7 @@ Una app donde las personas publican objetos y se ponen en contacto de forma simp
 
 ## Requisitos MVP actual
 - Registro minimo: email, contrasena, nombre visible.
-- Login social: Google (iOS + Web).
+- Login social: Google (iOS + Web) + Apple (iOS).
 - Publicacion de objetos con foto y ubicacion aproximada.
 - Busqueda por radio + texto.
 - Contacto por email y/o chat segun preferencia del donor.
@@ -80,7 +80,7 @@ Una app donde las personas publican objetos y se ponen en contacto de forma simp
 ## Roadmap
 ### Fase 1: Registro y perfil
 - Registro minimo: email, contrasena, nombre visible.
-- Inicio de sesion con email/password y social login (Google).
+- Inicio de sesion con email/password y social login (Google + Apple en iOS).
 
 ### Fase 2: Publicaciones de objetos
 - Subir objeto con foto, titulo, descripcion, postcode (UK) y fecha automatica.

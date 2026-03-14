@@ -14,10 +14,11 @@
 - 2026-03-01: Safety baseline for chat: rate limiting + block + report.
 - 2026-03-02: Social auth enabled with coexistence model:
   - Google login on iOS/Web
+  - Apple login on iOS
   - Email/password remains available
 - 2026-03-02: Account linking policy adopted to enforce one account per email across providers.
 - 2026-03-02: Android social login deferred until Android OAuth/Firebase config is added.
-- 2026-03-03: Apple sign-in removed before first public TestFlight release; auth scope is email/password + Google.
+- 2026-03-03: Sign in with Apple remains enabled on iOS for the current release alongside email/password + Google.
 - 2026-03-04: Monetizacion opcional activada con Stripe:
   - donacion puntual GBP 3
   - suscripcion mensual GBP 4.99

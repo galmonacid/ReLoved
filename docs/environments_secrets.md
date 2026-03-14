@@ -81,7 +81,7 @@ firebase functions:config:get
 ## Apple App ID setup (iOS)
 - Capabilities enabled on App ID: Associated Domains (for Universal Links), Push Notifications.
 - Implementation is pending; enable now to avoid reissuing profiles later.
-- Sign in with Apple is intentionally disabled in this release.
+- Sign in with Apple is enabled in this release and should remain configured on the App ID and Firebase provider.
 
 ## iOS Google Sign-In setup
 - `GoogleService-Info.plist` must contain OAuth keys (`CLIENT_ID` and `REVERSED_CLIENT_ID`).

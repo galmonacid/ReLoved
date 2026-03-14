@@ -4,10 +4,20 @@ import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "../analytics/app_analytics.dart";
 import "../testing/test_keys.dart";
+import "../widgets/google_mark_icon.dart";
 import "auth_service.dart";
 
 class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key});
+  const AuthScreen({
+    super.key,
+    this.authService,
+    this.showAppleOverride,
+    this.showGoogleOverride,
+  });
+
+  final AuthService? authService;
+  final bool? showAppleOverride;
+  final bool? showGoogleOverride;
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
@@ -17,7 +27,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _displayNameController = TextEditingController();
-  final _authService = AuthService();
+  AuthService? _authService;
 
   bool _isLogin = true;
   bool _isEmailLoading = false;
@@ -25,6 +35,8 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isGoogleLoading = false;
 
   bool get _isLoading => _isEmailLoading || _isAppleLoading || _isGoogleLoading;
+  AuthService get _resolvedAuthService =>
+      _authService ??= widget.authService ?? AuthService();
 
   @override
   void dispose() {
@@ -122,7 +134,7 @@ class _AuthScreenState extends State<AuthScreen> {
       _isGoogleLoading = true;
     });
     try {
-      final result = await _authService.signInWithGoogle(
+      final result = await _resolvedAuthService.signInWithGoogle(
         requestPasswordForLinking: _promptPasswordForLinking,
       );
       await _logSocialAuth(result);
@@ -150,7 +162,7 @@ class _AuthScreenState extends State<AuthScreen> {
       _isAppleLoading = true;
     });
     try {
-      final result = await _authService.signInWithApple(
+      final result = await _resolvedAuthService.signInWithApple(
         requestPasswordForLinking: _promptPasswordForLinking,
       );
       await _logSocialAuth(result);
@@ -240,14 +252,12 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final showApple = isAppleSignInSupported(
-      isWeb: kIsWeb,
-      platform: defaultTargetPlatform,
-    );
-    final showGoogle = isGoogleSignInSupported(
-      isWeb: kIsWeb,
-      platform: defaultTargetPlatform,
-    );
+    final showApple =
+        widget.showAppleOverride ??
+        isAppleSignInSupported(isWeb: kIsWeb, platform: defaultTargetPlatform);
+    final showGoogle =
+        widget.showGoogleOverride ??
+        isGoogleSignInSupported(isWeb: kIsWeb, platform: defaultTargetPlatform);
     final showSocialSignIn = showApple || showGoogle;
 
     return Scaffold(
@@ -340,38 +350,23 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                       const SizedBox(height: 16),
                       if (showApple)
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.tonalIcon(
-                            onPressed: _isLoading ? null : _signInWithApple,
-                            icon: const Icon(Icons.apple),
-                            label: _isAppleLoading
-                                ? const SizedBox(
-                                    height: 18,
-                                    width: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Text("Continue with Apple"),
-                          ),
+                        _SocialSignInButton(
+                          key: const ValueKey(TestKeys.authAppleButton),
+                          onPressed: _isLoading ? null : _signInWithApple,
+                          icon: const Icon(Icons.apple),
+                          label: "Continue with Apple",
+                          isLoading: _isAppleLoading,
                         ),
                       if (showApple && showGoogle) const SizedBox(height: 12),
                       if (showGoogle)
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.tonal(
-                            onPressed: _isLoading ? null : _signInWithGoogle,
-                            child: _isGoogleLoading
-                                ? const SizedBox(
-                                    height: 18,
-                                    width: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : const Text("Continue with Google"),
+                        _SocialSignInButton(
+                          key: const ValueKey(TestKeys.authGoogleButton),
+                          onPressed: _isLoading ? null : _signInWithGoogle,
+                          icon: const GoogleMarkIcon(
+                            key: ValueKey(TestKeys.authGoogleIcon),
                           ),
+                          label: "Continue with Google",
+                          isLoading: _isGoogleLoading,
                         ),
                     ],
                   ],
@@ -379,6 +374,62 @@ class _AuthScreenState extends State<AuthScreen> {
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _SocialSignInButton extends StatelessWidget {
+  const _SocialSignInButton({
+    super.key,
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+    required this.isLoading,
+  });
+
+  final VoidCallback? onPressed;
+  final Widget icon;
+  final String label;
+  final bool isLoading;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.tonal(
+        onPressed: onPressed,
+        style: FilledButton.styleFrom(
+          minimumSize: const Size.fromHeight(52),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 24,
+              child: Center(
+                child: AnimatedOpacity(
+                  opacity: isLoading ? 0 : 1,
+                  duration: const Duration(milliseconds: 120),
+                  child: icon,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Center(
+                child: isLoading
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(label),
+              ),
+            ),
+            const SizedBox(width: 36),
+          ],
         ),
       ),
     );

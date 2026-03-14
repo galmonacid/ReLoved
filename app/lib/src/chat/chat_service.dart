@@ -274,6 +274,23 @@ class ChatService {
         });
   }
 
+  static int unreadInboxBadgeCountForConversations(
+    Iterable<Conversation> conversations,
+    String uid,
+  ) {
+    return conversations.fold<int>(
+      0,
+      (total, conversation) => total + conversation.unreadForUser(uid),
+    );
+  }
+
+  static Stream<int> streamUnreadInboxBadgeCount(String uid) {
+    return streamUserConversations(uid).map(
+      (conversations) =>
+          unreadInboxBadgeCountForConversations(conversations, uid),
+    );
+  }
+
   static Stream<Conversation?> streamConversation(String conversationId) {
     return FirebaseFirestore.instance
         .collection("conversations")
