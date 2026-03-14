@@ -33,12 +33,14 @@ class SearchScreen extends StatefulWidget {
     this.reversePostcodeLookup,
     this.searchItemsLoader,
     this.enableBootstrapAnalytics = true,
+    this.searchLoadTimeout = const Duration(seconds: 10),
   });
 
   final SearchLocationBootstrapLoader? locationBootstrapLoader;
   final SearchReversePostcodeLookup? reversePostcodeLookup;
   final SearchItemsLoader? searchItemsLoader;
   final bool enableBootstrapAnalytics;
+  final Duration searchLoadTimeout;
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -66,6 +68,7 @@ class _SearchScreenState extends State<SearchScreen> {
   String? _loadError;
   int _resultCap = _pageSize;
   int _activeRequestId = 0;
+  int _activeCenterLabelRequestId = 0;
 
   @override
   void initState() {
@@ -81,6 +84,7 @@ class _SearchScreenState extends State<SearchScreen> {
       !_hasSelectedCenter && _locationBootstrap.isUnavailable;
 
   Future<void> _bootstrapLocation() async {
+    _activeCenterLabelRequestId += 1;
     if (mounted) {
       setState(() {
         _locationBootstrap = const LocationBootstrapResult.loading();
@@ -89,8 +93,10 @@ class _SearchScreenState extends State<SearchScreen> {
       });
     }
 
-    final loader = widget.locationBootstrapLoader ?? bootstrapCurrentLocation;
-    final result = await loader();
+    final injectedLoader = widget.locationBootstrapLoader;
+    final result = injectedLoader != null
+        ? await injectedLoader()
+        : await bootstrapCurrentLocation(onStep: _handleLocationBootstrapStep);
     unawaited(_logLocationBootstrap(result));
     if (!mounted) {
       return;
@@ -113,24 +119,19 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     final current = result.location!;
-    final reverseLookup = widget.reversePostcodeLookup ?? reverseUkPostcode;
-    var centerLabel = "Current area";
-    try {
-      final postcode = await reverseLookup(current);
-      if (postcode != null && postcode.isNotEmpty) {
-        centerLabel = postcode;
-      }
-    } catch (_) {}
-
-    if (!mounted) {
-      return;
-    }
+    final centerLabelRequestId = ++_activeCenterLabelRequestId;
     setState(() {
       _center = current;
-      _centerLabel = centerLabel;
+      _centerLabel = "Current area";
       _hasSelectedCenter = true;
       _locationBootstrap = result;
     });
+    unawaited(
+      _resolveBootstrapCenterLabel(
+        location: current,
+        requestId: centerLabelRequestId,
+      ),
+    );
     await _refreshSearch(resetPagination: true);
   }
 
@@ -146,6 +147,7 @@ class _SearchScreenState extends State<SearchScreen> {
     if (selected == null || !mounted) {
       return;
     }
+    _activeCenterLabelRequestId += 1;
     setState(() {
       _center = selected.location;
       _centerLabel = _resolvedManualCenterLabel(selected.postcode);
@@ -189,14 +191,23 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     try {
+      unawaited(_logLocationStep(phase: "search_fetch", status: "start"));
+      final stopwatch = Stopwatch()..start();
       final batch = await _fetchNearbyItems(
         center: _center,
         radiusKm: _radiusMiles * _kmPerMile,
         resultCap: _resultCap,
-      );
+      ).timeout(widget.searchLoadTimeout);
       if (!mounted || requestId != _activeRequestId) {
         return;
       }
+      unawaited(
+        _logLocationStep(
+          phase: "search_fetch",
+          status: "success",
+          elapsedMs: stopwatch.elapsedMilliseconds,
+        ),
+      );
 
       setState(() {
         _nearbyItems = batch.items;
@@ -217,10 +228,40 @@ class _SearchScreenState extends State<SearchScreen> {
       } else if (_hasAnimatedResultsIn) {
         _resultsVisible = true;
       }
-    } catch (_) {
+    } on TimeoutException catch (error, stackTrace) {
       if (!mounted || requestId != _activeRequestId) {
         return;
       }
+      unawaited(
+        _logLocationStep(
+          phase: "search_fetch",
+          status: "timeout",
+          elapsedMs: widget.searchLoadTimeout.inMilliseconds,
+          reason: "timeout",
+          recordNonFatal: true,
+          error: error,
+          stackTrace: stackTrace,
+        ),
+      );
+      setState(() {
+        _isLoading = false;
+        _isLoadingMore = false;
+        _loadError = "Could not load items.";
+      });
+    } catch (error, stackTrace) {
+      if (!mounted || requestId != _activeRequestId) {
+        return;
+      }
+      unawaited(
+        _logLocationStep(
+          phase: "search_fetch",
+          status: "error",
+          reason: "exception",
+          recordNonFatal: true,
+          error: error,
+          stackTrace: stackTrace,
+        ),
+      );
       setState(() {
         _isLoading = false;
         _isLoadingMore = false;
@@ -336,6 +377,131 @@ class _SearchScreenState extends State<SearchScreen> {
       return trimmed;
     }
     return "Selected area";
+  }
+
+  Future<void> _resolveBootstrapCenterLabel({
+    required LatLng location,
+    required int requestId,
+  }) async {
+    final postcode = await _reverseLookupWithInstrumentation(
+      location,
+      phase: "reverse_postcode",
+    );
+    if (!mounted ||
+        requestId != _activeCenterLabelRequestId ||
+        !_hasSelectedCenter ||
+        postcode == null ||
+        postcode.isEmpty) {
+      return;
+    }
+    setState(() {
+      _centerLabel = postcode;
+    });
+  }
+
+  Future<String?> _reverseLookupWithInstrumentation(
+    LatLng location, {
+    required String phase,
+  }) async {
+    final reverseLookup = widget.reversePostcodeLookup;
+    if (reverseLookup == null) {
+      return reverseUkPostcode(
+        location,
+        onStep: (step) => _handlePostcodeLookupStep(phase: phase, step: step),
+      );
+    }
+    unawaited(_logLocationStep(phase: phase, status: "start"));
+    final stopwatch = Stopwatch()..start();
+    try {
+      final postcode = await reverseLookup(location);
+      unawaited(
+        _logLocationStep(
+          phase: phase,
+          status: postcode == null || postcode.isEmpty ? "empty" : "success",
+          elapsedMs: stopwatch.elapsedMilliseconds,
+          reason: postcode == null || postcode.isEmpty ? "no_result" : null,
+        ),
+      );
+      return postcode;
+    } catch (error, stackTrace) {
+      unawaited(
+        _logLocationStep(
+          phase: phase,
+          status: "error",
+          elapsedMs: stopwatch.elapsedMilliseconds,
+          reason: "exception",
+          recordNonFatal: true,
+          error: error,
+          stackTrace: stackTrace,
+        ),
+      );
+      return null;
+    }
+  }
+
+  void _handleLocationBootstrapStep(LocationBootstrapStep step) {
+    unawaited(
+      _logLocationStep(
+        phase: step.phase,
+        status: step.status,
+        elapsedMs: step.elapsedMs,
+        reason: step.reason == null
+            ? null
+            : locationBootstrapFailureReasonWire(step.reason!),
+        recordNonFatal: step.status == "timeout" || step.status == "error",
+      ),
+    );
+  }
+
+  void _handlePostcodeLookupStep({
+    required String phase,
+    required PostcodeLookupStep step,
+  }) {
+    unawaited(
+      _logLocationStep(
+        phase: phase,
+        status: step.status,
+        elapsedMs: step.elapsedMs,
+        reason: step.reason,
+        recordNonFatal: step.status == "timeout" || step.status == "error",
+      ),
+    );
+  }
+
+  Future<void> _logLocationStep({
+    required String phase,
+    required String status,
+    int? elapsedMs,
+    String? reason,
+    bool recordNonFatal = false,
+    Object? error,
+    StackTrace? stackTrace,
+  }) async {
+    if (!widget.enableBootstrapAnalytics) {
+      return;
+    }
+    await AppAnalytics.logLocationBootstrapStep(
+      screen: "search",
+      phase: phase,
+      status: status,
+      elapsedMs: elapsedMs,
+      reason: reason,
+    );
+    if (!recordNonFatal) {
+      return;
+    }
+    await AppAnalytics.recordNonFatal(
+      reason: "search_${phase}_$status",
+      error: error,
+      stackTrace: stackTrace,
+      context: {
+        "screen": "search",
+        "phase": phase,
+        "status": status,
+        if (elapsedMs != null) "elapsed_ms": elapsedMs,
+        if (reason != null) "reason": reason,
+      },
+    );
   }
 
   Future<void> _logLocationBootstrap(LocationBootstrapResult result) async {

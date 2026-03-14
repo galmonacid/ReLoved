@@ -97,6 +97,41 @@ void main() {
   );
 
   testWidgets(
+    "reverse postcode delay does not block initial search results",
+    (tester) async {
+      LatLng? fetchedCenter;
+      final postcodeCompleter = Completer<String?>();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SearchScreen(
+            locationBootstrapLoader: () async =>
+                const LocationBootstrapResult.resolved(LatLng(51.5, -0.12)),
+            reversePostcodeLookup: (_) => postcodeCompleter.future,
+            searchItemsLoader:
+                ({
+                  required LatLng center,
+                  required double radiusKm,
+                  required int resultCap,
+                }) async {
+                  fetchedCenter = center;
+                  return const <Item>[];
+                },
+            enableBootstrapAnalytics: false,
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text("Current area"), findsOneWidget);
+      expect(find.text("Finding location..."), findsNothing);
+      expect(fetchedCenter, const LatLng(51.5, -0.12));
+    },
+  );
+
+  testWidgets(
     "failure path shows retry or settings affordance and skips default search",
     (tester) async {
       var searchCalls = 0;
@@ -132,6 +167,34 @@ void main() {
       expect(searchCalls, 0);
     },
   );
+
+  testWidgets("search timeout stops the spinner and shows an error", (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SearchScreen(
+          locationBootstrapLoader: () async =>
+              const LocationBootstrapResult.resolved(LatLng(51.5, -0.12)),
+          reversePostcodeLookup: (_) async => null,
+          searchItemsLoader:
+              ({
+                required LatLng center,
+                required double radiusKm,
+                required int resultCap,
+              }) => Completer<List<Item>>().future,
+          enableBootstrapAnalytics: false,
+          searchLoadTimeout: const Duration(milliseconds: 10),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 20));
+
+    expect(find.text("Could not load items."), findsOneWidget);
+  });
 }
 
 Future<List<Item>> _emptySearchItems({

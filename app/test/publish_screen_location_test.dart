@@ -51,6 +51,34 @@ void main() {
     expect(find.text("M1 1AE"), findsOneWidget);
   });
 
+  testWidgets(
+    "resolved location keeps publish usable while postcode lookup is pending",
+    (tester) async {
+      final postcodeCompleter = Completer<String?>();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: PublishScreen(
+            locationBootstrapLoader: () async =>
+                const LocationBootstrapResult.resolved(LatLng(53.48, -2.24)),
+            reversePostcodeLookup: (_) => postcodeCompleter.future,
+            enableBootstrapAnalytics: false,
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text("Change location"), findsOneWidget);
+      expect(find.text("Finding location..."), findsNothing);
+      expect(
+        find.text("Using your device location while postcode loads."),
+        findsOneWidget,
+      );
+    },
+  );
+
   testWidgets("failure path leaves postcode empty and shows explicit copy", (
     tester,
   ) async {

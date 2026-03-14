@@ -56,6 +56,8 @@ class _PublishScreenState extends State<PublishScreen> {
       const LocationBootstrapResult.loading();
   ContactPreference _contactPreference = ContactPreference.both;
   bool _isLoading = false;
+  bool _isResolvingDevicePostcode = false;
+  int _activePostcodeRequestId = 0;
 
   @override
   void initState() {
@@ -71,15 +73,19 @@ class _PublishScreenState extends State<PublishScreen> {
       _location == null && _locationBootstrap.isUnavailable;
 
   Future<void> _bootstrapLocation() async {
+    _activePostcodeRequestId += 1;
     if (mounted) {
       setState(() {
         _locationBootstrap = const LocationBootstrapResult.loading();
         _postcodeController.clear();
+        _isResolvingDevicePostcode = false;
       });
     }
 
-    final loader = widget.locationBootstrapLoader ?? bootstrapCurrentLocation;
-    final result = await loader();
+    final injectedLoader = widget.locationBootstrapLoader;
+    final result = injectedLoader != null
+        ? await injectedLoader()
+        : await bootstrapCurrentLocation(onStep: _handleLocationBootstrapStep);
     unawaited(_logLocationBootstrap(result));
     if (!mounted) {
       return;
@@ -90,25 +96,22 @@ class _PublishScreenState extends State<PublishScreen> {
         _location = null;
         _locationBootstrap = result;
         _postcodeController.clear();
+        _isResolvingDevicePostcode = false;
       });
       return;
     }
 
     final current = result.location!;
-    final reverseLookup = widget.reversePostcodeLookup ?? reverseUkPostcode;
-    var postcode = "";
-    try {
-      postcode = (await reverseLookup(current)) ?? "";
-    } catch (_) {}
-
-    if (!mounted) {
-      return;
-    }
+    final postcodeRequestId = ++_activePostcodeRequestId;
     setState(() {
       _location = current;
       _locationBootstrap = result;
-      _postcodeController.text = postcode;
+      _postcodeController.clear();
+      _isResolvingDevicePostcode = true;
     });
+    unawaited(
+      _resolveBootstrapPostcode(location: current, requestId: postcodeRequestId),
+    );
   }
 
   @override
@@ -157,11 +160,13 @@ class _PublishScreenState extends State<PublishScreen> {
       ),
     );
     if (selected != null && mounted) {
+      _activePostcodeRequestId += 1;
       setState(() {
         _location = selected.location;
         _locationBootstrap = LocationBootstrapResult.resolved(
           selected.location,
         );
+        _isResolvingDevicePostcode = false;
         if (selected.postcode != null && selected.postcode!.isNotEmpty) {
           _postcodeController.text = selected.postcode!;
         } else {
@@ -169,6 +174,128 @@ class _PublishScreenState extends State<PublishScreen> {
         }
       });
     }
+  }
+
+  Future<void> _resolveBootstrapPostcode({
+    required LatLng location,
+    required int requestId,
+  }) async {
+    final postcode = await _reverseLookupWithInstrumentation(
+      location,
+      phase: "reverse_postcode",
+    );
+    if (!mounted || requestId != _activePostcodeRequestId) {
+      return;
+    }
+    setState(() {
+      _isResolvingDevicePostcode = false;
+      _postcodeController.text = postcode ?? "";
+    });
+  }
+
+  Future<String?> _reverseLookupWithInstrumentation(
+    LatLng location, {
+    required String phase,
+  }) async {
+    final reverseLookup = widget.reversePostcodeLookup;
+    if (reverseLookup == null) {
+      return reverseUkPostcode(
+        location,
+        onStep: (step) => _handlePostcodeLookupStep(phase: phase, step: step),
+      );
+    }
+    unawaited(_logLocationStep(phase: phase, status: "start"));
+    final stopwatch = Stopwatch()..start();
+    try {
+      final postcode = await reverseLookup(location);
+      unawaited(
+        _logLocationStep(
+          phase: phase,
+          status: postcode == null || postcode.isEmpty ? "empty" : "success",
+          elapsedMs: stopwatch.elapsedMilliseconds,
+          reason: postcode == null || postcode.isEmpty ? "no_result" : null,
+        ),
+      );
+      return postcode;
+    } catch (error, stackTrace) {
+      unawaited(
+        _logLocationStep(
+          phase: phase,
+          status: "error",
+          elapsedMs: stopwatch.elapsedMilliseconds,
+          reason: "exception",
+          recordNonFatal: true,
+          error: error,
+          stackTrace: stackTrace,
+        ),
+      );
+      return null;
+    }
+  }
+
+  void _handleLocationBootstrapStep(LocationBootstrapStep step) {
+    unawaited(
+      _logLocationStep(
+        phase: step.phase,
+        status: step.status,
+        elapsedMs: step.elapsedMs,
+        reason: step.reason == null
+            ? null
+            : locationBootstrapFailureReasonWire(step.reason!),
+        recordNonFatal: step.status == "timeout" || step.status == "error",
+      ),
+    );
+  }
+
+  void _handlePostcodeLookupStep({
+    required String phase,
+    required PostcodeLookupStep step,
+  }) {
+    unawaited(
+      _logLocationStep(
+        phase: phase,
+        status: step.status,
+        elapsedMs: step.elapsedMs,
+        reason: step.reason,
+        recordNonFatal: step.status == "timeout" || step.status == "error",
+      ),
+    );
+  }
+
+  Future<void> _logLocationStep({
+    required String phase,
+    required String status,
+    int? elapsedMs,
+    String? reason,
+    bool recordNonFatal = false,
+    Object? error,
+    StackTrace? stackTrace,
+  }) async {
+    if (!widget.enableBootstrapAnalytics) {
+      return;
+    }
+    await AppAnalytics.logLocationBootstrapStep(
+      screen: "publish",
+      phase: phase,
+      status: status,
+      elapsedMs: elapsedMs,
+      reason: reason,
+    );
+    if (!recordNonFatal) {
+      return;
+    }
+    await AppAnalytics.recordNonFatal(
+      reason: "publish_${phase}_$status",
+      error: error,
+      stackTrace: stackTrace,
+      context: {
+        "screen": "publish",
+        "phase": phase,
+        "status": status,
+        if (elapsedMs != null) "elapsed_ms": elapsedMs,
+        if (reason != null) "reason": reason,
+      },
+    );
   }
 
   Future<void> _logLocationBootstrap(LocationBootstrapResult result) async {
@@ -527,7 +654,11 @@ class _PublishScreenState extends State<PublishScreen> {
                           ? "Finding your current area."
                           : (_isLocationUnavailable
                                 ? "Current location unavailable. Choose a location manually."
-                                : "Derived from device location."),
+                                : (_postcodeController.text.trim().isEmpty
+                                      ? (_isResolvingDevicePostcode
+                                            ? "Using your device location while postcode loads."
+                                            : "Using your device location. Postcode unavailable.")
+                                      : "Derived from device location.")),
                     ),
                     readOnly: true,
                   ),

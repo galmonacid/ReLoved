@@ -74,6 +74,20 @@ void main() {
       expect(result.status, LocationBootstrapStatus.unavailable);
       expect(result.reason, LocationBootstrapFailureReason.lookupFailed);
     });
+
+    test("returns unavailable when the location lookup times out", () async {
+      final result = await bootstrapCurrentLocation(
+        client: _FakeLocationAccessClient(
+          serviceEnabled: true,
+          permission: LocationPermission.whileInUse,
+          currentLocationDelay: const Duration(milliseconds: 50),
+        ),
+        positionLookupTimeout: const Duration(milliseconds: 10),
+      );
+
+      expect(result.status, LocationBootstrapStatus.unavailable);
+      expect(result.reason, LocationBootstrapFailureReason.lookupTimedOut);
+    });
   });
 }
 
@@ -84,6 +98,7 @@ class _FakeLocationAccessClient implements LocationAccessClient {
     this.requestedPermission,
     this.currentLocation,
     this.throwOnCurrentLocation = false,
+    this.currentLocationDelay = Duration.zero,
   });
 
   final bool serviceEnabled;
@@ -91,6 +106,7 @@ class _FakeLocationAccessClient implements LocationAccessClient {
   final LocationPermission? requestedPermission;
   final LatLng? currentLocation;
   final bool throwOnCurrentLocation;
+  final Duration currentLocationDelay;
 
   @override
   Future<LocationPermission> checkPermission() async => permission;
@@ -99,6 +115,9 @@ class _FakeLocationAccessClient implements LocationAccessClient {
   Future<LatLng> getCurrentLocation({
     LocationAccuracy desiredAccuracy = LocationAccuracy.low,
   }) async {
+    if (currentLocationDelay > Duration.zero) {
+      await Future<void>.delayed(currentLocationDelay);
+    }
     if (throwOnCurrentLocation) {
       throw Exception("lookup failed");
     }

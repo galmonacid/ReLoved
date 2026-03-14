@@ -1,3 +1,5 @@
+import "dart:async";
+
 import "package:geolocator/geolocator.dart";
 import "package:latlong2/latlong.dart";
 import "../config/e2e_config.dart";
@@ -9,7 +11,26 @@ enum LocationBootstrapFailureReason {
   permissionDenied,
   permissionDeniedForever,
   lookupFailed,
+  lookupTimedOut,
 }
+
+class LocationBootstrapStep {
+  const LocationBootstrapStep({
+    required this.phase,
+    required this.status,
+    this.elapsedMs,
+    this.reason,
+  });
+
+  final String phase;
+  final String status;
+  final int? elapsedMs;
+  final LocationBootstrapFailureReason? reason;
+}
+
+typedef LocationBootstrapStepReporter = void Function(
+  LocationBootstrapStep step,
+);
 
 class LocationBootstrapResult {
   const LocationBootstrapResult._({
@@ -111,13 +132,34 @@ class GeolocatorLocationAccessClient implements LocationAccessClient {
 
 Future<LocationBootstrapResult> bootstrapCurrentLocation({
   LocationAccessClient client = const GeolocatorLocationAccessClient(),
+  Duration positionLookupTimeout = const Duration(seconds: 12),
+  LocationBootstrapStepReporter? onStep,
 }) async {
   if (E2EConfig.enabled) {
+    onStep?.call(const LocationBootstrapStep(phase: "bootstrap", status: "start"));
+    onStep?.call(
+      const LocationBootstrapStep(phase: "permission", status: "checked"),
+    );
+    onStep?.call(
+      const LocationBootstrapStep(
+        phase: "position_lookup",
+        status: "success",
+        elapsedMs: 0,
+      ),
+    );
     return LocationBootstrapResult.resolved(E2EConfig.fixedLocation);
   }
 
+  onStep?.call(const LocationBootstrapStep(phase: "bootstrap", status: "start"));
   final serviceEnabled = await client.isLocationServiceEnabled();
   if (!serviceEnabled) {
+    onStep?.call(
+      const LocationBootstrapStep(
+        phase: "permission",
+        status: "unavailable",
+        reason: LocationBootstrapFailureReason.serviceDisabled,
+      ),
+    );
     return const LocationBootstrapResult.unavailable(
       LocationBootstrapFailureReason.serviceDisabled,
     );
@@ -128,22 +170,70 @@ Future<LocationBootstrapResult> bootstrapCurrentLocation({
     permission = await client.requestPermission();
   }
   if (permission == LocationPermission.denied) {
+    onStep?.call(
+      const LocationBootstrapStep(
+        phase: "permission",
+        status: "unavailable",
+        reason: LocationBootstrapFailureReason.permissionDenied,
+      ),
+    );
     return const LocationBootstrapResult.unavailable(
       LocationBootstrapFailureReason.permissionDenied,
     );
   }
   if (permission == LocationPermission.deniedForever) {
+    onStep?.call(
+      const LocationBootstrapStep(
+        phase: "permission",
+        status: "unavailable",
+        reason: LocationBootstrapFailureReason.permissionDeniedForever,
+      ),
+    );
     return const LocationBootstrapResult.unavailable(
       LocationBootstrapFailureReason.permissionDeniedForever,
     );
   }
+  onStep?.call(
+    const LocationBootstrapStep(phase: "permission", status: "checked"),
+  );
 
+  final stopwatch = Stopwatch()..start();
+  onStep?.call(
+    const LocationBootstrapStep(phase: "position_lookup", status: "start"),
+  );
   try {
     final location = await client.getCurrentLocation(
       desiredAccuracy: LocationAccuracy.low,
+    ).timeout(positionLookupTimeout);
+    onStep?.call(
+      LocationBootstrapStep(
+        phase: "position_lookup",
+        status: "success",
+        elapsedMs: stopwatch.elapsedMilliseconds,
+      ),
     );
     return LocationBootstrapResult.resolved(location);
+  } on TimeoutException {
+    onStep?.call(
+      LocationBootstrapStep(
+        phase: "position_lookup",
+        status: "timeout",
+        elapsedMs: stopwatch.elapsedMilliseconds,
+        reason: LocationBootstrapFailureReason.lookupTimedOut,
+      ),
+    );
+    return const LocationBootstrapResult.unavailable(
+      LocationBootstrapFailureReason.lookupTimedOut,
+    );
   } catch (_) {
+    onStep?.call(
+      LocationBootstrapStep(
+        phase: "position_lookup",
+        status: "error",
+        elapsedMs: stopwatch.elapsedMilliseconds,
+        reason: LocationBootstrapFailureReason.lookupFailed,
+      ),
+    );
     return const LocationBootstrapResult.unavailable(
       LocationBootstrapFailureReason.lookupFailed,
     );
@@ -177,6 +267,8 @@ String locationBootstrapFailureReasonWire(
       return "permission_denied_forever";
     case LocationBootstrapFailureReason.lookupFailed:
       return "lookup_failed";
+    case LocationBootstrapFailureReason.lookupTimedOut:
+      return "lookup_timed_out";
   }
 }
 
@@ -190,6 +282,8 @@ String locationBootstrapFailureMessage(LocationBootstrapFailureReason reason) {
       return "Location access is disabled for ReLoved. Enable it in Settings to use your current area.";
     case LocationBootstrapFailureReason.lookupFailed:
       return "The app could not determine your current location. Try again or choose an area manually.";
+    case LocationBootstrapFailureReason.lookupTimedOut:
+      return "The app could not determine your current location in time. Try again or choose an area manually.";
   }
 }
 

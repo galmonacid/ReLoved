@@ -3,6 +3,7 @@ import "package:flutter/material.dart";
 import "package:flutter_map/flutter_map.dart";
 import "package:latlong2/latlong.dart";
 import "../../theme/app_colors.dart";
+import "../analytics/app_analytics.dart";
 import "motion/pressable_scale.dart";
 import "../utils/postcode_lookup.dart";
 
@@ -18,10 +19,16 @@ class MapPicker extends StatefulWidget {
     super.key,
     required this.initialCenter,
     this.initialPostcode,
+    this.postcodeLookup,
+    this.reversePostcodeLookup,
+    this.enableAnalytics = true,
   });
 
   final LatLng initialCenter;
   final String? initialPostcode;
+  final Future<PostcodeResult?> Function(String postcode)? postcodeLookup;
+  final Future<String?> Function(LatLng location)? reversePostcodeLookup;
+  final bool enableAnalytics;
 
   @override
   State<MapPicker> createState() => _MapPickerState();
@@ -34,6 +41,7 @@ class _MapPickerState extends State<MapPicker> {
   bool _isLookingUpPostcode = false;
   final _postcodeController = TextEditingController();
   Timer? _reverseLookupTimer;
+  int _activeReverseLookupRequestId = 0;
 
   @override
   void initState() {
@@ -60,9 +68,10 @@ class _MapPickerState extends State<MapPicker> {
       _isLookingUpPostcode = true;
     });
     try {
-      final result = await lookupUkPostcode(postcode);
+      _activeReverseLookupRequestId += 1;
+      final result = await _lookupPostcodeWithInstrumentation(postcode);
       if (result == null) {
-        _showError("Postcode not found.");
+        _showError("Could not look up the postcode.");
         return;
       }
       if (!mounted) return;
@@ -89,31 +98,159 @@ class _MapPickerState extends State<MapPicker> {
   }
 
   Future<void> _reverseLookupPostcode(LatLng location) async {
+    final requestId = ++_activeReverseLookupRequestId;
     _reverseLookupTimer?.cancel();
     _reverseLookupTimer = Timer(const Duration(milliseconds: 500), () async {
-      if (!mounted) return;
+      if (!mounted || requestId != _activeReverseLookupRequestId) return;
       setState(() {
         _isLookingUpPostcode = true;
       });
       try {
-        final postcode = await reverseUkPostcode(location);
-        if (!mounted) return;
+        final postcode = await _reverseLookupWithInstrumentation(location);
+        if (!mounted || requestId != _activeReverseLookupRequestId) return;
         setState(() {
           _postcodeLabel = postcode;
         });
       } catch (_) {
-        if (!mounted) return;
+        if (!mounted || requestId != _activeReverseLookupRequestId) return;
         setState(() {
           _postcodeLabel = null;
         });
       } finally {
-        if (mounted) {
+        if (mounted && requestId == _activeReverseLookupRequestId) {
           setState(() {
             _isLookingUpPostcode = false;
           });
         }
       }
     });
+  }
+
+  Future<PostcodeResult?> _lookupPostcodeWithInstrumentation(
+    String postcode,
+  ) async {
+    final lookup = widget.postcodeLookup;
+    if (lookup == null) {
+      return lookupUkPostcode(
+        postcode,
+        onStep: (step) => _handleLookupStep(phase: "postcode_lookup", step: step),
+      );
+    }
+    unawaited(_logLocationStep(phase: "postcode_lookup", status: "start"));
+    final stopwatch = Stopwatch()..start();
+    try {
+      final result = await lookup(postcode);
+      unawaited(
+        _logLocationStep(
+          phase: "postcode_lookup",
+          status: result == null ? "empty" : "success",
+          elapsedMs: stopwatch.elapsedMilliseconds,
+          reason: result == null ? "no_result" : null,
+        ),
+      );
+      return result;
+    } catch (error, stackTrace) {
+      unawaited(
+        _logLocationStep(
+          phase: "postcode_lookup",
+          status: "error",
+          elapsedMs: stopwatch.elapsedMilliseconds,
+          reason: "exception",
+          recordNonFatal: true,
+          error: error,
+          stackTrace: stackTrace,
+        ),
+      );
+      return null;
+    }
+  }
+
+  Future<String?> _reverseLookupWithInstrumentation(LatLng location) async {
+    final reverseLookup = widget.reversePostcodeLookup;
+    if (reverseLookup == null) {
+      return reverseUkPostcode(
+        location,
+        onStep: (step) => _handleLookupStep(phase: "reverse_postcode", step: step),
+      );
+    }
+    unawaited(_logLocationStep(phase: "reverse_postcode", status: "start"));
+    final stopwatch = Stopwatch()..start();
+    try {
+      final postcode = await reverseLookup(location);
+      unawaited(
+        _logLocationStep(
+          phase: "reverse_postcode",
+          status: postcode == null || postcode.isEmpty ? "empty" : "success",
+          elapsedMs: stopwatch.elapsedMilliseconds,
+          reason: postcode == null || postcode.isEmpty ? "no_result" : null,
+        ),
+      );
+      return postcode;
+    } catch (error, stackTrace) {
+      unawaited(
+        _logLocationStep(
+          phase: "reverse_postcode",
+          status: "error",
+          elapsedMs: stopwatch.elapsedMilliseconds,
+          reason: "exception",
+          recordNonFatal: true,
+          error: error,
+          stackTrace: stackTrace,
+        ),
+      );
+      return null;
+    }
+  }
+
+  void _handleLookupStep({
+    required String phase,
+    required PostcodeLookupStep step,
+  }) {
+    unawaited(
+      _logLocationStep(
+        phase: phase,
+        status: step.status,
+        elapsedMs: step.elapsedMs,
+        reason: step.reason,
+        recordNonFatal: step.status == "timeout" || step.status == "error",
+      ),
+    );
+  }
+
+  Future<void> _logLocationStep({
+    required String phase,
+    required String status,
+    int? elapsedMs,
+    String? reason,
+    bool recordNonFatal = false,
+    Object? error,
+    StackTrace? stackTrace,
+  }) async {
+    if (!widget.enableAnalytics) {
+      return;
+    }
+    await AppAnalytics.logLocationBootstrapStep(
+      screen: "map_picker",
+      phase: phase,
+      status: status,
+      elapsedMs: elapsedMs,
+      reason: reason,
+    );
+    if (!recordNonFatal) {
+      return;
+    }
+    await AppAnalytics.recordNonFatal(
+      reason: "map_picker_${phase}_$status",
+      error: error,
+      stackTrace: stackTrace,
+      context: {
+        "screen": "map_picker",
+        "phase": phase,
+        "status": status,
+        if (elapsedMs != null) "elapsed_ms": elapsedMs,
+        if (reason != null) "reason": reason,
+      },
+    );
   }
 
   @override
