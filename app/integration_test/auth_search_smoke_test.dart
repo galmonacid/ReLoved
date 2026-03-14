@@ -1,4 +1,5 @@
 import "package:app/src/home/search_screen.dart";
+import "package:app/src/testing/test_keys.dart";
 import "package:flutter/widgets.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:integration_test/integration_test.dart";
@@ -33,10 +34,7 @@ void main() {
     await tester.enterText(searchField, fixture.searchTerm);
     await tester.pump(const Duration(milliseconds: 500));
 
-    final itemTitle = find.text(fixture.item.title).hitTestable();
-    await robot.waitFor(itemTitle);
-    await tester.tap(itemTitle.first);
-    await tester.pump(const Duration(milliseconds: 400));
+    await robot.tapByKey(TestKeys.searchItemCard(fixture.item.id));
 
     await robot.waitFor(find.text("Open chat").hitTestable());
   });
