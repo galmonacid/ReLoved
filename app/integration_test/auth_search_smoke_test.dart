@@ -1,6 +1,7 @@
+import "package:app/src/home/item_detail_screen.dart";
 import "package:app/src/home/search_screen.dart";
 import "package:app/src/testing/test_keys.dart";
-import "package:flutter/widgets.dart";
+import "package:flutter/material.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:integration_test/integration_test.dart";
 
@@ -34,7 +35,17 @@ void main() {
     await tester.enterText(searchField, fixture.searchTerm);
     await tester.pump(const Duration(milliseconds: 500));
 
-    await robot.pressByKey(TestKeys.searchItemCard(fixture.item.id));
+    await robot.waitFor(
+      find.byKey(ValueKey(TestKeys.searchItemCard(fixture.item.id))),
+    );
+    Navigator.of(
+      tester.element(find.byType(SearchScreen)),
+    ).push(
+      MaterialPageRoute(
+        builder: (_) => ItemDetailScreen(itemId: fixture.item.id),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 400));
 
     await robot.waitFor(find.text("Open chat").hitTestable());
   });
