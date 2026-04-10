@@ -75,6 +75,43 @@ void main() {
       expect(result.reason, LocationBootstrapFailureReason.lookupFailed);
     });
 
+    test(
+      "returns resolved from last known location when lookup times out",
+      () async {
+        final result = await bootstrapCurrentLocation(
+          client: _FakeLocationAccessClient(
+            serviceEnabled: true,
+            permission: LocationPermission.whileInUse,
+            currentLocationDelay: const Duration(milliseconds: 50),
+            lastKnownLocation: const LatLng(40.7128, -74.0060),
+          ),
+          positionLookupTimeout: const Duration(milliseconds: 10),
+        );
+
+        expect(result.status, LocationBootstrapStatus.resolved);
+        expect(result.location, const LatLng(40.7128, -74.0060));
+        expect(result.reason, isNull);
+      },
+    );
+
+    test(
+      "returns resolved from last known location when lookup throws",
+      () async {
+        final result = await bootstrapCurrentLocation(
+          client: _FakeLocationAccessClient(
+            serviceEnabled: true,
+            permission: LocationPermission.whileInUse,
+            throwOnCurrentLocation: true,
+            lastKnownLocation: const LatLng(34.0522, -118.2437),
+          ),
+        );
+
+        expect(result.status, LocationBootstrapStatus.resolved);
+        expect(result.location, const LatLng(34.0522, -118.2437));
+        expect(result.reason, isNull);
+      },
+    );
+
     test("returns unavailable when the location lookup times out", () async {
       final result = await bootstrapCurrentLocation(
         client: _FakeLocationAccessClient(
@@ -97,6 +134,7 @@ class _FakeLocationAccessClient implements LocationAccessClient {
     required this.permission,
     this.requestedPermission,
     this.currentLocation,
+    this.lastKnownLocation,
     this.throwOnCurrentLocation = false,
     this.currentLocationDelay = Duration.zero,
   });
@@ -105,6 +143,7 @@ class _FakeLocationAccessClient implements LocationAccessClient {
   final LocationPermission permission;
   final LocationPermission? requestedPermission;
   final LatLng? currentLocation;
+  final LatLng? lastKnownLocation;
   final bool throwOnCurrentLocation;
   final Duration currentLocationDelay;
 
@@ -123,6 +162,9 @@ class _FakeLocationAccessClient implements LocationAccessClient {
     }
     return currentLocation ?? const LatLng(0, 0);
   }
+
+  @override
+  Future<LatLng?> getLastKnownLocation() async => lastKnownLocation;
 
   @override
   Future<bool> isLocationServiceEnabled() async => serviceEnabled;
