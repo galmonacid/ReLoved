@@ -87,6 +87,7 @@ abstract class LocationAccessClient {
   Future<LatLng> getCurrentLocation({
     LocationAccuracy desiredAccuracy = LocationAccuracy.low,
   });
+  Future<LatLng?> getLastKnownLocation();
   Future<bool> openAppSettings();
   Future<bool> openLocationSettings();
 }
@@ -116,6 +117,15 @@ class GeolocatorLocationAccessClient implements LocationAccessClient {
     final position = await Geolocator.getCurrentPosition(
       desiredAccuracy: desiredAccuracy,
     );
+    return LatLng(position.latitude, position.longitude);
+  }
+
+  @override
+  Future<LatLng?> getLastKnownLocation() async {
+    final position = await Geolocator.getLastKnownPosition();
+    if (position == null) {
+      return null;
+    }
     return LatLng(position.latitude, position.longitude);
   }
 
@@ -214,6 +224,17 @@ Future<LocationBootstrapResult> bootstrapCurrentLocation({
     );
     return LocationBootstrapResult.resolved(location);
   } on TimeoutException {
+    final fallback = await client.getLastKnownLocation();
+    if (fallback != null) {
+      onStep?.call(
+        LocationBootstrapStep(
+          phase: "position_lookup",
+          status: "success_fallback_last_known",
+          elapsedMs: stopwatch.elapsedMilliseconds,
+        ),
+      );
+      return LocationBootstrapResult.resolved(fallback);
+    }
     onStep?.call(
       LocationBootstrapStep(
         phase: "position_lookup",
@@ -226,6 +247,17 @@ Future<LocationBootstrapResult> bootstrapCurrentLocation({
       LocationBootstrapFailureReason.lookupTimedOut,
     );
   } catch (_) {
+    final fallback = await client.getLastKnownLocation();
+    if (fallback != null) {
+      onStep?.call(
+        LocationBootstrapStep(
+          phase: "position_lookup",
+          status: "success_fallback_last_known",
+          elapsedMs: stopwatch.elapsedMilliseconds,
+        ),
+      );
+      return LocationBootstrapResult.resolved(fallback);
+    }
     onStep?.call(
       LocationBootstrapStep(
         phase: "position_lookup",
