@@ -81,6 +81,7 @@
       <p id="message">Preparing your item link...</p>
       <div class="actions">
         <a id="open-app" class="btn btn-primary" href="#">Open app</a>
+        <a id="get-app" class="btn btn-secondary" href="#">Get ReLoved</a>
         <a id="open-web" class="btn btn-secondary" href="/">Open web</a>
       </div>
     </main>
@@ -102,6 +103,7 @@
           : "https://reloved-greenhilledge.web.app/";
 
         const openApp = document.getElementById("open-app");
+        const getApp = document.getElementById("get-app");
         const openWeb = document.getElementById("open-web");
         const message = document.getElementById("message");
         const ua = navigator.userAgent || "";
@@ -109,6 +111,7 @@
           (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
         openApp.href = appUrl;
+        getApp.href = appStoreUrl;
         openWeb.href = webUrl;
 
         if (!isAppleMobile) {
@@ -117,23 +120,7 @@
           return;
         }
 
-        message.textContent = "If the app is installed, it will open now.";
-        let redirected = false;
-        const timer = setTimeout(function () {
-          if (!redirected) {
-            redirected = true;
-            window.location.replace(appStoreUrl);
-          }
-        }, 1300);
-
-        document.addEventListener("visibilitychange", function () {
-          if (document.hidden) {
-            redirected = true;
-            clearTimeout(timer);
-          }
-        });
-
-        window.location.href = appUrl;
+        message.textContent = "Tap Open app to view this item in ReLoved.";
       })();
     </script>
   </body>

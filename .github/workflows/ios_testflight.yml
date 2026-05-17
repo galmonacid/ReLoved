@@ -10,7 +10,7 @@ on:
 
 jobs:
   build-upload:
-    runs-on: macos-latest
+    runs-on: macos-26
     steps:
       - name: Confirm manual upload
         run: |
@@ -24,6 +24,25 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+
+      - name: Select Xcode 26
+        run: |
+          set -euo pipefail
+          if [ -d /Applications/Xcode_26.4.1.app ]; then
+            xcode_path=/Applications/Xcode_26.4.1.app
+          elif [ -d /Applications/Xcode_26.4.app ]; then
+            xcode_path=/Applications/Xcode_26.4.app
+          else
+            xcode_path="$(find /Applications -maxdepth 1 -name 'Xcode_26*.app' | sort | tail -n 1)"
+          fi
+          if [ -z "${xcode_path}" ]; then
+            echo "Xcode 26 is required for App Store Connect uploads."
+            find /Applications -maxdepth 1 -name 'Xcode*.app' -print | sort
+            exit 1
+          fi
+          sudo xcode-select -s "${xcode_path}/Contents/Developer"
+          xcodebuild -version
+          echo "iPhoneOS SDK: $(xcrun --sdk iphoneos --show-sdk-version)"
 
       - name: Flutter pub get
         run: flutter pub get

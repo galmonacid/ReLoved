@@ -116,14 +116,15 @@ firebase functions:config:get
 - Terms of service URL (Hosting): /terms.html
 - Support URL (Hosting): /support.html
 - Hosting serves Flutter web from `app/build/web`.
-- Deploy workflow copies `public/privacy.html`, `public/terms.html`, `public/support.html`, and `public/item_link.html` into `app/build/web`.
+- Deploy workflow copies `public/privacy.html`, `public/terms.html`, `public/support.html`, `public/item_link.html`, and the Apple association files into `app/build/web`.
 
 ## Share deep links behavior
 - Shared links use `/items/{itemId}` on `SHARE_BASE_URL`.
-- Hosting rewrites `/items/**` to `/item_link.html` (smart link handler), then catch-all to `/index.html`.
+- Hosting serves `/.well-known/apple-app-site-association` and rewrites `/items/**` to `/item_link.html` (smart link handler), then catch-all to `/index.html`.
+- The iOS app identifier must have the Associated Domains capability enabled in Apple Developer, and App Store/TestFlight builds must use a provisioning profile that includes `applinks:reloved-greenhilledge.web.app`.
 - iPhone:
-  - App installed: opens app via `reloved://items/{itemId}`.
-  - App not installed: redirects to App Store (`IOS_APP_STORE_ID`).
+  - App installed: opens the app via the universal link for `https://reloved-greenhilledge.web.app/items/{itemId}`.
+  - App not installed: opens the smart link page with explicit App Store, app, and web options.
 - Android/desktop: redirects to the web detail flow (`/?shared_item_id={itemId}`).
 
 ## GitHub Actions (iOS TestFlight)

@@ -112,6 +112,9 @@ jobs:
           cp public/terms.html app/build/web/terms.html
           cp public/support.html app/build/web/support.html
           cp public/item_link.html app/build/web/item_link.html
+          mkdir -p app/build/web/.well-known
+          cp public/.well-known/apple-app-site-association app/build/web/.well-known/apple-app-site-association
+          cp public/apple-app-site-association app/build/web/apple-app-site-association
 
       - name: Install Firebase CLI
         run: npm i -g firebase-tools@latest
