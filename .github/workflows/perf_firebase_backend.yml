@@ -72,10 +72,9 @@ jobs:
         with:
           chrome-version: stable
           install-dependencies: true
-          install-chromedriver: true
 
-      - name: Add ChromeDriver to PATH
-        run: echo "${{ steps.setup-chrome.outputs.chromedriver-path }}" >> "$GITHUB_PATH"
+      - name: Install matching ChromeDriver
+        run: scripts/e2e/install_matching_chromedriver.sh "${{ steps.setup-chrome.outputs.chrome-path }}"
 
       - name: Flutter pub get
         run: flutter pub get
