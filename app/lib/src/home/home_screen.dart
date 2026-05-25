@@ -91,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Icons.add_circle_outline,
                 key: ValueKey(TestKeys.navPublish),
               ),
-              label: "Publish",
+              label: "Post",
             ),
             const BottomNavigationBarItem(
               icon: Icon(

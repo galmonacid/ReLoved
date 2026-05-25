@@ -41,7 +41,7 @@ Campos:
 Notas:
 - Si `contactPreference` no existe (items legacy), el cliente usa fallback `both`.
 - La ubicacion es aproximada para preservar privacidad.
-- En UK, approxAreaText almacena el postcode mostrado al usuario.
+- En UK, approxAreaText almacena solo el outward code publico del postcode (por ejemplo `SW1A` o `M1`), no el postcode completo.
 - description se usa para busqueda por palabras.
 
 ---

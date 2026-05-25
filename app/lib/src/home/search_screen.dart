@@ -49,6 +49,8 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   static const double _kmPerMile = 1.60934;
   static const int _pageSize = 24;
+  static const String _appIconAsset =
+      "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png";
 
   LatLng _center = defaultCenter;
   double _radiusMiles = 3;
@@ -638,6 +640,62 @@ class _SearchScreenState extends State<SearchScreen> {
     }).toList();
   }
 
+  String _distanceLabel(Item item) {
+    if (!_hasSelectedCenter) {
+      return item.location.approxAreaText;
+    }
+    final miles = distanceKm(_center, item.location.toLatLng()) / _kmPerMile;
+    final rounded = miles < 1 ? 1 : miles.round();
+    final suffix = rounded == 1 ? "mile" : "miles";
+    final area = item.location.approxAreaText.trim();
+    if (area.isEmpty) {
+      return "Within $rounded $suffix";
+    }
+    return "$area · within $rounded $suffix";
+  }
+
+  Widget _buildFreeBadge(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.10),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: Image.asset(
+                _appIconAsset,
+                width: 15,
+                height: 15,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Text(
+              "FREE",
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w700,
+                height: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildResultsSliver(BuildContext context, List<Item> items) {
     if (items.isEmpty) {
       return const SliverFillRemaining(
@@ -661,7 +719,7 @@ class _SearchScreenState extends State<SearchScreen> {
             (horizontalPadding * 2) -
             ((crossAxisCount - 1) * crossSpacing)) /
         crossAxisCount;
-    final tileHeight = (tileWidth * 0.75) + 96;
+    final tileHeight = (tileWidth * 0.75) + 116;
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       sliver: SliverAnimatedOpacity(
@@ -671,11 +729,14 @@ class _SearchScreenState extends State<SearchScreen> {
         sliver: SliverGrid(
           delegate: SliverChildBuilderDelegate((context, index) {
             final item = items[index];
+            final borderRadius = BorderRadius.circular(16);
             return PressableScale(
               child: Card(
+                elevation: 1.5,
+                clipBehavior: Clip.antiAlias,
                 child: InkWell(
                   key: ValueKey(TestKeys.searchItemCard(item.id)),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: borderRadius,
                   onTap: () {
                     AppAnalytics.logEvent(
                       name: "select_item",
@@ -690,21 +751,25 @@ class _SearchScreenState extends State<SearchScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(16),
-                        ),
-                        child: AspectRatio(
-                          aspectRatio: 4 / 3,
-                          child: ItemImage(
-                            photoUrl: item.photoUrl,
-                            photoPath: item.photoPath,
-                            width: double.infinity,
-                            height: double.infinity,
-                            fit: BoxFit.cover,
-                            semanticLabel: "Foto de ${item.title}",
+                      Stack(
+                        children: [
+                          AspectRatio(
+                            aspectRatio: 4 / 3,
+                            child: ItemImage(
+                              photoUrl: item.photoUrl,
+                              photoPath: item.photoPath,
+                              width: double.infinity,
+                              height: double.infinity,
+                              fit: BoxFit.cover,
+                              semanticLabel: "Foto de ${item.title}",
+                            ),
                           ),
-                        ),
+                          Positioned(
+                            left: 10,
+                            bottom: 10,
+                            child: _buildFreeBadge(context),
+                          ),
+                        ],
                       ),
                       Padding(
                         padding: const EdgeInsets.all(12),
@@ -717,13 +782,26 @@ class _SearchScreenState extends State<SearchScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context).textTheme.titleLarge,
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              item.location.approxAreaText,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context).textTheme.bodySmall
-                                  ?.copyWith(color: AppColors.muted),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.location_on_outlined,
+                                  size: 14,
+                                  color: AppColors.primary,
+                                ),
+                                const SizedBox(width: 3),
+                                Expanded(
+                                  child: Text(
+                                    _distanceLabel(item),
+                                    key: ValueKey("item-location-${item.id}"),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: Theme.of(context).textTheme.bodySmall
+                                        ?.copyWith(color: AppColors.muted),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -786,13 +864,37 @@ class _SearchScreenState extends State<SearchScreen> {
               backgroundColor: AppColors.sageSoft,
               surfaceTintColor: AppColors.sageSoft,
               bottom: PreferredSize(
-                preferredSize: const Size.fromHeight(132),
+                preferredSize: const Size.fromHeight(176),
                 child: Container(
                   color: AppColors.sageSoft,
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      Row(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(6),
+                            child: Image.asset(
+                              _appIconAsset,
+                              width: 28,
+                              height: 28,
+                              fit: BoxFit.cover,
+                              semanticLabel: "ReLoved app icon",
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            "reloved",
+                            style: Theme.of(context).textTheme.headlineSmall
+                                ?.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
                       SizedBox(
                         height: 52,
                         child: SearchBar(
@@ -801,7 +903,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           hintText: "Search by keyword",
                           elevation: WidgetStateProperty.all(0),
                           backgroundColor: WidgetStateProperty.all(
-                            AppColors.sageSoft,
+                            Colors.white,
                           ),
                           leading: const Icon(Icons.search),
                           trailing: [

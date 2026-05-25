@@ -28,6 +28,9 @@ class ItemDetailScreen extends StatefulWidget {
 }
 
 class _ItemDetailScreenState extends State<ItemDetailScreen> {
+  static const String _appIconAsset =
+      "ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png";
+
   bool _isUpdatingStatus = false;
   bool _isUpdatingContactPreference = false;
   bool _isReporting = false;
@@ -540,9 +543,10 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         return SizedBox(
           width: double.infinity,
           child: PressableScale(
-            child: ElevatedButton(
+            child: ElevatedButton.icon(
               onPressed: () => _openEmailContact(item),
-              child: const Text("Contact by email"),
+              icon: const Icon(Icons.mail_outline),
+              label: const Text("Email"),
             ),
           ),
         );
@@ -550,10 +554,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         return SizedBox(
           width: double.infinity,
           child: PressableScale(
-            child: ElevatedButton(
+            child: ElevatedButton.icon(
               key: const ValueKey(TestKeys.itemOpenChatButton),
               onPressed: _isOpeningChat ? null : () => _openChat(item),
-              child: _buildOpenChatButtonChild(),
+              icon: const Icon(Icons.chat_bubble_outline),
+              label: _buildOpenChatButtonChild(),
             ),
           ),
         );
@@ -562,16 +567,18 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             PressableScale(
-              child: ElevatedButton(
+              child: ElevatedButton.icon(
                 key: const ValueKey(TestKeys.itemOpenChatButton),
                 onPressed: _isOpeningChat ? null : () => _openChat(item),
-                child: _buildOpenChatButtonChild(),
+                icon: const Icon(Icons.chat_bubble_outline),
+                label: _buildOpenChatButtonChild(),
               ),
             ),
             const SizedBox(height: 8),
-            TextButton(
+            OutlinedButton.icon(
               onPressed: () => _openEmailContact(item),
-              child: const Text("Contact by email"),
+              icon: const Icon(Icons.mail_outline),
+              label: const Text("Email"),
             ),
             if (user == null)
               Text(
@@ -599,6 +606,223 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         SizedBox(width: 10),
         Text("Opening chat..."),
       ],
+    );
+  }
+
+  String _publicLocationLabel(Item item) {
+    final value = item.location.approxAreaText.trim();
+    return value.isEmpty ? "Nearby" : value;
+  }
+
+  Widget _freeBadge(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(999),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.10),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(3),
+              child: Image.asset(
+                _appIconAsset,
+                width: 16,
+                height: 16,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 5),
+            Text(
+              "FREE",
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: const Color(0xFF2F6B3F),
+                fontWeight: FontWeight.w700,
+                height: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _heroImage(BuildContext context, Item item, {double? height}) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: Stack(
+        children: [
+          ItemImage(
+            photoUrl: item.photoUrl,
+            photoPath: item.photoPath,
+            height: height ?? 260,
+            width: double.infinity,
+            fit: BoxFit.cover,
+            semanticLabel: "Foto de ${item.title}",
+          ),
+          Positioned(left: 16, bottom: 16, child: _freeBadge(context)),
+        ],
+      ),
+    );
+  }
+
+  Widget _metadataRow({
+    required Widget leading,
+    required String label,
+    required String value,
+    Color? valueColor,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          SizedBox(width: 22, height: 22, child: Center(child: leading)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(label, style: Theme.of(context).textTheme.bodyMedium),
+          ),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: valueColor ?? const Color(0xFF111827),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _itemInfo(
+    BuildContext context,
+    Item item, {
+    required bool showContact,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(item.title, style: Theme.of(context).textTheme.headlineSmall),
+        if (item.description.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(item.description, style: Theme.of(context).textTheme.bodyLarge),
+        ],
+        const SizedBox(height: 18),
+        const Divider(height: 1),
+        _metadataRow(
+          leading: const Icon(
+            Icons.sell_outlined,
+            size: 22,
+            color: Color(0xFF1F2937),
+          ),
+          label: "Status",
+          value: _statusLabel(item.status),
+          valueColor: item.status == "available"
+              ? const Color(0xFF2F6B3F)
+              : null,
+        ),
+        const Divider(height: 1),
+        _metadataRow(
+          leading: const Icon(
+            Icons.location_on_outlined,
+            size: 22,
+            color: Color(0xFF1F2937),
+          ),
+          label: "Location",
+          value: _publicLocationLabel(item),
+        ),
+        const Divider(height: 1),
+        _metadataRow(
+          leading: const Icon(
+            Icons.chat_bubble_outline,
+            size: 22,
+            color: Color(0xFF1F2937),
+          ),
+          label: "Contact",
+          value: _contactPreferenceLabel(item.contactPreference),
+        ),
+        const Divider(height: 1),
+        _metadataRow(
+          leading: ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: Image.asset(
+              _appIconAsset,
+              width: 22,
+              height: 22,
+              fit: BoxFit.cover,
+            ),
+          ),
+          label: "Good for the planet",
+          value: "Keeping items in use reduces waste",
+          valueColor: const Color(0xFF2F6B3F),
+        ),
+        if (showContact) ...[const SizedBox(height: 20), _contactSection(item)],
+      ],
+    );
+  }
+
+  Widget _ownerSection(BuildContext context, Item item) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEF1EA),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Owner controls", style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<String>(
+            initialValue: item.status,
+            decoration: const InputDecoration(labelText: "Status"),
+            items: const [
+              DropdownMenuItem(value: "available", child: Text("Available")),
+              DropdownMenuItem(value: "reserved", child: Text("Reserved")),
+              DropdownMenuItem(value: "given", child: Text("Given")),
+            ],
+            onChanged: _isUpdatingStatus
+                ? null
+                : (value) {
+                    if (value != null) {
+                      _updateStatus(value);
+                    }
+                  },
+          ),
+          const SizedBox(height: 12),
+          DropdownButtonFormField<ContactPreference>(
+            initialValue: item.contactPreference,
+            decoration: const InputDecoration(labelText: "Contact preference"),
+            items: ContactPreference.values
+                .map(
+                  (preference) => DropdownMenuItem<ContactPreference>(
+                    value: preference,
+                    child: Text(_contactPreferenceLabel(preference)),
+                  ),
+                )
+                .toList(growable: false),
+            onChanged: _isUpdatingContactPreference
+                ? null
+                : (value) {
+                    if (value != null) {
+                      _updateContactPreference(value);
+                    }
+                  },
+          ),
+        ],
+      ),
     );
   }
 
@@ -654,96 +878,21 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                     ),
                   ],
                 ),
-              IconButton(
-                onPressed: () => shareItem(context, item),
-                icon: const Icon(Icons.share),
-                tooltip: "Share",
-              ),
+              ItemShareIconButton(item: item),
             ],
           ),
-          body: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: ItemImage(
-                    photoUrl: item.photoUrl,
-                    photoPath: item.photoPath,
-                    height: 220,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    semanticLabel: "Foto de ${item.title}",
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  item.title,
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                if (item.description.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(item.description),
-                ],
-                const SizedBox(height: 8),
-                Text("Status: ${_statusLabel(item.status)}"),
-                const SizedBox(height: 4),
-                Text("Location: ${item.location.approxAreaText}"),
-                const SizedBox(height: 4),
-                Text(
-                  "Contact: ${_contactPreferenceLabel(item.contactPreference)}",
-                ),
-                const SizedBox(height: 20),
-                if (isOwner) ...[
-                  const Text("Update status"),
-                  const SizedBox(height: 8),
-                  DropdownButton<String>(
-                    value: item.status,
-                    items: const [
-                      DropdownMenuItem(
-                        value: "available",
-                        child: Text("Available"),
-                      ),
-                      DropdownMenuItem(
-                        value: "reserved",
-                        child: Text("Reserved"),
-                      ),
-                      DropdownMenuItem(value: "given", child: Text("Given")),
-                    ],
-                    onChanged: _isUpdatingStatus
-                        ? null
-                        : (value) {
-                            if (value != null) {
-                              _updateStatus(value);
-                            }
-                          },
-                  ),
-                  const SizedBox(height: 16),
-                  const Text("Contact preference"),
-                  const SizedBox(height: 8),
-                  DropdownButton<ContactPreference>(
-                    value: item.contactPreference,
-                    items: ContactPreference.values
-                        .map(
-                          (preference) => DropdownMenuItem<ContactPreference>(
-                            value: preference,
-                            child: Text(_contactPreferenceLabel(preference)),
-                          ),
-                        )
-                        .toList(growable: false),
-                    onChanged: _isUpdatingContactPreference
-                        ? null
-                        : (value) {
-                            if (value != null) {
-                              _updateContactPreference(value);
-                            }
-                          },
-                  ),
-                ] else ...[
-                  _contactSection(item),
-                  const SizedBox(height: 12),
-                  if (item.status == "given" && user != null)
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 720;
+              final info = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _itemInfo(context, item, showContact: !isOwner),
+                  if (isOwner) ...[
+                    const SizedBox(height: 20),
+                    _ownerSection(context, item),
+                  ] else if (item.status == "given" && user != null) ...[
+                    const SizedBox(height: 12),
                     FutureBuilder<bool>(
                       future: _hasRated(user.uid),
                       builder: (context, ratingSnapshot) {
@@ -761,9 +910,33 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                         );
                       },
                     ),
+                  ],
                 ],
-              ],
-            ),
+              );
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: wide
+                    ? Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: _heroImage(context, item, height: 430),
+                          ),
+                          const SizedBox(width: 28),
+                          Expanded(flex: 2, child: info),
+                        ],
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _heroImage(context, item),
+                          const SizedBox(height: 18),
+                          info,
+                        ],
+                      ),
+              );
+            },
           ),
         );
       },

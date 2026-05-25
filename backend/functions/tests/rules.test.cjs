@@ -35,7 +35,7 @@ const itemData = (ownerId) => ({
     lat: 40.4168,
     lng: -3.7038,
     geohash: "ezjmgtc",
-    approxAreaText: "Centro"
+    approxAreaText: "SW1A"
   }
 });
 
@@ -120,6 +120,37 @@ test("items can be created by owner only", async () => {
   const db = testEnv.authenticatedContext("owner").firestore();
   await assertSucceeds(
     db.collection("items").doc("item-1").set(itemData("owner"))
+  );
+});
+
+test("new items cannot expose a full postcode as public area text", async () => {
+  const testEnv = await resetEnv();
+  const db = testEnv.authenticatedContext("owner").firestore();
+  await assertFails(
+    db.collection("items").doc("item-1").set({
+      ...itemData("owner"),
+      location: {
+        ...itemData("owner").location,
+        approxAreaText: "SW1A 1AA"
+      }
+    })
+  );
+});
+
+test("legacy item location text can remain unchanged on owner status update", async () => {
+  const testEnv = await resetEnv();
+  await testEnv.withSecurityRulesDisabled(async (context) => {
+    await context.firestore().collection("items").doc("item-1").set({
+      ...itemData("owner"),
+      location: {
+        ...itemData("owner").location,
+        approxAreaText: "Centro"
+      }
+    });
+  });
+  const db = testEnv.authenticatedContext("owner").firestore();
+  await assertSucceeds(
+    db.collection("items").doc("item-1").update({ status: "reserved" })
   );
 });
 

@@ -96,40 +96,39 @@ void main() {
     },
   );
 
-  testWidgets(
-    "reverse postcode delay does not block initial search results",
-    (tester) async {
-      LatLng? fetchedCenter;
-      final postcodeCompleter = Completer<String?>();
+  testWidgets("reverse postcode delay does not block initial search results", (
+    tester,
+  ) async {
+    LatLng? fetchedCenter;
+    final postcodeCompleter = Completer<String?>();
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: SearchScreen(
-            locationBootstrapLoader: () async =>
-                const LocationBootstrapResult.resolved(LatLng(51.5, -0.12)),
-            reversePostcodeLookup: (_) => postcodeCompleter.future,
-            searchItemsLoader:
-                ({
-                  required LatLng center,
-                  required double radiusKm,
-                  required int resultCap,
-                }) async {
-                  fetchedCenter = center;
-                  return const <Item>[];
-                },
-            enableBootstrapAnalytics: false,
-          ),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SearchScreen(
+          locationBootstrapLoader: () async =>
+              const LocationBootstrapResult.resolved(LatLng(51.5, -0.12)),
+          reversePostcodeLookup: (_) => postcodeCompleter.future,
+          searchItemsLoader:
+              ({
+                required LatLng center,
+                required double radiusKm,
+                required int resultCap,
+              }) async {
+                fetchedCenter = center;
+                return const <Item>[];
+              },
+          enableBootstrapAnalytics: false,
         ),
-      );
+      ),
+    );
 
-      await tester.pump();
-      await tester.pump();
+    await tester.pump();
+    await tester.pump();
 
-      expect(find.text("Current area"), findsOneWidget);
-      expect(find.text("Finding location..."), findsNothing);
-      expect(fetchedCenter, const LatLng(51.5, -0.12));
-    },
-  );
+    expect(find.text("Current area"), findsOneWidget);
+    expect(find.text("Finding location..."), findsNothing);
+    expect(fetchedCenter, const LatLng(51.5, -0.12));
+  });
 
   testWidgets(
     "failure path shows retry or settings affordance and skips default search",
@@ -194,6 +193,54 @@ void main() {
     await tester.pump(const Duration(milliseconds: 20));
 
     expect(find.text("Could not load items."), findsOneWidget);
+  });
+
+  testWidgets("result cards show outward code and distance metadata", (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SearchScreen(
+          locationBootstrapLoader: () async =>
+              const LocationBootstrapResult.resolved(LatLng(51.5, -0.12)),
+          reversePostcodeLookup: (_) async => null,
+          searchItemsLoader:
+              ({
+                required LatLng center,
+                required double radiusKm,
+                required int resultCap,
+              }) async {
+                return [
+                  Item(
+                    id: "item-1",
+                    ownerId: "owner",
+                    title: "Kids scooter",
+                    description: "Good condition",
+                    photoUrl: "",
+                    photoPath: "",
+                    createdAt: DateTime(2026),
+                    status: "available",
+                    contactPreference: ContactPreference.both,
+                    location: ItemLocation(
+                      lat: 51.501,
+                      lng: -0.121,
+                      geohash: "gcpvj",
+                      approxAreaText: "SW1A",
+                    ),
+                  ),
+                ];
+              },
+          enableBootstrapAnalytics: false,
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.text("Kids scooter"), findsOneWidget);
+    expect(find.textContaining("SW1A · within"), findsOneWidget);
   });
 }
 

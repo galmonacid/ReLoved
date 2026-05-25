@@ -16,11 +16,7 @@ final Map<String, PostcodeResult> _postcodeCache = {};
 final Map<String, String> _reverseCache = {};
 
 class PostcodeLookupStep {
-  const PostcodeLookupStep({
-    required this.status,
-    this.elapsedMs,
-    this.reason,
-  });
+  const PostcodeLookupStep({required this.status, this.elapsedMs, this.reason});
 
   final String status;
   final int? elapsedMs;
@@ -41,6 +37,17 @@ String normalizeUkPostcode(String raw) {
   }
   final trimmed = decoded.trim().toUpperCase().replaceAll(RegExp(r"\s+"), "");
   return trimmed;
+}
+
+String? ukPostcodeOutwardCode(String rawPostcode) {
+  final cleaned = normalizeUkPostcode(rawPostcode);
+  if (cleaned.isEmpty) {
+    return null;
+  }
+  final match = RegExp(
+    r"^([A-Z]{1,2}\d[A-Z\d]?)\d[A-Z]{2}$",
+  ).firstMatch(cleaned);
+  return match?.group(1);
 }
 
 Future<PostcodeResult?> lookupUkPostcode(
@@ -66,7 +73,11 @@ Future<PostcodeResult?> lookupUkPostcode(
   final cached = _postcodeCache[cleaned];
   if (cached != null) {
     onStep?.call(
-      const PostcodeLookupStep(status: "success", elapsedMs: 0, reason: "cache"),
+      const PostcodeLookupStep(
+        status: "success",
+        elapsedMs: 0,
+        reason: "cache",
+      ),
     );
     return cached;
   }
@@ -161,7 +172,11 @@ Future<String?> reverseUkPostcode(
   final cached = _reverseCache[key];
   if (cached != null) {
     onStep?.call(
-      const PostcodeLookupStep(status: "success", elapsedMs: 0, reason: "cache"),
+      const PostcodeLookupStep(
+        status: "success",
+        elapsedMs: 0,
+        reason: "cache",
+      ),
     );
     return cached;
   }

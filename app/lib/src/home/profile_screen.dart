@@ -279,12 +279,7 @@ class ProfileScreen extends StatelessWidget {
                                   trailing: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      IconButton(
-                                        onPressed: () =>
-                                            shareItem(context, item),
-                                        icon: const Icon(Icons.share),
-                                        tooltip: "Share",
-                                      ),
+                                      ItemShareIconButton(item: item),
                                       const Icon(Icons.chevron_right),
                                     ],
                                   ),

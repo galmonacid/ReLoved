@@ -25,17 +25,21 @@ typedef PublishLocationBootstrapLoader =
     Future<LocationBootstrapResult> Function();
 typedef PublishReversePostcodeLookup =
     Future<String?> Function(LatLng location);
+typedef PublishPostcodeLookup =
+    Future<PostcodeResult?> Function(String postcode);
 
 class PublishScreen extends StatefulWidget {
   const PublishScreen({
     super.key,
     this.locationBootstrapLoader,
     this.reversePostcodeLookup,
+    this.postcodeLookup,
     this.enableBootstrapAnalytics = true,
   });
 
   final PublishLocationBootstrapLoader? locationBootstrapLoader;
   final PublishReversePostcodeLookup? reversePostcodeLookup;
+  final PublishPostcodeLookup? postcodeLookup;
   final bool enableBootstrapAnalytics;
 
   @override
@@ -45,7 +49,6 @@ class PublishScreen extends StatefulWidget {
 class _PublishScreenState extends State<PublishScreen> {
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
-  final _areaController = TextEditingController();
   final _postcodeController = TextEditingController();
   final _imagePicker = ImagePicker();
 
@@ -110,7 +113,10 @@ class _PublishScreenState extends State<PublishScreen> {
       _isResolvingDevicePostcode = true;
     });
     unawaited(
-      _resolveBootstrapPostcode(location: current, requestId: postcodeRequestId),
+      _resolveBootstrapPostcode(
+        location: current,
+        requestId: postcodeRequestId,
+      ),
     );
   }
 
@@ -118,7 +124,6 @@ class _PublishScreenState extends State<PublishScreen> {
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-    _areaController.dispose();
     _postcodeController.dispose();
     super.dispose();
   }
@@ -412,19 +417,28 @@ class _PublishScreenState extends State<PublishScreen> {
     }
     final title = _titleController.text.trim();
     final description = _descriptionController.text.trim();
-    final area = _areaController.text.trim();
-    if (title.isEmpty || description.isEmpty || area.isEmpty) {
-      _showError("Enter a title, description, and approximate area.");
+    final rawPostcode = _postcodeController.text.trim();
+    final rawOutwardCode = ukPostcodeOutwardCode(rawPostcode);
+    if (title.isEmpty || description.isEmpty) {
+      _showError("Enter a title and description.");
+      return;
+    }
+    if (rawPostcode.isEmpty || rawOutwardCode == null) {
+      _showError("Enter a full UK postcode.");
       return;
     }
     if (_imageFile == null) {
       _showError("Select a photo.");
       return;
     }
-    if (_location == null) {
-      _showError("Select a location.");
+
+    final postcodeResult = await _lookupPostcodeForPublish(rawPostcode);
+    if (postcodeResult == null) {
+      _showError("Enter a valid UK postcode.");
       return;
     }
+    final outwardCode =
+        ukPostcodeOutwardCode(postcodeResult.postcode) ?? rawOutwardCode;
 
     if (!await _checkPublishSoftLimit()) {
       return;
@@ -465,8 +479,8 @@ class _PublishScreenState extends State<PublishScreen> {
       final photoUrl = await storageRef.getDownloadURL();
 
       final geohash = encodeGeohash(
-        _location!.latitude,
-        _location!.longitude,
+        postcodeResult.location.latitude,
+        postcodeResult.location.longitude,
         precision: 9,
       );
 
@@ -480,10 +494,10 @@ class _PublishScreenState extends State<PublishScreen> {
         "status": "available",
         "contactPreference": contactPreferenceToString(_contactPreference),
         "location": {
-          "lat": _location!.latitude,
-          "lng": _location!.longitude,
+          "lat": postcodeResult.location.latitude,
+          "lng": postcodeResult.location.longitude,
           "geohash": geohash,
-          "approxAreaText": area,
+          "approxAreaText": outwardCode,
         },
       });
       await AppAnalytics.logEvent(
@@ -494,7 +508,6 @@ class _PublishScreenState extends State<PublishScreen> {
       if (!mounted) return;
       _titleController.clear();
       _descriptionController.clear();
-      _areaController.clear();
       _postcodeController.clear();
       setState(() {
         _imageFile = null;
@@ -513,6 +526,20 @@ class _PublishScreenState extends State<PublishScreen> {
         });
       }
     }
+  }
+
+  Future<PostcodeResult?> _lookupPostcodeForPublish(String postcode) async {
+    final lookup = widget.postcodeLookup;
+    if (lookup != null) {
+      return lookup(postcode);
+    }
+    return lookupUkPostcode(
+      postcode,
+      onStep: (step) => _handlePostcodeLookupStep(
+        phase: "publish_postcode_lookup",
+        step: step,
+      ),
+    );
   }
 
   Future<bool> _checkPublishSoftLimit() async {
@@ -573,7 +600,7 @@ class _PublishScreenState extends State<PublishScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Publish")),
+      appBar: AppBar(title: const Text("Post")),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -588,19 +615,6 @@ class _PublishScreenState extends State<PublishScreen> {
               maxLines: 4,
               maxLength: 500,
               decoration: const InputDecoration(labelText: "Description"),
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _areaController,
-                    decoration: const InputDecoration(
-                      labelText: "Approximate area",
-                      helperText: "Shown to other users.",
-                    ),
-                  ),
-                ),
-              ],
             ),
             const SizedBox(height: 16),
             Text(
@@ -648,19 +662,20 @@ class _PublishScreenState extends State<PublishScreen> {
                 Expanded(
                   child: TextField(
                     controller: _postcodeController,
+                    textCapitalization: TextCapitalization.characters,
+                    onChanged: (_) => setState(() {}),
                     decoration: InputDecoration(
-                      labelText: "Location (postcode)",
+                      labelText: "Full UK postcode",
                       helperText: _isLocationResolving
-                          ? "Finding your current area."
+                          ? "Finding your current postcode."
                           : (_isLocationUnavailable
-                                ? "Current location unavailable. Choose a location manually."
+                                ? "Enter a postcode or choose a location manually."
                                 : (_postcodeController.text.trim().isEmpty
                                       ? (_isResolvingDevicePostcode
                                             ? "Using your device location while postcode loads."
-                                            : "Using your device location. Postcode unavailable.")
-                                      : "Derived from device location.")),
+                                            : "Enter the collection postcode.")
+                                      : "Only the outward code, such as ${ukPostcodeOutwardCode(_postcodeController.text.trim()) ?? "SW1A"}, is shown publicly.")),
                     ),
-                    readOnly: true,
                   ),
                 ),
               ],
@@ -746,7 +761,7 @@ class _PublishScreenState extends State<PublishScreen> {
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text("Publish"),
+                    : const Text("Post"),
               ),
             ),
           ],
