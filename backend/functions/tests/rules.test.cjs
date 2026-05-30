@@ -115,6 +115,45 @@ test("users can read their own profile but not other users", async () => {
   await assertFails(aliceDb.collection("users").doc("bob").get());
 });
 
+test("users can manage their own notification tokens only", async () => {
+  const testEnv = await resetEnv();
+  const tokenId = "a".repeat(64);
+  const tokenData = {
+    token: "fcm-token:abc123",
+    platform: "iOS",
+    enabled: true,
+    createdAt: new Date(),
+    updatedAt: new Date()
+  };
+  const aliceDb = testEnv.authenticatedContext("alice").firestore();
+  const bobDb = testEnv.authenticatedContext("bob").firestore();
+
+  await assertSucceeds(
+    aliceDb
+      .collection("users")
+      .doc("alice")
+      .collection("notificationTokens")
+      .doc(tokenId)
+      .set(tokenData)
+  );
+  await assertSucceeds(
+    aliceDb
+      .collection("users")
+      .doc("alice")
+      .collection("notificationTokens")
+      .doc(tokenId)
+      .set({ ...tokenData, enabled: false, updatedAt: new Date() })
+  );
+  await assertFails(
+    bobDb
+      .collection("users")
+      .doc("alice")
+      .collection("notificationTokens")
+      .doc("b".repeat(64))
+      .set(tokenData)
+  );
+});
+
 test("items can be created by owner only", async () => {
   const testEnv = await resetEnv();
   const db = testEnv.authenticatedContext("owner").firestore();

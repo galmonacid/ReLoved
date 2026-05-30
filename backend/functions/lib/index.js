@@ -287,6 +287,81 @@ function requireParticipant(conversation, uid) {
 function getConversationId(itemId, interestedUserId) {
     return `${itemId}_${interestedUserId}`;
 }
+function notificationTitleFor(target) {
+    const itemTitle = target.itemTitle.trim() || "your item";
+    return target.recipientIsOwner
+        ? `Someone is interested in ${itemTitle}`
+        : `New reply about ${itemTitle}`;
+}
+function isInvalidMessagingTokenCode(code) {
+    return (code === "messaging/invalid-registration-token" ||
+        code === "messaging/registration-token-not-registered" ||
+        code === "messaging/invalid-argument");
+}
+async function sendChatMessageNotification(target) {
+    const tokensSnap = await db
+        .collection("users")
+        .doc(target.recipientId)
+        .collection("notificationTokens")
+        .where("enabled", "==", true)
+        .limit(500)
+        .get();
+    const tokenRefs = [];
+    for (const tokenDoc of tokensSnap.docs) {
+        const tokenRecord = (tokenDoc.data() || {});
+        const token = typeof tokenRecord.token === "string" ? tokenRecord.token.trim() : "";
+        if (token.length > 0) {
+            tokenRefs.push({ token, ref: tokenDoc.ref });
+        }
+    }
+    if (tokenRefs.length === 0) {
+        return;
+    }
+    const body = target.preview.length > 0 ? target.preview : "Open ReLoved to read their message.";
+    const response = await admin.messaging().sendEachForMulticast({
+        tokens: tokenRefs.map(({ token }) => token),
+        notification: {
+            title: notificationTitleFor(target),
+            body
+        },
+        data: {
+            type: "chat_message",
+            conversationId: target.conversationId,
+            itemId: target.itemId,
+            senderId: target.senderId
+        },
+        apns: {
+            payload: {
+                aps: {
+                    badge: Math.max(0, target.unreadCount),
+                    sound: "default"
+                }
+            }
+        },
+        android: {
+            notification: {
+                sound: "default"
+            }
+        }
+    });
+    const invalidTokenDeletes = [];
+    response.responses.forEach((result, index) => {
+        if (result.success) {
+            return;
+        }
+        const code = result.error?.code;
+        if (isInvalidMessagingTokenCode(code)) {
+            invalidTokenDeletes.push(tokenRefs[index].ref.delete());
+        }
+    });
+    await Promise.all(invalidTokenDeletes);
+    functions.logger.info("chat notification sent", {
+        conversationId: target.conversationId,
+        recipientId: target.recipientId,
+        successCount: response.successCount,
+        failureCount: response.failureCount
+    });
+}
 function getTimestampMs(value) {
     if (typeof value === "number" && Number.isFinite(value)) {
         return value;
@@ -1407,7 +1482,7 @@ exports.sendChatMessage = chatCallable.https.onCall(async (data, context) => {
     });
     const conversationRef = db.collection("conversations").doc(conversationId);
     const rateRef = db.collection("chatRateLimits").doc(senderId);
-    const messageId = await db.runTransaction(async (tx) => {
+    const messageResult = await db.runTransaction(async (tx) => {
         const conversationSnap = await tx.get(conversationRef);
         if (!conversationSnap.exists) {
             throw new functions.https.HttpsError("not-found", "Conversation not found");
@@ -1460,14 +1535,16 @@ exports.sendChatMessage = chatCallable.https.onCall(async (data, context) => {
             ? conversation.interestedUnreadCount
             : 0;
         const preview = text.length > 120 ? `${text.substring(0, 117)}...` : text;
+        const newOwnerUnreadCount = senderId === ownerId ? 0 : ownerUnreadCount + 1;
+        const newInterestedUnreadCount = senderId === interestedUserId ? 0 : interestedUnreadCount + 1;
         tx.set(conversationRef, {
             participants: [ownerId, interestedUserId],
             updatedAt: now,
             lastMessageAt: now,
             lastMessageSenderId: senderId,
             lastMessagePreview: preview,
-            ownerUnreadCount: senderId === ownerId ? 0 : ownerUnreadCount + 1,
-            interestedUnreadCount: senderId === interestedUserId ? 0 : interestedUnreadCount + 1
+            ownerUnreadCount: newOwnerUnreadCount,
+            interestedUnreadCount: newInterestedUnreadCount
         }, { merge: true });
         tx.set(rateRef, {
             lastMessageAt: now,
@@ -1475,14 +1552,38 @@ exports.sendChatMessage = chatCallable.https.onCall(async (data, context) => {
             minuteCount,
             updatedAt: now
         }, { merge: true });
-        return messageRef.id;
+        const recipientId = senderId === ownerId ? interestedUserId : ownerId;
+        return {
+            messageId: messageRef.id,
+            notificationTarget: {
+                recipientId,
+                conversationId,
+                itemId: typeof conversation.itemId === "string" ? conversation.itemId : "",
+                itemTitle: typeof conversation.itemTitle === "string" ? conversation.itemTitle : "your item",
+                senderId,
+                preview,
+                unreadCount: recipientId === ownerId ? newOwnerUnreadCount : newInterestedUnreadCount,
+                recipientIsOwner: recipientId === ownerId
+            }
+        };
     });
+    try {
+        await sendChatMessageNotification(messageResult.notificationTarget);
+    }
+    catch (error) {
+        functions.logger.warn("chat notification failed", {
+            senderId,
+            conversationId,
+            messageId: messageResult.messageId,
+            message: error instanceof Error ? error.message : "unknown"
+        });
+    }
     functions.logger.info("sendChatMessage succeeded", {
         senderId,
         conversationId,
-        messageId
+        messageId: messageResult.messageId
     });
-    return { ok: true, messageId };
+    return { ok: true, messageId: messageResult.messageId };
 });
 exports.markConversationRead = chatCallable.https.onCall(async (data, context) => {
     warnIfMissingAppCheck(context, "markConversationRead");
