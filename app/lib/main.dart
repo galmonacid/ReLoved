@@ -12,6 +12,7 @@ import "src/analytics/app_analytics.dart";
 import "src/config/app_config.dart";
 import "src/config/e2e_config.dart";
 import "src/home/item_detail_screen.dart";
+import "src/notifications/notification_service.dart";
 import "theme/app_theme.dart";
 
 bool _firebaseCoreInitialized = false;
@@ -164,11 +165,13 @@ class _ReLovedAppState extends State<ReLovedApp> {
   void initState() {
     super.initState();
     _initIosDeepLinks();
+    unawaited(NotificationService.initialize(navigatorKey: _navigatorKey));
   }
 
   @override
   void dispose() {
     _linkSubscription?.cancel();
+    unawaited(NotificationService.dispose());
     super.dispose();
   }
 
