@@ -241,6 +241,19 @@ void main() {
 
     expect(find.text("Kids scooter"), findsOneWidget);
     expect(find.textContaining("SW1A · within"), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.text("Reuse what you can. Reduce what you waste."),
+      200,
+      scrollable: find.byType(Scrollable),
+    );
+
+    expect(
+      find.text(
+        "Every pickup keeps useful things in your community and out of landfill.",
+      ),
+      findsOneWidget,
+    );
   });
 }
 

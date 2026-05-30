@@ -823,6 +823,120 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
+  Widget _buildReuseBannerSliver(BuildContext context, List<Item> items) {
+    const bannerRadius = 16.0;
+
+    if (items.isEmpty || _isLoading || _loadError != null) {
+      return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
+
+    final textTheme = Theme.of(context).textTheme;
+    return SliverToBoxAdapter(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Semantics(
+              container: true,
+              label:
+                  "Reuse reminder. Reuse what you can. Reduce what you waste.",
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [AppColors.primary, Color(0xFF6F8F5E)],
+                  ),
+                  borderRadius: BorderRadius.circular(bannerRadius),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.18),
+                      blurRadius: 24,
+                      offset: const Offset(0, 12),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(bannerRadius),
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        right: -36,
+                        top: -44,
+                        child: _ReuseBannerCircle(
+                          size: 148,
+                          color: Colors.white.withValues(alpha: 0.12),
+                        ),
+                      ),
+                      Positioned(
+                        left: -28,
+                        bottom: -44,
+                        child: _ReuseBannerCircle(
+                          size: 128,
+                          color: Colors.white.withValues(alpha: 0.08),
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 56,
+                              height: 56,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(
+                                  bannerRadius,
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.autorenew_rounded,
+                                color: Colors.white,
+                                size: 30,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Reuse what you can. Reduce what you waste.",
+                                    style: textTheme.titleLarge?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                      height: 1.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    "Every pickup keeps useful things in your community and out of landfill.",
+                                    style: textTheme.bodyMedium?.copyWith(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.88,
+                                      ),
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildLoadMoreSliver() {
     if (!_hasMoreResults) {
       return const SliverToBoxAdapter(child: SizedBox(height: 16));
@@ -1009,9 +1123,26 @@ class _SearchScreenState extends State<SearchScreen> {
             else
               _buildResultsSliver(context, items),
             if (!_isLoading && _loadError == null) _buildLoadMoreSliver(),
+            if (!_isLoading && _loadError == null)
+              _buildReuseBannerSliver(context, items),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ReuseBannerCircle extends StatelessWidget {
+  const _ReuseBannerCircle({required this.size, required this.color});
+
+  final double size;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      child: SizedBox.square(dimension: size),
     );
   }
 }
