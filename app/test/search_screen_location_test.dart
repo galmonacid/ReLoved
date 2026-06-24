@@ -242,10 +242,10 @@ void main() {
     expect(find.text("Kids scooter"), findsOneWidget);
     expect(find.textContaining("SW1A · within"), findsOneWidget);
 
-    await tester.scrollUntilVisible(
+    await tester.dragUntilVisible(
       find.text("Reuse what you can. Reduce what you waste."),
-      200,
-      scrollable: find.byType(Scrollable),
+      find.byType(CustomScrollView),
+      const Offset(0, -200),
     );
 
     expect(

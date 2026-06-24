@@ -5,6 +5,7 @@ import "package:app/src/testing/test_keys.dart";
 import "package:app/src/utils/location.dart";
 import "package:flutter/material.dart";
 import "package:flutter_test/flutter_test.dart";
+import "package:image_picker/image_picker.dart";
 import "package:latlong2/latlong.dart";
 
 void main() {
@@ -17,6 +18,7 @@ void main() {
       MaterialApp(
         home: PublishScreen(
           locationBootstrapLoader: () => completer.future,
+          enableLostImageRecovery: false,
           enableBootstrapAnalytics: false,
         ),
       ),
@@ -39,6 +41,7 @@ void main() {
           locationBootstrapLoader: () async =>
               const LocationBootstrapResult.resolved(LatLng(53.48, -2.24)),
           reversePostcodeLookup: (_) async => "M1 1AE",
+          enableLostImageRecovery: false,
           enableBootstrapAnalytics: false,
         ),
       ),
@@ -62,6 +65,7 @@ void main() {
             locationBootstrapLoader: () async =>
                 const LocationBootstrapResult.resolved(LatLng(53.48, -2.24)),
             reversePostcodeLookup: (_) => postcodeCompleter.future,
+            enableLostImageRecovery: false,
             enableBootstrapAnalytics: false,
           ),
         ),
@@ -89,6 +93,7 @@ void main() {
               const LocationBootstrapResult.unavailable(
                 LocationBootstrapFailureReason.permissionDenied,
               ),
+          enableLostImageRecovery: false,
           enableBootstrapAnalytics: false,
         ),
       ),
@@ -103,5 +108,107 @@ void main() {
       find.byKey(const ValueKey(TestKeys.publishLocationAction)),
       findsOneWidget,
     );
+  });
+
+  testWidgets("photo card offers camera and library sources", (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PublishScreen(
+          locationBootstrapLoader: () async =>
+              const LocationBootstrapResult.unavailable(
+                LocationBootstrapFailureReason.permissionDenied,
+              ),
+          enableLostImageRecovery: false,
+          enableBootstrapAnalytics: false,
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.ensureVisible(find.text("Add photo"));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text("Add photo"));
+    await tester.pumpAndSettle();
+
+    expect(find.text("Take photo"), findsOneWidget);
+    expect(find.text("Choose from library"), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey(TestKeys.publishTakePhotoAction)),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey(TestKeys.publishChoosePhotoAction)),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets("take photo action opens the picker with camera source", (
+    tester,
+  ) async {
+    ImageSource? selectedSource;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PublishScreen(
+          locationBootstrapLoader: () async =>
+              const LocationBootstrapResult.unavailable(
+                LocationBootstrapFailureReason.permissionDenied,
+              ),
+          imagePicker: (source) async {
+            selectedSource = source;
+            return null;
+          },
+          enableLostImageRecovery: false,
+          enableBootstrapAnalytics: false,
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.ensureVisible(find.text("Add photo"));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text("Add photo"));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey(TestKeys.publishTakePhotoAction)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(selectedSource, ImageSource.camera);
+  });
+
+  testWidgets("library action opens the picker with gallery source", (
+    tester,
+  ) async {
+    ImageSource? selectedSource;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: PublishScreen(
+          locationBootstrapLoader: () async =>
+              const LocationBootstrapResult.unavailable(
+                LocationBootstrapFailureReason.permissionDenied,
+              ),
+          imagePicker: (source) async {
+            selectedSource = source;
+            return null;
+          },
+          enableLostImageRecovery: false,
+          enableBootstrapAnalytics: false,
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.ensureVisible(find.text("Add photo"));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text("Add photo"));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey(TestKeys.publishChoosePhotoAction)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(selectedSource, ImageSource.gallery);
   });
 }

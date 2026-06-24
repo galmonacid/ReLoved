@@ -28,6 +28,8 @@ class TestKeys {
   static const publishLocationStatus = "publish-location-status";
   static const publishLocationAction = "publish-location-action";
   static const publishLocationTile = "publish-location-tile";
+  static const publishTakePhotoAction = "publish-take-photo-action";
+  static const publishChoosePhotoAction = "publish-choose-photo-action";
   static const itemOpenChatButton = "item-open-chat-button";
   static const itemOpenChatLoading = "item-open-chat-loading";
   static const chatMessageField = "chat-message-field";

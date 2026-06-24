@@ -1,5 +1,6 @@
 import "dart:async";
 
+import "package:flutter/foundation.dart";
 import "package:geolocator/geolocator.dart";
 import "package:latlong2/latlong.dart";
 import "../config/e2e_config.dart";
@@ -28,9 +29,8 @@ class LocationBootstrapStep {
   final LocationBootstrapFailureReason? reason;
 }
 
-typedef LocationBootstrapStepReporter = void Function(
-  LocationBootstrapStep step,
-);
+typedef LocationBootstrapStepReporter =
+    void Function(LocationBootstrapStep step);
 
 class LocationBootstrapResult {
   const LocationBootstrapResult._({
@@ -86,6 +86,7 @@ abstract class LocationAccessClient {
   Future<LocationPermission> requestPermission();
   Future<LatLng> getCurrentLocation({
     LocationAccuracy desiredAccuracy = LocationAccuracy.low,
+    Duration? timeLimit,
   });
   Future<LatLng?> getLastKnownLocation();
   Future<bool> openAppSettings();
@@ -113,9 +114,11 @@ class GeolocatorLocationAccessClient implements LocationAccessClient {
   @override
   Future<LatLng> getCurrentLocation({
     LocationAccuracy desiredAccuracy = LocationAccuracy.low,
+    Duration? timeLimit,
   }) async {
     final position = await Geolocator.getCurrentPosition(
       desiredAccuracy: desiredAccuracy,
+      timeLimit: timeLimit,
     );
     return LatLng(position.latitude, position.longitude);
   }
@@ -142,11 +145,15 @@ class GeolocatorLocationAccessClient implements LocationAccessClient {
 
 Future<LocationBootstrapResult> bootstrapCurrentLocation({
   LocationAccessClient client = const GeolocatorLocationAccessClient(),
-  Duration positionLookupTimeout = const Duration(seconds: 12),
+  Duration positionLookupTimeout = const Duration(seconds: 5),
+  Duration lastKnownLookupTimeout = const Duration(milliseconds: 500),
+  bool? requestPermissionWhenDenied,
   LocationBootstrapStepReporter? onStep,
 }) async {
   if (E2EConfig.enabled) {
-    onStep?.call(const LocationBootstrapStep(phase: "bootstrap", status: "start"));
+    onStep?.call(
+      const LocationBootstrapStep(phase: "bootstrap", status: "start"),
+    );
     onStep?.call(
       const LocationBootstrapStep(phase: "permission", status: "checked"),
     );
@@ -160,7 +167,9 @@ Future<LocationBootstrapResult> bootstrapCurrentLocation({
     return LocationBootstrapResult.resolved(E2EConfig.fixedLocation);
   }
 
-  onStep?.call(const LocationBootstrapStep(phase: "bootstrap", status: "start"));
+  onStep?.call(
+    const LocationBootstrapStep(phase: "bootstrap", status: "start"),
+  );
   final serviceEnabled = await client.isLocationServiceEnabled();
   if (!serviceEnabled) {
     onStep?.call(
@@ -175,21 +184,26 @@ Future<LocationBootstrapResult> bootstrapCurrentLocation({
     );
   }
 
+  final shouldRequestPermission = requestPermissionWhenDenied ?? !kIsWeb;
   var permission = await client.checkPermission();
   if (permission == LocationPermission.denied) {
-    permission = await client.requestPermission();
+    if (shouldRequestPermission) {
+      permission = await client.requestPermission();
+    }
   }
   if (permission == LocationPermission.denied) {
-    onStep?.call(
-      const LocationBootstrapStep(
-        phase: "permission",
-        status: "unavailable",
-        reason: LocationBootstrapFailureReason.permissionDenied,
-      ),
-    );
-    return const LocationBootstrapResult.unavailable(
-      LocationBootstrapFailureReason.permissionDenied,
-    );
+    if (shouldRequestPermission) {
+      onStep?.call(
+        const LocationBootstrapStep(
+          phase: "permission",
+          status: "unavailable",
+          reason: LocationBootstrapFailureReason.permissionDenied,
+        ),
+      );
+      return const LocationBootstrapResult.unavailable(
+        LocationBootstrapFailureReason.permissionDenied,
+      );
+    }
   }
   if (permission == LocationPermission.deniedForever) {
     onStep?.call(
@@ -207,14 +221,32 @@ Future<LocationBootstrapResult> bootstrapCurrentLocation({
     const LocationBootstrapStep(phase: "permission", status: "checked"),
   );
 
+  final lastKnown = await _lastKnownLocationWithin(
+    client,
+    lastKnownLookupTimeout,
+  );
+  if (lastKnown != null) {
+    onStep?.call(
+      const LocationBootstrapStep(
+        phase: "position_lookup",
+        status: "success_cached_last_known",
+        elapsedMs: 0,
+      ),
+    );
+    return LocationBootstrapResult.resolved(lastKnown);
+  }
+
   final stopwatch = Stopwatch()..start();
   onStep?.call(
     const LocationBootstrapStep(phase: "position_lookup", status: "start"),
   );
   try {
-    final location = await client.getCurrentLocation(
-      desiredAccuracy: LocationAccuracy.low,
-    ).timeout(positionLookupTimeout);
+    final location = await client
+        .getCurrentLocation(
+          desiredAccuracy: LocationAccuracy.low,
+          timeLimit: positionLookupTimeout,
+        )
+        .timeout(positionLookupTimeout);
     onStep?.call(
       LocationBootstrapStep(
         phase: "position_lookup",
@@ -224,7 +256,10 @@ Future<LocationBootstrapResult> bootstrapCurrentLocation({
     );
     return LocationBootstrapResult.resolved(location);
   } on TimeoutException {
-    final fallback = await client.getLastKnownLocation();
+    final fallback = await _lastKnownLocationWithin(
+      client,
+      lastKnownLookupTimeout,
+    );
     if (fallback != null) {
       onStep?.call(
         LocationBootstrapStep(
@@ -247,7 +282,10 @@ Future<LocationBootstrapResult> bootstrapCurrentLocation({
       LocationBootstrapFailureReason.lookupTimedOut,
     );
   } catch (_) {
-    final fallback = await client.getLastKnownLocation();
+    final fallback = await _lastKnownLocationWithin(
+      client,
+      lastKnownLookupTimeout,
+    );
     if (fallback != null) {
       onStep?.call(
         LocationBootstrapStep(
@@ -269,6 +307,17 @@ Future<LocationBootstrapResult> bootstrapCurrentLocation({
     return const LocationBootstrapResult.unavailable(
       LocationBootstrapFailureReason.lookupFailed,
     );
+  }
+}
+
+Future<LatLng?> _lastKnownLocationWithin(
+  LocationAccessClient client,
+  Duration timeout,
+) async {
+  try {
+    return await client.getLastKnownLocation().timeout(timeout);
+  } catch (_) {
+    return null;
   }
 }
 

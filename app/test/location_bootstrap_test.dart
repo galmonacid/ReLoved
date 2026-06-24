@@ -95,6 +95,27 @@ void main() {
     );
 
     test(
+      "returns last known location before starting current lookup",
+      () async {
+        final client = _FakeLocationAccessClient(
+          serviceEnabled: true,
+          permission: LocationPermission.whileInUse,
+          currentLocationDelay: const Duration(seconds: 1),
+          lastKnownLocation: const LatLng(40.7128, -74.0060),
+        );
+
+        final result = await bootstrapCurrentLocation(
+          client: client,
+          positionLookupTimeout: const Duration(milliseconds: 10),
+        );
+
+        expect(result.status, LocationBootstrapStatus.resolved);
+        expect(result.location, const LatLng(40.7128, -74.0060));
+        expect(client.currentLocationCalls, 0);
+      },
+    );
+
+    test(
       "returns resolved from last known location when lookup throws",
       () async {
         final result = await bootstrapCurrentLocation(
@@ -125,6 +146,31 @@ void main() {
       expect(result.status, LocationBootstrapStatus.unavailable);
       expect(result.reason, LocationBootstrapFailureReason.lookupTimedOut);
     });
+
+    test(
+      "can skip denied permission request and use timed current lookup",
+      () async {
+        final client = _FakeLocationAccessClient(
+          serviceEnabled: true,
+          permission: LocationPermission.denied,
+          currentLocationDelay: const Duration(milliseconds: 50),
+        );
+
+        final result = await bootstrapCurrentLocation(
+          client: client,
+          positionLookupTimeout: const Duration(milliseconds: 10),
+          requestPermissionWhenDenied: false,
+        );
+
+        expect(client.requestPermissionCalls, 0);
+        expect(
+          client.lastCurrentLocationTimeLimit,
+          const Duration(milliseconds: 10),
+        );
+        expect(result.status, LocationBootstrapStatus.unavailable);
+        expect(result.reason, LocationBootstrapFailureReason.lookupTimedOut);
+      },
+    );
   });
 }
 
@@ -146,6 +192,9 @@ class _FakeLocationAccessClient implements LocationAccessClient {
   final LatLng? lastKnownLocation;
   final bool throwOnCurrentLocation;
   final Duration currentLocationDelay;
+  int currentLocationCalls = 0;
+  int requestPermissionCalls = 0;
+  Duration? lastCurrentLocationTimeLimit;
 
   @override
   Future<LocationPermission> checkPermission() async => permission;
@@ -153,7 +202,10 @@ class _FakeLocationAccessClient implements LocationAccessClient {
   @override
   Future<LatLng> getCurrentLocation({
     LocationAccuracy desiredAccuracy = LocationAccuracy.low,
+    Duration? timeLimit,
   }) async {
+    currentLocationCalls += 1;
+    lastCurrentLocationTimeLimit = timeLimit;
     if (currentLocationDelay > Duration.zero) {
       await Future<void>.delayed(currentLocationDelay);
     }
@@ -177,6 +229,7 @@ class _FakeLocationAccessClient implements LocationAccessClient {
 
   @override
   Future<LocationPermission> requestPermission() async {
+    requestPermissionCalls += 1;
     return requestedPermission ?? permission;
   }
 }

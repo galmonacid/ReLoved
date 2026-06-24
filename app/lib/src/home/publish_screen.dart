@@ -27,6 +27,7 @@ typedef PublishReversePostcodeLookup =
     Future<String?> Function(LatLng location);
 typedef PublishPostcodeLookup =
     Future<PostcodeResult?> Function(String postcode);
+typedef PublishImagePicker = Future<XFile?> Function(ImageSource source);
 
 class PublishScreen extends StatefulWidget {
   const PublishScreen({
@@ -34,12 +35,16 @@ class PublishScreen extends StatefulWidget {
     this.locationBootstrapLoader,
     this.reversePostcodeLookup,
     this.postcodeLookup,
+    this.imagePicker,
+    this.enableLostImageRecovery = true,
     this.enableBootstrapAnalytics = true,
   });
 
   final PublishLocationBootstrapLoader? locationBootstrapLoader;
   final PublishReversePostcodeLookup? reversePostcodeLookup;
   final PublishPostcodeLookup? postcodeLookup;
+  final PublishImagePicker? imagePicker;
+  final bool enableLostImageRecovery;
   final bool enableBootstrapAnalytics;
 
   @override
@@ -66,6 +71,9 @@ class _PublishScreenState extends State<PublishScreen> {
   void initState() {
     super.initState();
     _bootstrapLocation();
+    if (widget.enableLostImageRecovery) {
+      unawaited(_recoverLostImage());
+    }
   }
 
   bool get _isLocationResolving =>
@@ -128,13 +136,43 @@ class _PublishScreenState extends State<PublishScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
+  Future<XFile?> _pickImageFromSource(ImageSource source) {
+    final injectedPicker = widget.imagePicker;
+    if (injectedPicker != null) {
+      return injectedPicker(source);
+    }
+    return _imagePicker.pickImage(
+      source: source,
+      maxWidth: 1600,
+      imageQuality: 75,
+    );
+  }
+
+  Future<void> _recoverLostImage() async {
+    if (kIsWeb) {
+      return;
+    }
     try {
-      final file = await _imagePicker.pickImage(
-        source: ImageSource.gallery,
-        maxWidth: 1600,
-        imageQuality: 75,
-      );
+      final response = await _imagePicker.retrieveLostData();
+      if (response.isEmpty || !mounted || _imageFile != null) {
+        return;
+      }
+      final file = response.files?.first;
+      if (file == null) {
+        return;
+      }
+      setState(() {
+        _imageFile = file;
+        _imageBytes = null;
+      });
+    } catch (_) {
+      // Lost image recovery is best-effort after Android activity restarts.
+    }
+  }
+
+  Future<void> _selectImage(ImageSource source) async {
+    try {
+      final file = await _pickImageFromSource(source);
       if (file == null) {
         return;
       }
@@ -147,10 +185,47 @@ class _PublishScreenState extends State<PublishScreen> {
         _imageBytes = bytes;
       });
     } on PlatformException catch (error) {
-      _showError(error.message ?? "Photo permission denied.");
+      final fallback = source == ImageSource.camera
+          ? "Camera permission denied."
+          : "Photo permission denied.";
+      _showError(error.message ?? fallback);
     } catch (_) {
-      _showError("Could not access the gallery.");
+      _showError(
+        source == ImageSource.camera
+            ? "Could not access the camera."
+            : "Could not access the gallery.",
+      );
     }
+  }
+
+  Future<void> _showPhotoSourceSheet() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              key: const ValueKey(TestKeys.publishTakePhotoAction),
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text("Take photo"),
+              onTap: () => Navigator.of(context).pop(ImageSource.camera),
+            ),
+            ListTile(
+              key: const ValueKey(TestKeys.publishChoosePhotoAction),
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text("Choose from library"),
+              onTap: () => Navigator.of(context).pop(ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) {
+      return;
+    }
+    await _selectImage(source);
   }
 
   Future<void> _pickLocation() async {
@@ -511,6 +586,7 @@ class _PublishScreenState extends State<PublishScreen> {
       _postcodeController.clear();
       setState(() {
         _imageFile = null;
+        _imageBytes = null;
         _location = null;
         _contactPreference = ContactPreference.both;
       });
@@ -707,22 +783,61 @@ class _PublishScreenState extends State<PublishScreen> {
             const SizedBox(height: 24),
             PressableScale(
               child: InkWell(
-                onTap: _pickImage,
+                onTap: _isLoading ? null : _showPhotoSourceSheet,
                 borderRadius: BorderRadius.circular(16),
                 child: Card(
                   clipBehavior: Clip.antiAlias,
                   child: AspectRatio(
                     aspectRatio: 4 / 3,
                     child: _imageFile != null
-                        ? (kIsWeb
-                              ? Image.memory(
-                                  _imageBytes ?? Uint8List(0),
-                                  fit: BoxFit.cover,
-                                )
-                              : Image.file(
-                                  File(_imageFile!.path),
-                                  fit: BoxFit.cover,
-                                ))
+                        ? Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              kIsWeb
+                                  ? Image.memory(
+                                      _imageBytes ?? Uint8List(0),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : Image.file(
+                                      File(_imageFile!.path),
+                                      fit: BoxFit.cover,
+                                    ),
+                              Positioned(
+                                right: 12,
+                                bottom: 12,
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.62),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                          Icons.edit_outlined,
+                                          color: Colors.white,
+                                          size: 18,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          "Change photo",
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .labelLarge
+                                              ?.copyWith(color: Colors.white),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
                         : Center(
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
@@ -733,14 +848,14 @@ class _PublishScreenState extends State<PublishScreen> {
                                 ),
                                 const SizedBox(height: 12),
                                 Text(
-                                  "Select photo",
+                                  "Add photo",
                                   style: Theme.of(
                                     context,
                                   ).textTheme.titleMedium,
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  "Tap to choose from gallery",
+                                  "Take a new photo or choose from library",
                                   style: Theme.of(context).textTheme.bodySmall
                                       ?.copyWith(color: AppColors.muted),
                                 ),

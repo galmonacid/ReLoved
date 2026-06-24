@@ -55,6 +55,8 @@
 	<string>Allow access to your location to show nearby items and improve matching in your area.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Allow access to your location to set an approximate area.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Allow access to take a photo of the item you want to post.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Allow access to select a photo for your item.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

@@ -115,6 +115,95 @@ class ProfileScreen extends StatelessWidget {
     }
   }
 
+  void _showSupportLegalSheet(
+    BuildContext parentContext,
+    User user,
+    Future<bool> supportUiFuture,
+  ) {
+    showModalBottomSheet<void>(
+      context: parentContext,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: FutureBuilder<bool>(
+            future: supportUiFuture,
+            builder: (sheetContentContext, snapshot) {
+              final supportUiEnabled = snapshot.data == true;
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                    child: Text(
+                      "Support & legal",
+                      style: Theme.of(
+                        sheetContentContext,
+                      ).textTheme.titleMedium,
+                    ),
+                  ),
+                  if (supportUiEnabled)
+                    ListTile(
+                      leading: const Icon(Icons.help_outline),
+                      title: const Text("About & support"),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () {
+                        Navigator.of(sheetContext).pop();
+                        Navigator.of(parentContext).push(
+                          MaterialPageRoute(
+                            builder: (_) => const AboutSupportScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ListTile(
+                    leading: const Icon(Icons.privacy_tip_outlined),
+                    title: const Text("Privacy policy"),
+                    trailing: const Icon(Icons.open_in_new),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _openUrl(parentContext, AppConfig.privacyPolicyUrl);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.description_outlined),
+                    title: const Text("Terms of service"),
+                    trailing: const Icon(Icons.open_in_new),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _openUrl(parentContext, AppConfig.termsUrl);
+                    },
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: const Icon(Icons.delete_outline),
+                    title: const Text("Delete account"),
+                    textColor: AppColors.error,
+                    iconColor: AppColors.error,
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _requestDeletion(parentContext, user);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.logout),
+                    title: const Text("Sign out"),
+                    textColor: AppColors.error,
+                    iconColor: AppColors.error,
+                    onTap: () async {
+                      Navigator.of(sheetContext).pop();
+                      await FirebaseAuth.instance.signOut();
+                    },
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
   void _showConfigMissing(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -300,74 +389,20 @@ class ProfileScreen extends StatelessWidget {
                     },
                   ),
                 ),
-                const SizedBox(height: 24),
-                Text(
-                  "Support & legal",
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
                 const SizedBox(height: 12),
                 PressableScale(
                   child: Card(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        FutureBuilder<bool>(
-                          future: supportUiFuture,
-                          builder: (context, snapshot) {
-                            if (snapshot.data != true) {
-                              return const SizedBox.shrink();
-                            }
-                            return Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                ListTile(
-                                  title: const Text("About & support"),
-                                  trailing: const Icon(Icons.chevron_right),
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            const AboutSupportScreen(),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                const Divider(height: 1),
-                              ],
-                            );
-                          },
-                        ),
-                        ListTile(
-                          title: const Text("Privacy policy"),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () =>
-                              _openUrl(context, AppConfig.privacyPolicyUrl),
-                        ),
-                        const Divider(height: 1),
-                        ListTile(
-                          title: const Text("Terms of service"),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () => _openUrl(context, AppConfig.termsUrl),
-                        ),
-                        const Divider(height: 1),
-                        ListTile(
-                          title: const Text("Delete account"),
-                          trailing: const Icon(Icons.chevron_right),
-                          textColor: AppColors.error,
-                          iconColor: AppColors.error,
-                          onTap: () => _requestDeletion(context, user),
-                        ),
-                        const Divider(height: 1),
-                        ListTile(
-                          title: const Text("Sign out"),
-                          trailing: const Icon(Icons.chevron_right),
-                          textColor: AppColors.error,
-                          iconColor: AppColors.error,
-                          onTap: () async {
-                            await FirebaseAuth.instance.signOut();
-                          },
-                        ),
-                      ],
+                    child: ListTile(
+                      dense: true,
+                      visualDensity: VisualDensity.compact,
+                      leading: const Icon(Icons.support_agent_outlined),
+                      title: const Text("Support & legal"),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => _showSupportLegalSheet(
+                        context,
+                        user,
+                        supportUiFuture,
+                      ),
                     ),
                   ),
                 ),
