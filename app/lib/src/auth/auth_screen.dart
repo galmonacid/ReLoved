@@ -200,7 +200,7 @@ class _AuthScreenState extends State<AuthScreen> {
   ) async {
     final controller = TextEditingController();
     try {
-      return showDialog<String>(
+      return await showDialog<String>(
         context: context,
         barrierDismissible: false,
         builder: (context) {
