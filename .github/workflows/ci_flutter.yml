@@ -112,6 +112,7 @@ jobs:
           cp public/terms.html app/build/web/terms.html
           cp public/support.html app/build/web/support.html
           cp public/item_link.html app/build/web/item_link.html
+          cp public/tiktokFhVYCTvmIWkhmFdwf0yEQEzTxktF76T6.txt app/build/web/tiktokFhVYCTvmIWkhmFdwf0yEQEzTxktF76T6.txt
           mkdir -p app/build/web/.well-known
           cp public/.well-known/apple-app-site-association app/build/web/.well-known/apple-app-site-association
           cp public/apple-app-site-association app/build/web/apple-app-site-association
